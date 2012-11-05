@@ -34,28 +34,22 @@ module m3_ice(
 
 wire reset = ~PB[1];
 
-//UART module
-wire [7:0] uart_rx_data;
-wire [7:0] uart_tx_data;
-wire uart_tx_latch;
-wire uart_tx_empty;
-wire uart_rx_latch;
-// 20MHz -> 115200 baud -> DIVIDE_FACTOR = 173.6
-uart #(174) u1(
+ice_controller ic1(
 	.reset(reset),
 	.clk(SYS_CLK),
-	.rx_in(USB_UART_TXD),
-	.tx_out(USB_UART_RXD),
-	.tx_latch(uart_tx_latch),
-	.tx_data(uart_tx_data),
-	.tx_empty(uart_tx_empty),
-	.rx_data(uart_rx_data),
-	.rx_latch(uart_rx_latch)
-);
 
-//For now, we're just going to echo everything received and display the current byte on the LEDs
-assign uart_tx_latch = uart_rx_latch;
-assign uart_tx_data = uart_rx_data;
-assign LED[8:1] = uart_rx_data;
+	.USB_UART_TXD(USB_UART_TXD),
+	.USB_UART_RXD(USB_UART_RXD),
+
+	.PINT_WRREQ(PINT_WRREQ),
+	.PINT_WRDATA(PINT_WRDATA),
+	.PINT_CLK(PINT_CLK),
+	.PINT_RESETN(PINT_RESETN),
+	.PINT_RDREQ(PINT_RDREQ),
+	.PINT_RDRDY(PINT_RDRDY),
+	.PINT_RDDATA(PINT_RDDATA),
+
+	.debug(LED[8:1])
+);
 
 endmodule

@@ -23,7 +23,7 @@ module pint_int(
 	input PINT_RDDATA
 );
 
-parameter BAUD_DIV = 8;
+parameter BAUD_DIV = 8; //TODO: What does this need to be set to???
 
 //For now, I'm just going to assume that the RESETN signal works by itself
 assign PINT_RESETN = ~reset;

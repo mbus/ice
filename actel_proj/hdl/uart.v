@@ -2,7 +2,7 @@
 // Design Name : uart 
 // File Name   : uart.v
 // Function    : Simple UART
-// Coder       : Deepak Kumar Tala (w/ some annotations and modifications from Ben Kempke)
+// Coder       : Deepak Kumar Tala (w/ significant annotations and modifications from Ben Kempke)
 // Pulled from : http://www.asic-world.com/examples/verilog/uart.html on 11/1/2012
 //----------------------------------------------------------------------------------------
 module uart (
