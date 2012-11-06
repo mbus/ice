@@ -4,8 +4,8 @@ module character_decoder(
 	
 	output is_hex_char,
 	output [3:0] hex_decode,
-	output is_cmd,
-	output [3:0] cmd,
+	output reg is_cmd,
+	output reg [3:0] cmd,
 	output is_eol
 );
 
@@ -18,7 +18,7 @@ always @* begin
 	cmd = 4'd0;
 
 	if(in_char_valid) begin
-		case(in_char) begin
+		case(in_char)
 			8'h61: begin
 				is_cmd = 1'b1;
 				cmd = 4'd0;
@@ -27,7 +27,7 @@ always @* begin
 				is_cmd = 1'b1;
 				cmd = 4'd1;
 			end
-		end
+		endcase
 	end
 end
 

@@ -1,7 +1,7 @@
 module pint_int(
 	input clk,
 	input reset,
-	output reg busy,
+	output busy,
 	
 	//Controller logic signals
 	input tx_req_latch,
@@ -9,12 +9,12 @@ module pint_int(
 	input [39:0] tx_data,
 	input [2:0] tx_num_bytes,
 	
-	output rx_latch,
+	output reg rx_latch,
 	output [2:0] rx_num_bytes,
 	output reg [39:0] rx_data,
 
 	//PINT signals
-	output PINT_WRREQ,
+	output reg PINT_WRREQ,
 	output PINT_WRDATA,
 	output PINT_CLK,
 	output PINT_RESETN,
@@ -48,7 +48,7 @@ always @(posedge clk) begin
 	//Sync logic for PINT_RDRDY signal
 	pint_rdrdy1 <= PINT_RDRDY;
 	pint_rdrdy2 <= pint_rdrdy1;
-	PINT_RDDREQ <= 1'b0;
+	PINT_RDREQ <= 1'b0;
 	rx_latch <= 1'b0;
 
 	if(reset) begin
@@ -91,7 +91,7 @@ always @(posedge clk) begin
 			
 			else if(baud_tick && pint_clk_int == 1'b1) begin
 				//Falling edge of generated clock
-				rx_data_latched[40:1] <= tx_data_latched[39:0];
+				tx_data_latched[40:1] <= tx_data_latched[39:0];
 				
 				//Unmute clock after command bit has gone through
 				pint_clk_mute <= 1'b0;
@@ -113,8 +113,8 @@ always @(posedge clk) begin
 				rx_in_progress <= 1'b1;
 			end else if(tx_req_latch) begin
 				tx_in_progress <= 1'b1;
-				tx_data_latched <= tx_data;
-				tx_num_bytes_latched <= {tx_cmd_type, tx_num_bytes};
+				tx_data_latched <= {tx_cmd_type, tx_data};
+				tx_num_bytes_latched <= tx_num_bytes;
 				pint_clk_mute <= 1'b1;
 				tx_bit_count <= 1;
 			end

@@ -11,7 +11,7 @@ module ice_controller (
 	output PINT_WRDATA,
 	output PINT_CLK,
 	output PINT_RESETN,
-	output reg PINT_RDREQ,
+	output PINT_RDREQ,
 	input PINT_RDRDY,
 	input PINT_RDDATA,
 
@@ -45,7 +45,7 @@ wire pint_busy;
 reg pint_tx_req_latch;
 reg pint_tx_cmd_type;
 wire [39:0] pint_tx_data;
-reg [2:0] pint_tx_num_bytes;
+wire [2:0] pint_tx_num_bytes;
 wire pint_rx_latch;
 wire [2:0] pint_rx_num_bytes;
 wire [39:0] pint_rx_data;
@@ -88,19 +88,22 @@ character_decoder cd1(
 );
 
 //Controller state machine
-`define STATE_IDLE = 0;
-`define STATE_PINT_SEND0 = 1;
+`define STATE_IDLE 0
+`define STATE_PINT_SEND0 1
+`define STATE_PINT_SEND1 2
 
 reg [5:0] state;
 reg [5:0] next_state;
 reg [3:0] last_cmd;
 reg [39:0] hex_sr;
 reg [3:0] sr_count;
+reg [3:0] valid_sr_count;
 reg sr_clear;
 reg last_is_cmd;
+reg shift_in_hex_data;
 
-assign pint_tx_data = hex_sr;//TODO: This might not be entirely correct....
-assign pint_tx_num_bytes = sr_count[3:1];
+assign pint_tx_data = hex_sr;
+assign pint_tx_num_bytes = valid_sr_count[3:1];
 
 //Sequential logic
 always @(posedge clk) begin
@@ -118,11 +121,12 @@ always @(posedge clk) begin
 			state <= `STATE_IDLE;
 		end
 
-		if(shift_in_hex_data) begin
+		if(shift_in_hex_data || pad_sr_data) begin
 			hex_sr <= {hex_sr[35:0], cd_hex_decode};
 			sr_count <= sr_count + 4'd1;
+			if(shift_in_hex_data) valid_sr_count <= sr_count;
 		end else if(sr_clear) begin
-			sr_count <= 3'd0;
+			sr_count <= 4'd0;
 		end
 	end
 end
@@ -132,9 +136,10 @@ always @* begin
 	next_state = state;
 	shift_in_hex_data = 1'b0;
 	pint_tx_cmd_type = 1'b0;
+	pint_tx_req_latch = 1'b0;
 	sr_clear = 1'b0;
 
-	case(state) begin
+	case(state)
 		//Idle state listens for specific command identifiers
 		`STATE_IDLE: begin
 			if(last_is_cmd && (last_cmd == 4'd0 || last_cmd == 4'd1)) begin
@@ -150,8 +155,15 @@ always @* begin
 				next_state = `STATE_PINT_SEND1;
 			end
 		end
-
+		
 		`STATE_PINT_SEND1: begin
+			pad_sr_data = 1'b1;
+			if(sr_count == 4'd8) begin
+				next_state = `STATE_PINT_SEND2;
+			end
+		end
+
+		`STATE_PINT_SEND2: begin
 			if(last_cmd == 4'd1) begin
 				pint_tx_cmd_type = 1'b1;
 			end
@@ -161,7 +173,7 @@ always @* begin
 			sr_clear = 1'b1;
 			next_state = `STATE_PINT_SEND0;//TODO: Does this need to take into account the pint busy signal???
 		end
-	end
+	endcase
 end
 
 endmodule
