@@ -147,7 +147,6 @@ begin
 
 				if (pulse_count > 9) begin
 					// Data is stable after 1000ns
-					next_pulse_count = pulse_count;
 					next_c_pull_mid = 1'b0;
 				end else begin
 					next_pulse_count = pulse_count + `TICK_WIDTH'd1;
@@ -180,7 +179,7 @@ begin
 				end
 			end
 
-		`STATE_BITS0_7_HIGH_LOW:
+		`STATE_BITS0_7_HIGH_LOW://TODO: These should be able to be combined
 			begin
 				next_slave_scl_drive = 1'b1;
 				next_slave_scl_value = 1'b1;
