@@ -40,16 +40,11 @@ reg [3:0] next_state;
 
 `define STATE_NONE               4'd0
 `define STATE_START              4'd1
-`define STATE_BITS0_7_LOW        4'd2
-`define STATE_BITS0_7_HIGH_HIGH  4'd3
-`define STATE_BITS0_7_HIGH_LOW   4'd4
-`define STATE_ACK_LOW            4'd5
-`define STATE_ACK_HIGH           4'd6
-`define STATE_STOP               4'd7
-`define STATE_ERROR1             4'd12
-`define STATE_ERROR2             4'd13
-`define STATE_ERROR3             4'd14
-`define STATE_ERROR4             4'd15
+`define STATE_BITS0_7_SCL_LOW    4'd2
+`define STATE_BITS0_7_SCL_HIGH   4'd3
+`define STATE_ACK_SCL_LOW        4'd4
+`define STATE_ACK_SCL_HIGH       4'd5
+`define STATE_STOP               4'd6
 
 reg [1:0] master;
 reg [1:0] next_master;
@@ -61,6 +56,8 @@ reg [1:0] next_master;
 wire master_scl;
 wire master_sda;
 wire slave_sda;
+
+reg last_master_sda;
 
 assign master_scl = (master == `MASTER_M) ? SCL_m : (master == `MASTER_C) ? SCL_c : 1'b1;
 assign master_sda = (master == `MASTER_M) ? SDA_m : (master == `MASTER_C) ? SDA_c : 1'b1;
@@ -102,8 +99,8 @@ begin
 	next_slave_scl_value = slave_scl_value;
 	next_slave_sda_value = slave_sda_value;
 	
-	next_master_scl_drive = master_scl_drive;
-	next_master_sda_drive = master_sda_drive;
+	next_master_sda_drive = master_scl_drive;
+	next_master_sda_value = master_sda_value;
 
 	// Always 0 except a few specific cases
 	next_c_pull_mid = 0;
@@ -133,10 +130,10 @@ begin
 				if (master_sda == 1'b1 && master_scl == 1'b1)
 					next_state = `STATE_STOP;
 				else if (master_sda == 1'b0 && master_scl == 1'b0)
-					next_state = `STATE_BITS0_7_LOW;
+					next_state = `STATE_BITS0_7_SCL_LOW;
 			end
 
-		`STATE_BITS0_7_LOW:
+		`STATE_BITS0_7_SCL_LOW:
 			begin
 				next_slave_sda_drive = 1'b1;
 				next_slave_scl_drive = 1'b1;
@@ -155,14 +152,11 @@ begin
 
 				if (master_scl == 1'b1) begin
 					next_bit_count = bit_count + 4'b1;
-					if (master_sda == 1'b1)
-						next_state = `STATE_BITS0_7_HIGH_HIGH;
-					else
-						next_state = `STATE_BITS0_7_HIGH_LOW;
+					next_state = `STATE_BITS0_7_SCL_HIGH;
 				end
 			end
 
-		`STATE_BITS0_7_HIGH_HIGH:
+		`STATE_BITS0_7_SCL_HIGH:
 			begin
 				next_slave_scl_drive = 1'b1;
 				next_slave_scl_value = 1'b1;
@@ -172,34 +166,18 @@ begin
 				if (master_scl == 1'b0) begin
 					if (bit_count == 4'd8) begin
 						next_bit_count = 0;
-						next_state = `STATE_ACK_LOW;
+						next_state = `STATE_ACK_SCL_LOW;
 					end else begin
-						next_state = `STATE_BITS0_7_LOW;
-					end
-				end
-			end
-
-		`STATE_BITS0_7_HIGH_LOW://TODO: These should be able to be combined
-			begin
-				next_slave_scl_drive = 1'b1;
-				next_slave_scl_value = 1'b1;
-
-				next_pulse_count = 0;
-
-				if (master_scl == 1'b0) begin
-					if (bit_count == 4'd8) begin
-						next_bit_count = 0;
-						next_state = `STATE_ACK_LOW;
-					end else begin
-						next_state = `STATE_BITS0_7_LOW;
+						next_state = `STATE_BITS0_7_SCL_LOW;
 					end
 				end else begin
-					if (master_sda == 1'b1)
+					if(master_sda == 1'b1 && last_master_sda == 1'b0) begin
 						next_state = `STATE_STOP;
+					end
 				end
 			end
 
-		`STATE_ACK_LOW:
+		`STATE_ACK_SCL_LOW:
 			begin
 				next_slave_scl_drive = 1'b1;
 				next_slave_scl_value = 1'b0;
@@ -228,12 +206,12 @@ begin
 				if (master_scl == 1'b1) begin
 					if (! freeze_ack) begin
 						next_pulse_count = 0;
-						next_state = `STATE_ACK_HIGH;
+						next_state = `STATE_ACK_SCL_HIGH;
 					end
 				end
 			end
 
-		`STATE_ACK_HIGH:
+		`STATE_ACK_SCL_HIGH:
 			begin
 				next_slave_scl_drive = 1'b1;
 				next_slave_scl_value = 1'b1;
@@ -244,7 +222,7 @@ begin
 					next_slave_scl_value = 1'b0;
 
 					if (pulse_count > `TICK_WIDTH'd8) begin
-						next_state = `STATE_BITS0_7_LOW;
+						next_state = `STATE_BITS0_7_SCL_LOW;
 						next_pulse_count = 0;
 
 						next_master_sda_drive = 1'b0;
@@ -264,21 +242,17 @@ begin
 
 				next_pulse_count = pulse_count + `TICK_WIDTH'b1;
 
-				if (pulse_count == `TICK_WIDTH'd48) begin
+				if (pulse_count > `TICK_WIDTH'd24) begin
 					next_slave_sda_drive = 1'b0;
 					next_slave_scl_drive = 1'b0;
-
-					next_pulse_count = 0;
-					next_state = `STATE_NONE;	
-				end else if (pulse_count > `TICK_WIDTH'd24) begin
-					next_slave_sda_drive = 1'b0;
-					next_slave_scl_drive = 1'b0;
-				end else begin
-					if (pulse_count > `TICK_WIDTH'd12) begin
+				end else if (pulse_count > `TICK_WIDTH'd12) begin
 						// it's been long enough now to release the clock line
 						next_slave_scl_drive = 1'b0;
 					end
 				end
+				
+				if (pulse_count == `TICK_WIDTH'd48)
+					next_state = `STATE_NONE;
 			end
 	endcase
 end
@@ -337,32 +311,24 @@ end
 
 always @(posedge clock)
 begin
+	last_master_sda <= master_sda;
+	master <= next_master;
+	bit_count <= next_bit_count;
+	pulse_count <= next_pulse_count;	
+	c_pull_mid <= next_c_pull_mid;	
+	
+	slave_scl_drive <= next_slave_scl_drive;
+	slave_sda_drive <= next_slave_sda_drive;
+	master_sda_drive <= next_master_sda_drive;
+	
+	slave_scl_value <= next_slave_scl_value;
+	slave_sda_value <= next_slave_sda_value;
+	master_sda_value <= next_master_sda_value;
+	
 	if (reset) begin
 		state <= `STATE_NONE;
-		master <= `MASTER_NONE;
-		bit_count <= 0;
-		pulse_count <= 0;
-
-		slave_scl_drive <= 1'b0;
-		slave_sda_drive <= 1'b0;
-		master_sda_drive <= 1'b0;
-		
-		c_pull_mid <= 1'b0;
 	end else begin
 		state <= next_state;
-		master <= next_master;
-		bit_count <= next_bit_count;
-		pulse_count <= next_pulse_count;
-		
-		slave_scl_drive <= next_slave_scl_drive;
-		slave_sda_drive <= next_slave_sda_drive;
-		master_sda_drive <= next_master_sda_drive;
-		
-		slave_scl_value <= next_slave_scl_value;
-		slave_sda_value <= next_slave_sda_value;
-		master_sda_value <= next_master_sda_value;
-
-		c_pull_mid <= next_c_pull_mid;
 	end
 end
 
