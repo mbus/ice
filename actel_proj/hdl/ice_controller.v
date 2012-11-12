@@ -81,20 +81,21 @@ pint_int pi1(
 wire [7:0] disc_rx_char;
 wire disc_rx_char_latch;
 wire disc_rx_req;
-wire [7:0] disc_fifo_char;
-wire disc_fifo_latch;
+wire [7:0] disc_fifo_data;
 wire disc_fifo_valid;
-fifo #(8,16) f01(
+reg disc_fifo_latch;
+reg disc_tx_latch, disc_tx_req;
+fifo #(8,4) f01(
 	.clk(clk),
 	.reset(reset),
 	.in(disc_rx_char),
 	.in_latch(disc_rx_char_latch),
-	.out(disc_fifo_char),
+	.out(disc_fifo_data),
 	.out_latch(disc_fifo_latch),
 	.out_valid(disc_fifo_valid)
 );
 
-discrete_int(
+discrete_int di01(
 	.reset(reset),
 	.clk(clk),
 
@@ -118,8 +119,9 @@ discrete_int(
 );
 
 
-//DEBUG: For now, just display what's been decoded from the UART on the debug lines
-assign debug = uart_rx_data;
+//DEBUG:
+//assign debug = uart_rx_data;
+assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 
 wire cd_is_hex;
 wire [3:0] cd_hex_decode;
@@ -137,22 +139,24 @@ character_decoder cd1(
 );
 
 //Controller state machine
-`define STATE_IDLE 0
-`define STATE_PINT_SEND0 1
-`define STATE_PINT_SEND1 2
+parameter STATE_IDLE = 0;
+parameter STATE_PINT_SEND0 = 1;
+parameter STATE_PINT_SEND1 = 2;
+parameter STATE_PINT_SEND2 = 3;
+parameter STATE_DISC_SEND = 4;
 
-reg [5:0] state;
-reg [5:0] next_state;
+reg [3:0] tx_state;
+reg [3:0] next_tx_state;
 reg [3:0] last_cmd;
 reg [39:0] hex_sr;
 reg [3:0] sr_count;
-reg [3:0] valid_sr_count;
+reg [2:0] valid_sr_count;
 reg sr_clear;
 reg last_is_cmd;
-reg shift_in_hex_data;
+reg shift_in_hex_data, pad_sr_data;
 
 assign pint_tx_data = hex_sr;
-assign pint_tx_num_bytes = valid_sr_count[3:1];
+assign pint_tx_num_bytes = valid_sr_count;
 
 //Sequential logic
 always @(posedge clk) begin
@@ -160,20 +164,20 @@ always @(posedge clk) begin
 	last_is_cmd <= 1'b0;
 
 	if(reset) begin
-		state <= `STATE_IDLE;
+		tx_state <= STATE_IDLE;
 	end else begin
-		state <= next_state;
+		tx_state <= next_tx_state;
 		//Commands automatically push state to IDLE
 		if(cd_is_cmd) begin
 			last_cmd <= cd_cmd;
 			last_is_cmd <= 1'b1;
-			state <= `STATE_IDLE;
+			tx_state <= STATE_IDLE;
 		end
 
 		if(shift_in_hex_data || pad_sr_data) begin
 			hex_sr <= {hex_sr[35:0], cd_hex_decode};
 			sr_count <= sr_count + 4'd1;
-			if(shift_in_hex_data) valid_sr_count <= sr_count;
+			if(shift_in_hex_data) valid_sr_count <= sr_count[3:1];
 		end else if(sr_clear) begin
 			sr_count <= 4'd0;
 		end
@@ -182,42 +186,43 @@ end
 
 //Next-state logic (For TX state machine)
 always @* begin
-	next_state = state;
+	next_tx_state = tx_state;
 	shift_in_hex_data = 1'b0;
+	pad_sr_data = 1'b0;
 	pint_tx_cmd_type = 1'b0;
 	pint_tx_req_latch = 1'b0;
 	sr_clear = 1'b0;
 	disc_tx_latch = 1'b0;
 	disc_tx_req = 1'b0;
 
-	case(state)
+	case(tx_state)
 		//Idle state listens for specific command identifiers
-		`STATE_IDLE: begin
+		STATE_IDLE: begin
 			if(last_is_cmd) begin
 				if(last_cmd == 4'd0 || last_cmd == 4'd1)
-					next_state = `STATE_PINT_SEND0;
+					next_tx_state = STATE_PINT_SEND0;
 				else if(last_cmd == 4'd2) 
-					next_state = `STATE_DISC_SEND;
+					next_tx_state = STATE_DISC_SEND;
 			end
 		end
 
 		//These three states take care of all outgoing PINT requests
-		`STATE_PINT_SEND0: begin
+		STATE_PINT_SEND0: begin
 			if(cd_is_hex) begin
 				shift_in_hex_data = 1'b1;
 			end else if(cd_is_eol) begin
-				next_state = `STATE_PINT_SEND1;
+				next_tx_state = STATE_PINT_SEND1;
 			end
 		end
 		
-		`STATE_PINT_SEND1: begin
+		STATE_PINT_SEND1: begin
 			pad_sr_data = 1'b1;
 			if(sr_count == 4'd8) begin
-				next_state = `STATE_PINT_SEND2;
+				next_tx_state = STATE_PINT_SEND2;
 			end
 		end
 
-		`STATE_PINT_SEND2: begin
+		STATE_PINT_SEND2: begin
 			if(last_cmd == 4'd1) begin
 				pint_tx_cmd_type = 1'b1;
 			end
@@ -225,17 +230,17 @@ always @* begin
 				pint_tx_req_latch = 1'b1;
 			end
 			sr_clear = 1'b1;
-			next_state = `STATE_PINT_SEND0;//TODO: Does this need to take into account the pint busy signal???
+			next_tx_state = STATE_PINT_SEND0;//TODO: Does this need to take into account the pint busy signal???
 		end
 		
-		`STATE_DISC_SEND: begin
+		STATE_DISC_SEND: begin
 			if(cd_is_hex) begin
 				shift_in_hex_data = 1'b1;
 				disc_tx_latch = sr_count[0];
 			end else  if(cd_is_eol) begin
 				disc_tx_latch = 1'b1;
 				disc_tx_req = 1'b1;
-				next_state = `STATE_IDLE;
+				next_tx_state = STATE_IDLE;
 			end
 		end
 	endcase
@@ -247,7 +252,9 @@ end
 `define STATE_RX_IDLE 0
 `define STATE_RX_DISC0 1
 `define STATE_RX_DISC1 2
-`define STATE_RX_DISC2 3
+`define STATE_RX_PINT0 3
+`define STATE_RX_PINT1 4
+`define STATE_RX_END 5
 
 reg [3:0] rx_state;
 reg [3:0] next_rx_state;
@@ -260,8 +267,10 @@ always @* begin
 	
 	case(rx_state)
 		`STATE_RX_IDLE: begin
-			if(disc_rx_char)
+			if(disc_rx_req)
 				next_rx_state = `STATE_RX_DISC0;
+			else if(pint_rx_latch)
+				next_rx_state = `STATE_RX_PINT0;
 		end
 		
 		`STATE_RX_DISC0: begin
@@ -276,10 +285,23 @@ always @* begin
 			uart_tx_data = disc_fifo_data;
 			disc_fifo_latch = uart_tx_latch;
 			if(!disc_fifo_valid)
-				next_rx_state = `STATE_RX_DISC2;
+				next_rx_state = `STATE_RX_END;
 		end
 		
-		`STATE_RX_DISC2: begin
+		`STATE_RX_PINT0: begin
+			uart_tx_latch = uart_tx_empty;
+			uart_tx_data = 8'h61;
+			if(uart_tx_empty)
+				next_rx_state = `STATE_RX_PINT1;
+		end
+		
+		`STATE_RX_PINT1: begin
+			uart_tx_latch = 1;
+			uart_tx_data = pint_rx_data[7:0];//TODO: This needs to be filled in differently
+			next_rx_state = `STATE_RX_END;
+		end
+		
+		`STATE_RX_END: begin
 			uart_tx_latch = uart_tx_empty;
 			uart_tx_data = 8'h0a;
 			if(uart_tx_empty)

@@ -41,7 +41,7 @@ wire [7:0] fifo_char;
 wire fifo_valid;
 wire fifo_req;
 reg fifo_latch;
-fifo #(9,16) f1(
+fifo #(9,4) f1(
 	.clk(clk),
 	.reset(reset),
 	.in({tx_req, tx_char}),
@@ -71,6 +71,9 @@ parameter STATE_TX_STOP2 = 8;
 
 reg [3:0] tx_state;
 reg [3:0] next_tx_state;
+reg sda_drive, scl_drive;
+reg sda_drive_val, scl_drive_val;
+reg tx_req_hist;
 
 always @* begin
 	next_tx_state = tx_state;
@@ -195,7 +198,7 @@ always @(posedge clk) begin
 			tx_req_hist <= 1'b0;
 	
 		clock_counter <= clock_counter + 1;
-		if(state != next_tx_state)
+		if(tx_state != next_tx_state)
 			clock_counter <= 0;
 
 		if(cur_bit_reset)
@@ -205,11 +208,18 @@ always @(posedge clk) begin
 	end
 end
 
-reg [3:0] rx_state;
-reg [3:0] next_rx_state;
+parameter STATE_RX_IDLE=0;
+parameter STATE_RX_DATA=1;
+parameter STATE_RX_ACK=2;
+
+reg [3:0] rx_state, next_rx_state;
+reg [3:0] rx_counter;
 reg rx_counter_incr;
 reg rx_counter_reset;
 reg rx_shift_out;
+reg next_rx_busy;
+reg sda_db, sda_db_last, sda_db_0;
+reg scl_db, scl_db_last, scl_db_0;
 
 always @* begin
 	next_rx_state = rx_state;
@@ -242,6 +252,7 @@ always @* begin
 		
 		STATE_RX_ACK: begin
 			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
+				rx_req = 1'b1;
 				next_rx_state = STATE_RX_IDLE;
 			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
 				rx_counter_incr = 1'b1;

@@ -18,16 +18,10 @@ always @* begin
 	cmd = 4'd0;
 
 	if(in_char_valid) begin
-		case(in_char)
-			8'h61: begin
-				is_cmd = 1'b1;
-				cmd = 4'd0;
-			end
-			8'h62: begin
-				is_cmd = 1'b1;
-				cmd = 4'd1;
-			end
-		endcase
+		if(in_char >= 8'h61 && in_char <= 8'h63) begin
+			is_cmd = 1'b1;
+			cmd = in_char[3:0]-4'd1;
+		end
 	end
 end
 

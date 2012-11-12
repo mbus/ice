@@ -14,7 +14,16 @@ module m3_ice(
     input FPGA_PINT_RDRDY,
     output FPGA_PINT_CLK,
     output FPGA_PINT_WRDATA,
-    output FPGA_PINT_WRREQ
+    output FPGA_PINT_WRREQ,
+	
+	output SCL_PU,
+    output SDA_PU,
+    output SDA_PD,
+    output SCL_PD,
+    output SCL_TRI,
+    output SDA_TRI,
+    input SCL_DISCRETE_BUF,
+    input SDA_DISCRETE_BUF
 
     /*input FPGA_IO[23:0],
     input FPGA_SPI_TXD,
@@ -22,14 +31,7 @@ module m3_ice(
     input FPGA_SPI_FSSOUT,
     input FPGA_SPI_RXD,
 
-    output SCL_PU,
-    output SDA_PU,
-    output SDA_PD,
-    output SCL_PD,
-    output SCL_TRI,
-    output SDA_TRI,
-    input SCL_DISCRETE_BUF,
-    input SDA_DISCRETE_BUF*/
+    */
 );
 
 wire reset = ~PB[1];
@@ -48,6 +50,15 @@ ice_controller ic1(
 	.PINT_RDREQ(FPGA_PINT_RDREQ),
 	.PINT_RDRDY(FPGA_PINT_RDRDY),
 	.PINT_RDDATA(FPGA_PINT_RDDATA),
+	
+	.SCL_PU(SCL_PU),
+    .SDA_PU(SDA_PU),
+    .SDA_PD(SDA_PD),
+    .SCL_PD(SCL_PD),
+    .SCL_TRI(SCL_TRI),
+    .SDA_TRI(SDA_TRI),
+    .SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
+    .SDA_DISCRETE_BUF(SDA_DISCRETE_BUF),
 
 	.debug(LED[8:1])
 );
