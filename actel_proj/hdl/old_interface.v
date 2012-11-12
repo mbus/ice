@@ -19,9 +19,7 @@ module fuck_libero(
 
 	output reg SDA_mpd,
 	output reg SDA_mpu,
-	output SDA_mp,
-
-	output [7:0] leds
+	output SDA_mp
 );
 
 ///////////////////////////
@@ -49,7 +47,7 @@ reg [3:0] next_state;
 reg [1:0] master;
 reg [1:0] next_master;
 
-`define MASTER_NONE	             2'b00
+`define MASTER_NONE             2'b00
 `define MASTER_M                 2'b01
 `define MASTER_C                 2'b10
 
@@ -376,10 +374,7 @@ end
 assign SCL_mp = SCL_mpd | SCL_mpu;
 assign SDA_mp = SDA_mpd | SDA_mpu;
 
-//assign SCL_m_inout = (SCL_mpd) ? 1'b0 : (SCL_mpu) ? 1'b1 : 1'bz;
 assign SCL_c_inout = (SCL_cpd) ? 1'b0 : 1'bz;
-
-//assign SDA_m_inout = (SDA_mpd) ? 1'b0 : (SDA_mpu) ? 1'b1 : 1'bz;
 assign SDA_c_inout = (SDA_cpd) ? 1'b0 : 1'bz;
 
 endmodule // interface
