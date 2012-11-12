@@ -197,48 +197,48 @@
 #    -DIRECTION Input
 #
 #
-#set_io FPGA_PINT_CLK   \
-#    -pinname 69        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io FPGA_PINT_RDDATA  \
-#    -pinname 71          \
-#    -fixed yes           \
-#    -DIRECTION Input
-#
-#
-#set_io FPGA_PINT_RDRDY  \
-#    -pinname 70         \
-#    -fixed yes          \
-#    -DIRECTION Input
-#
-#
-#set_io FPGA_PINT_RDREQ  \
-#    -pinname 72         \
-#    -fixed yes          \
-#    -DIRECTION Output
-#
-#
-#set_io FPGA_PINT_RESETN  \
-#    -pinname 73          \
-#    -fixed yes           \
-#    -DIRECTION Output
-#
-#
-#set_io FPGA_PINT_WRDATA  \
-#    -pinname 65          \
-#    -fixed yes           \
-#    -DIRECTION Output
-#
-#
-#set_io FPGA_PINT_WRREQ  \
-#    -pinname 64         \
-#    -fixed yes          \
-#    -DIRECTION Output
-#
-#
+set_io FPGA_PINT_CLK   \
+    -pinname 69        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io FPGA_PINT_RDDATA  \
+    -pinname 71          \
+    -fixed yes           \
+    -DIRECTION Input
+
+
+set_io FPGA_PINT_RDRDY  \
+    -pinname 70         \
+    -fixed yes          \
+    -DIRECTION Input
+
+
+set_io FPGA_PINT_RDREQ  \
+    -pinname 72         \
+    -fixed yes          \
+    -DIRECTION Output
+
+
+set_io FPGA_PINT_RESETN  \
+    -pinname 73          \
+    -fixed yes           \
+    -DIRECTION Output
+
+
+set_io FPGA_PINT_WRDATA  \
+    -pinname 65          \
+    -fixed yes           \
+    -DIRECTION Output
+
+
+set_io FPGA_PINT_WRREQ  \
+    -pinname 64         \
+    -fixed yes          \
+    -DIRECTION Output
+
+
 #set_io FPGA_SPI_CLKOUT  \
 #    -pinname 22         \
 #    -fixed yes          \
@@ -399,54 +399,54 @@ set_io {PB[1]}            \
 #    -DIRECTION Input
 #
 #
-#set_io SCL_DISCRETE_BUF  \
-#    -pinname 8           \
-#    -fixed yes           \
-#    -DIRECTION Input
-#
-#
-#set_io SCL_PD          \
-#    -pinname 15        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io SCL_PU          \
-#    -pinname 19        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io SCL_TRI         \
-#    -pinname 11        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io SDA_DISCRETE_BUF  \
-#    -pinname 7           \
-#    -fixed yes           \
-#    -DIRECTION Input
-#
-#
-#set_io SDA_PD          \
-#    -pinname 13        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io SDA_PU          \
-#    -pinname 16        \
-#    -fixed yes         \
-#    -DIRECTION Output
-#
-#
-#set_io SDA_TRI         \
-#    -pinname 10        \
-#    -fixed yes         \
-#    -DIRECTION Output
+set_io SCL_DISCRETE_BUF  \
+    -pinname 8           \
+    -fixed yes           \
+    -DIRECTION Input
 
 
+set_io SCL_PD          \
+    -pinname 15        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io SCL_PU          \
+    -pinname 19        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io SCL_TRI         \
+    -pinname 11        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io SDA_DISCRETE_BUF  \
+    -pinname 7           \
+    -fixed yes           \
+    -DIRECTION Input
+
+
+set_io SDA_PD          \
+    -pinname 13        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io SDA_PU          \
+    -pinname 16        \
+    -fixed yes         \
+    -DIRECTION Output
+
+
+set_io SDA_TRI         \
+    -pinname 10        \
+    -fixed yes         \
+    -DIRECTION Output
+
+	
 set_io SYS_CLK            \
     -pinname 98           \
     -fixed yes            \

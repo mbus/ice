@@ -1,25 +1,37 @@
 module discrete_int(
 	input clk,
 	input reset,
-
-	input SDA_m,
-	input SCL_m,
-
-	output SDA_mpu,
-	output SDA_mpd,
-	output SDA_mp,
-	output SCL_mpu,
-	output SCL_mpd,
-	output SCL_mp,
+	
+	input SCL_DISCRETE_BUF,
+	output SCL_PD,
+	output SCL_PU,
+	output SCL_TRI,
+	
+	input SDA_DISCRETE_BUF,
+	output SDA_PD,
+	output SDA_PU,
+	output SDA_TRI,
 
 	input [7:0] tx_char,
 	input tx_char_latch,
 	input tx_req,
 
-	output [7:0] rx_char,
-	output rx_char_latch,
-	output rx_req
+	output reg [7:0] rx_char,
+	output reg rx_char_latch,
+	output reg rx_req
 );
+
+reg SDA_mpu;
+reg SDA_mpd;
+assign SDA_PD = SDA_mpd;
+assign SDA_PU = ~SDA_mpu;
+assign SDA_TRI = SDA_mpd | SDA_mpu;
+
+reg SCL_mpu;
+reg SCL_mpd;
+assign SCL_PD = SCL_mpd;
+assign SCL_PU = ~SCL_mpu;
+assign SCL_TRI = SCL_mpd | SCL_mpu;
 
 parameter clock_div = 25;
 
@@ -29,7 +41,7 @@ wire [7:0] fifo_char;
 wire fifo_valid;
 wire fifo_req;
 reg fifo_latch;
-fifo #(9,256) f1(
+fifo #(9,16) f1(
 	.clk(clk),
 	.reset(reset),
 	.in({tx_req, tx_char}),
@@ -39,6 +51,7 @@ fifo #(9,256) f1(
 	.out_valid(fifo_valid)
 );
 
+reg rx_busy;
 reg tx_req_clear;
 reg cur_bit_decr;
 reg cur_bit_reset;
@@ -164,6 +177,12 @@ always @* begin
 end
 
 always @(posedge clk) begin
+	SCL_mpu <= (scl_drive) ? ((scl_drive_val) ? 1'b1 : 1'b0) : 1'b0;
+	SCL_mpd <= (scl_drive) ? ((scl_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+	
+	SDA_mpu <= (sda_drive) ? ((sda_drive_val) ? 1'b1 : 1'b0) : 1'b0;
+	SDA_mpd <= (sda_drive) ? ((sda_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+
 	if(reset) begin
 		clock_counter <= 0;
 		tx_req_hist <= 1'b0;
@@ -186,8 +205,80 @@ always @(posedge clk) begin
 	end
 end
 
+reg [3:0] rx_state;
+reg [3:0] next_rx_state;
+reg rx_counter_incr;
+reg rx_counter_reset;
+reg rx_shift_out;
+
 always @* begin
 	next_rx_state = rx_state;
+	next_rx_busy = 1'b1;
+	rx_counter_incr = 1'b0;
+	rx_counter_reset = 1'b0;
+	rx_char_latch = 1'b0;
+	rx_req = 1'b0;
+	rx_shift_out = 1'b0;
+	
+	case(rx_state)
+		STATE_RX_IDLE: begin
+			next_rx_busy = 1'b0;
+			rx_counter_reset = 1'b1;
+			if(sda_db == 1'b0)
+				next_rx_state = STATE_RX_DATA;
+		end
+		
+		STATE_RX_DATA: begin
+			if(scl_db_last == 1'b0 && scl_db == 1'b1) begin
+				rx_counter_incr = 1'b1;
+				rx_shift_out = 1'b1;
+				if(rx_counter == 4'd7) begin
+					rx_counter_reset = 1'b1;
+					rx_char_latch = 1'b1;
+					next_rx_state = STATE_RX_ACK;
+				end
+			end
+		end
+		
+		STATE_RX_ACK: begin
+			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
+				next_rx_state = STATE_RX_IDLE;
+			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
+				rx_counter_incr = 1'b1;
+				if(rx_counter == 4'd1) begin
+					rx_counter_reset = 1'b1;
+					next_rx_state = STATE_RX_DATA;
+				end
+			end
+		end
+	endcase
+end
+
+always @(posedge clk) begin
+	rx_busy <= next_rx_busy;
+	
+	//Debouncing for SDA & SCL
+	sda_db_0 <= SDA_DISCRETE_BUF;
+	sda_db <= sda_db_0;
+	scl_db_0 <= SCL_DISCRETE_BUF;
+	scl_db <= scl_db_0;
+	
+	sda_db_last <= sda_db;
+	scl_db_last <= scl_db;
+	
+	if(rx_counter_incr)
+		rx_counter <= rx_counter + 1;
+	else if(rx_counter_reset)
+		rx_counter <= 0;
+		
+	if(rx_shift_out)
+		rx_char <= {rx_char[6:0], sda_db};
+	
+	if(reset) begin
+		rx_state <= STATE_RX_IDLE;
+	end else begin
+		rx_state <= next_rx_state;
+	end
 end
 
 endmodule
