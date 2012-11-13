@@ -4,10 +4,10 @@ module pint_int(
 	output busy,
 	
 	//Controller logic signals
-	input tx_req_latch,
+	input tx_req,
 	input tx_cmd_type,
-	input [39:0] tx_data,
-	input [2:0] tx_num_bytes,
+	input [7:0] tx_char,
+	input tx_char_latch,
 	
 	output reg rx_latch,
 	output [2:0] rx_num_bytes,
@@ -20,25 +20,42 @@ module pint_int(
 	output PINT_RESETN,
 	output reg PINT_RDREQ,
 	input PINT_RDRDY,
-	input PINT_RDDATA
+	input PINT_RDDATA,
+	
+	output [7:0] debug
 );
 
-parameter BAUD_DIV = 8; //TODO: What does this need to be set to???
+parameter BAUD_DIV = 25; //TODO: What does this need to be set to???
+
+//FIFO to queue up outgoing transmissions.  An extra bit to denote frame boundaries...
+//NOTE: Make sure this doesn't overfill
+wire [7:0] fifo_char;
+wire fifo_valid;
+wire fifo_req;
+reg fifo_latch;
+fifo #(9,4) f1(
+	.clk(clk),
+	.reset(reset),
+	.in({tx_req, tx_char}),
+	.in_latch(tx_char_latch | tx_req),
+	.out({fifo_req, fifo_char}),
+	.out_latch(fifo_latch),
+	.out_valid(fifo_valid)
+);
 
 //For now, I'm just going to assume that the RESETN signal works by itself
 assign PINT_RESETN = ~reset;
 
 reg pint_rdrdy2, pint_rdrdy1;
 reg tx_in_progress, rx_in_progress;
-reg [40:0] tx_data_latched;
-reg [2:0] tx_num_bytes_latched;
+reg [8:0] tx_data_latched;
 reg [15:0] baud_ctr;
 reg [5:0] rx_bit_count;
-reg [5:0] tx_bit_count;
+reg [3:0] tx_bit_count;
 reg pint_clk_mute, pint_clk_int;
 
 assign rx_num_bytes = rx_bit_count[5:3];
-assign PINT_WRDATA = tx_data_latched[40];
+assign PINT_WRDATA = tx_data_latched[8];
 assign PINT_CLK = (pint_clk_mute) ? 1'b0 : pint_clk_int;
 
 assign busy = (tx_in_progress | rx_in_progress);
@@ -50,6 +67,7 @@ always @(posedge clk) begin
 	pint_rdrdy2 <= pint_rdrdy1;
 	PINT_RDREQ <= 1'b0;
 	rx_latch <= 1'b0;
+	fifo_latch <= 1'b0;
 
 	if(reset) begin
 		tx_in_progress <= 1'b0;
@@ -91,16 +109,22 @@ always @(posedge clk) begin
 			
 			else if(baud_tick && pint_clk_int == 1'b1) begin
 				//Falling edge of generated clock
-				tx_data_latched[40:1] <= tx_data_latched[39:0];
+				tx_data_latched[8:1] <= tx_data_latched[7:0];
 				
 				//Unmute clock after command bit has gone through
 				pint_clk_mute <= 1'b0;
 				
 				//Check to see if we're done sending all the bytes
 				tx_bit_count <= tx_bit_count + 1;
-				if(tx_bit_count[5:3] == tx_num_bytes_latched) begin
-					PINT_WRREQ <= 1'b0;
-					tx_in_progress <= 1'b0;
+				if(tx_bit_count == 4'd8) begin
+					tx_bit_count <= 1;
+					tx_data_latched <= {fifo_char,1'b0};
+					fifo_latch <= 1'b1;
+					if(fifo_req) begin //END Case: Got a dummy fifo_req bit...
+						PINT_WRREQ <= 1'b0;
+						tx_in_progress <= 1'b0;
+						fifo_latch <= 1'b1;
+					end
 				end
 			end
 		end
@@ -111,15 +135,17 @@ always @(posedge clk) begin
 			rx_bit_count <= 6'd0;
 			if(pint_rdrdy2) begin
 				rx_in_progress <= 1'b1;
-			end else if(tx_req_latch) begin
+			end else if(tx_req) begin
 				tx_in_progress <= 1'b1;
-				tx_data_latched <= {tx_cmd_type, tx_data};
-				tx_num_bytes_latched <= tx_num_bytes;
+				tx_data_latched <= {tx_cmd_type, fifo_char};
+				fifo_latch <= 1'b1;
 				pint_clk_mute <= 1'b1;
-				tx_bit_count <= 1;
+				tx_bit_count <= 0;
 			end
 		end
 	end
 end
+
+assign debug = {tx_in_progress, rx_in_progress, tx_req, tx_cmd_type};
 
 endmodule
