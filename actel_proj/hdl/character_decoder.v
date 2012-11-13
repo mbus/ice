@@ -9,7 +9,7 @@ module character_decoder(
 	output is_eol
 );
 
-assign is_hex_char = (in_char_valid && ((in_char >= 8'h30) && (in_char <= 8'h39)) || ((in_char >= 8'h41) && (in_char <= 8'h46)));
+assign is_hex_char = (in_char_valid && (((in_char >= 8'h30) && (in_char <= 8'h39)) || ((in_char >= 8'h41) && (in_char <= 8'h46))));
 assign hex_decode = (in_char <= 8'h40) ? in_char[3:0] : (in_char[3:0] + 4'd9);
 assign is_eol = (in_char_valid && (in_char == 8'h0d || in_char == 8'h0A));
 

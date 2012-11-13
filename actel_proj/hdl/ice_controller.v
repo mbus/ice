@@ -109,7 +109,7 @@ discrete_int di01(
 	.SDA_PU(SDA_PU),
 	.SDA_TRI(SDA_TRI),
 
-	.tx_char(hex_sr[7:0]),
+	.tx_char({hex_sr[3:0],cd_hex_decode}),
 	.tx_char_latch(disc_tx_latch),
 	.tx_req(disc_tx_req),
 
@@ -122,6 +122,7 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
+//assign debug = {uart_rx_latch, uart_rx_data[6:0]};
 
 wire cd_is_hex;
 wire [3:0] cd_hex_decode;
@@ -238,6 +239,7 @@ always @* begin
 				shift_in_hex_data = 1'b1;
 				disc_tx_latch = sr_count[0];
 			end else  if(cd_is_eol) begin
+				sr_clear = 1'b1;
 				disc_tx_latch = 1'b1;
 				disc_tx_req = 1'b1;
 				next_tx_state = STATE_IDLE;

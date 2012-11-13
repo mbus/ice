@@ -34,7 +34,13 @@ module m3_ice(
     */
 );
 
-wire reset = ~PB[1];
+wire reset;
+
+debounce_ms db0(
+	.clk_in(SYS_CLK),
+	.db_in(~PB[1]),
+	.db_out(reset)
+);
 
 ice_controller ic1(
 	.reset(reset),

@@ -15,7 +15,8 @@ output out_valid;
 
 //Locals
 reg [DATA_WIDTH-1:0] ram [DEPTH-1:0];
-reg [DEPTH_LOG2-1:0] read_ptr, write_ptr;
+reg [DEPTH_LOG2-1:0] read_ptr;
+reg [DEPTH_LOG2-1:0] write_ptr;
 
 assign out_valid = (read_ptr != write_ptr);
 assign out = ram[read_ptr];

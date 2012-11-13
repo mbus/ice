@@ -33,7 +33,7 @@ assign SCL_PD = SCL_mpd;
 assign SCL_PU = ~SCL_mpu;
 assign SCL_TRI = SCL_mpd | SCL_mpu;
 
-parameter clock_div = 25;
+parameter clock_div = 24;
 
 //FIFO to queue up outgoing transmissions.  An extra bit to denote frame boundaries...
 //NOTE: Make sure this doesn't overfill
@@ -98,9 +98,12 @@ always @* begin
 			tx_req_clear = 1'b1;
 			sda_drive = 1'b1;
 			scl_drive = 1'b1;
-			sda_drive_val = 1'b0;
+			if(clock_counter <= clock_div)
+				sda_drive_val = 1'b1;
+			else
+				sda_drive_val = 1'b0;
 			cur_bit_reset = 1'b1;
-			if(clock_counter == clock_div)
+			if(clock_counter == clock_div*2)
 				next_tx_state = STATE_TX_SCL_LOW;
 		end
 
@@ -141,7 +144,7 @@ always @* begin
 			scl_drive_val = 1'b1;
 			cur_bit_reset = 1'b1;
 			if(clock_counter == clock_div) begin
-				if(fifo_req == 1'b1)
+				if(fifo_req == 1'b0 && fifo_valid)
 					next_tx_state = STATE_TX_SCL_LOW;
 				else
 					next_tx_state = STATE_TX_STOP0;
@@ -170,7 +173,7 @@ always @* begin
 			scl_drive = 1'b1;
 			scl_drive_val = 1'b1;
 			sda_drive = 1'b1;
-			sda_drive_val = 1'b0;
+			sda_drive_val = 1'b1;
 			if(clock_counter == clock_div) begin
 				fifo_latch = 1'b1;
 				next_tx_state = STATE_IDLE;
