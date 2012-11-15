@@ -23,7 +23,9 @@ module m3_ice(
     output SCL_TRI,
     output SDA_TRI,
     input SCL_DISCRETE_BUF,
-    input SDA_DISCRETE_BUF
+    input SDA_DISCRETE_BUF,
+	
+	input FPGA_IO[1:0]
 
     /*input FPGA_IO[23:0],
     input FPGA_SPI_TXD,
@@ -65,6 +67,9 @@ ice_controller ic1(
     .SDA_TRI(SDA_TRI),
     .SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
     .SDA_DISCRETE_BUF(SDA_DISCRETE_BUF),
+	
+	.SCL_DIG(FPGA_IO[0]),
+	.SDA_DIG(FPGA_IO[1]),
 
 	.debug(LED[8:1])
 );

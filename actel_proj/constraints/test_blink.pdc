@@ -55,18 +55,18 @@
 #    -DIRECTION Input
 #
 #
-#set_io {FPGA_IO[0]}   \
-#    -pinname 63       \
-#    -fixed yes        \
-#    -DIRECTION Input
-#
-#
-#set_io {FPGA_IO[1]}   \
-#    -pinname 62       \
-#    -fixed yes        \
-#    -DIRECTION Input
-#
-#
+set_io {FPGA_IO[0]}   \
+    -pinname 63       \
+    -fixed yes        \
+    -DIRECTION Input
+
+
+set_io {FPGA_IO[1]}   \
+    -pinname 62       \
+    -fixed yes        \
+    -DIRECTION Input
+
+
 #set_io {FPGA_IO[2]}   \
 #    -pinname 61       \
 #    -fixed yes        \

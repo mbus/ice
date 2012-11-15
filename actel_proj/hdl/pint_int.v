@@ -74,7 +74,7 @@ always @(posedge clk) begin
 		rx_in_progress <= 1'b0;
 		baud_ctr <= 16'd0;
 		pint_clk_int <= 1'b0;
-		pint_clk_mute <= 1'b0;
+		pint_clk_mute <= 1'b1;
 		PINT_WRREQ <= 1'b0;
 	end else begin
 		//Default behavior is to let the PINT clock run
@@ -121,6 +121,7 @@ always @(posedge clk) begin
 					tx_data_latched <= {fifo_char,1'b0};
 					fifo_latch <= 1'b1;
 					if(fifo_req) begin //END Case: Got a dummy fifo_req bit...
+						pint_clk_mute <= 1'b1;
 						PINT_WRREQ <= 1'b0;
 						tx_in_progress <= 1'b0;
 						fifo_latch <= 1'b1;

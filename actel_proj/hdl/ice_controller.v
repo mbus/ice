@@ -24,6 +24,10 @@ module ice_controller (
 	output SDA_PD,
 	output SDA_PU,
 	output SDA_TRI,
+	
+	//PINT Debug signals
+	input SCL_DIG,
+	input SDA_DIG,
 
 	//Debug signals
 	output [7:0] debug
@@ -138,7 +142,8 @@ discrete_int di01(
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 //assign debug = {uart_rx_latch, uart_rx_data[6:0]};
-assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
+//assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
+assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 
 //Controller state machine
 parameter STATE_IDLE = 0;

@@ -21,11 +21,13 @@ module discrete_int(
 	output reg rx_req
 );
 
+reg sda_drive_real;
+
 reg SDA_mpu;
 reg SDA_mpd;
 assign SDA_PD = SDA_mpd;
 assign SDA_PU = ~SDA_mpu;
-assign SDA_TRI = SDA_mpd | SDA_mpu;
+assign SDA_TRI = sda_drive_real;
 
 reg SCL_mpu;
 reg SCL_mpd;
@@ -89,9 +91,8 @@ always @* begin
 	
 	case(tx_state)
 		STATE_IDLE: begin
-			if(tx_req_hist && !rx_busy) begin
+			if(tx_req_hist)//TODO: This needs to be in here at some point... "&& !rx_busy)"
 				next_tx_state = STATE_TX_START;
-			end
 		end
 
 		STATE_TX_START: begin
@@ -100,11 +101,16 @@ always @* begin
 			scl_drive = 1'b1;
 			if(clock_counter <= clock_div)
 				sda_drive_val = 1'b1;
-			else
-				sda_drive_val = 1'b0;
+			else begin
+				if(fifo_req == 1'b1) //Jump to the stop bit in case this is a blank I2C transaction (special for M3)
+					next_tx_state = STATE_TX_STOP1;
+				else
+					sda_drive_val = 1'b0;
+			end
 			cur_bit_reset = 1'b1;
-			if(clock_counter == clock_div*2)
+			if(clock_counter == clock_div*2) begin
 				next_tx_state = STATE_TX_SCL_LOW;
+			end
 		end
 
 		STATE_TX_SCL_LOW: begin
@@ -182,17 +188,45 @@ always @* begin
 	endcase
 end
 
+reg [7:0] sda_drive_counter;
 always @(posedge clk) begin
+	
 	SCL_mpu <= (scl_drive) ? ((scl_drive_val) ? 1'b1 : 1'b0) : 1'b0;
 	SCL_mpd <= (scl_drive) ? ((scl_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+		
+	//Everything SDA is delayed by 1/4 cycle
+	if(clock_counter >= (clock_div >> 2)) begin
+		SDA_mpu <= (sda_drive) ? ((sda_drive_val) ? 1'b1 : 1'b0) : 1'b0;
+		SDA_mpd <= (sda_drive) ? ((sda_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+	end
 	
-	SDA_mpu <= (sda_drive) ? ((sda_drive_val) ? 1'b1 : 1'b0) : 1'b0;
-	SDA_mpd <= (sda_drive) ? ((sda_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+	//Every time we stop driving SDA, we should pull it high first
+	if(!sda_drive) begin
+		if(sda_drive_counter <= (clock_div >> 3)) begin
+			sda_drive_counter <= sda_drive_counter + 1;
+			sda_drive_real <= 1'b1;
+			SDA_mpu <= 1'b1;
+			SDA_mpd <= 1'b0;
+		end else if(sda_drive_counter <= (clock_div >> 2)) begin
+			sda_drive_counter <= sda_drive_counter + 1;
+			sda_drive_real <= 1'b0;
+			SDA_mpu <= 1'b1;
+			SDA_mpd <= 1'b0;
+		end else begin
+			SDA_mpu <= 1'b0;
+			SDA_mpd <= 1'b0;
+		end
+	end else if(sda_drive) begin
+		sda_drive_counter <= 0;
+		sda_drive_real <= 1'b1;
+	end
 
 	if(reset) begin
 		clock_counter <= 0;
 		tx_req_hist <= 1'b0;
 		tx_state <= STATE_IDLE;
+		sda_drive_real <= 1'b0;
+		sda_drive_counter <= 0;
 	end else begin
 		tx_state <= next_tx_state;
 
