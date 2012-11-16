@@ -91,7 +91,7 @@ always @* begin
 	
 	case(tx_state)
 		STATE_IDLE: begin
-			if(tx_req_hist)//TODO: This needs to be in here at some point... "&& !rx_busy)"
+			if(tx_req_hist && !rx_busy)
 				next_tx_state = STATE_TX_START;
 		end
 
@@ -258,7 +258,7 @@ reg [3:0] rx_counter;
 reg rx_counter_incr;
 reg rx_counter_reset;
 reg rx_shift_out;
-reg next_rx_busy;
+reg next_rx_busy, next_rx_char_latch;
 reg sda_db, sda_db_last, sda_db_0;
 reg scl_db, scl_db_last, scl_db_0;
 
@@ -267,7 +267,7 @@ always @* begin
 	next_rx_busy = 1'b1;
 	rx_counter_incr = 1'b0;
 	rx_counter_reset = 1'b0;
-	rx_char_latch = 1'b0;
+	next_rx_char_latch = 1'b0;
 	rx_req = 1'b0;
 	rx_shift_out = 1'b0;
 	
@@ -275,7 +275,7 @@ always @* begin
 		STATE_RX_IDLE: begin
 			next_rx_busy = 1'b0;
 			rx_counter_reset = 1'b1;
-			if(sda_db == 1'b0)
+			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_rx_state = STATE_RX_DATA;
 		end
 		
@@ -285,9 +285,14 @@ always @* begin
 				rx_shift_out = 1'b1;
 				if(rx_counter == 4'd7) begin
 					rx_counter_reset = 1'b1;
-					rx_char_latch = 1'b1;
+					next_rx_char_latch = 1'b1;
 					next_rx_state = STATE_RX_ACK;
 				end
+			end
+			//If we've seen a stop bit, proceed to go, collect $200
+			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
+				rx_req = 1'b1;
+				next_rx_state = STATE_RX_IDLE;
 			end
 		end
 		
@@ -296,6 +301,7 @@ always @* begin
 				rx_req = 1'b1;
 				next_rx_state = STATE_RX_IDLE;
 			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
+				//TODO: Need some sort of address matching in here!!!
 				rx_counter_incr = 1'b1;
 				if(rx_counter == 4'd1) begin
 					rx_counter_reset = 1'b1;
@@ -318,10 +324,12 @@ always @(posedge clk) begin
 	sda_db_last <= sda_db;
 	scl_db_last <= scl_db;
 	
-	if(rx_counter_incr)
-		rx_counter <= rx_counter + 1;
-	else if(rx_counter_reset)
+	rx_char_latch <= next_rx_char_latch;
+	
+	if(rx_counter_reset)
 		rx_counter <= 0;
+	else if(rx_counter_incr)
+		rx_counter <= rx_counter + 1;
 		
 	if(rx_shift_out)
 		rx_char <= {rx_char[6:0], sda_db};

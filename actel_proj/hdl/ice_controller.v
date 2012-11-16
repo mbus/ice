@@ -150,6 +150,19 @@ discrete_int di01(
 	.rx_req(disc_rx_req)
 );
 
+//Character encoder to hex-encode FIFO data
+reg cur_interface;
+reg which_hex_char;
+wire [7:0] ce_in = (cur_interface) ? disc_fifo_data : pint_fifo_data;
+wire [7:0] ce_out;
+wire ce_valid = (cur_interface) ? disc_fifo_valid : pint_fifo_valid;
+character_encoder ce0(
+	.char_in(ce_in),
+	.which_hex_char(which_hex_char),
+	
+	.out(ce_out)
+);
+
 
 //DEBUG:
 //assign debug = uart_rx_data;
@@ -260,60 +273,56 @@ end
  * RX State Machine
  *********************/
 `define STATE_RX_IDLE 0
-`define STATE_RX_DISC0 1
-`define STATE_RX_DISC1 2
-`define STATE_RX_PINT0 3
-`define STATE_RX_PINT1 4
-`define STATE_RX_END 5
+`define STATE_RX0 1
+`define STATE_RX1 2
+`define STATE_RX_END 3
 
 reg [3:0] rx_state;
 reg [3:0] next_rx_state;
-
+reg latch_interface, which_interface;
+reg switch_hex_char;
+//reg which_hex_char;
 always @* begin
 	next_rx_state = rx_state;
 	uart_tx_latch = 1'b0;
 	uart_tx_data = 8'd0;
 	disc_fifo_latch = 1'b0;
 	pint_fifo_latch = 1'b0;
+	latch_interface = 1'b0;
+	which_interface = 1'b0;
+	switch_hex_char = 1'b0;
 	
 	case(rx_state)
 		`STATE_RX_IDLE: begin
-			if(disc_rx_req)
-				next_rx_state = `STATE_RX_DISC0;
-			else if(pint_rx_latch)
-				next_rx_state = `STATE_RX_PINT0;
+			latch_interface = 1'b1;
+			if(disc_rx_req) begin
+				which_interface = 1'b1;
+				next_rx_state = `STATE_RX0;
+			end else if(pint_rx_latch) begin
+				which_interface = 1'b0;
+				next_rx_state = `STATE_RX0;
+			end
 		end
 		
-		`STATE_RX_DISC0: begin
+		`STATE_RX0: begin
 			uart_tx_latch = uart_tx_empty;
-			uart_tx_data = 8'h63;
+			uart_tx_data = (cur_interface) ? 8'h63 : 8'h61;
 			if(uart_tx_empty)
-				next_rx_state = `STATE_RX_DISC1;
+				next_rx_state = `STATE_RX1;
 		end
 		
-		`STATE_RX_DISC1: begin //TODO: At some point should make this a little more robust (what if multiple sequences come in over I2C before one is finished transferring over-the-line?)
-			uart_tx_latch = uart_tx_empty & disc_fifo_valid;
-			uart_tx_data = disc_fifo_data;
-			disc_fifo_latch = uart_tx_latch;
-			if(!disc_fifo_valid)
+		`STATE_RX1: begin //TODO: At some point should make this a little more robust (what if multiple sequences come in over I2C before one is finished transferring over-the-line?)
+			uart_tx_latch = uart_tx_empty & ce_valid;
+			uart_tx_data = ce_out;
+			switch_hex_char = uart_tx_latch;
+			if(cur_interface)
+				disc_fifo_latch = uart_tx_latch & which_hex_char;
+			else
+				pint_fifo_latch = uart_tx_latch & which_hex_char;
+			if(!ce_valid)
 				next_rx_state = `STATE_RX_END;
 		end
-		
-		`STATE_RX_PINT0: begin //TODO: This is all essentially the same as the discrete stuff... may as well just combine them...
-			uart_tx_latch = uart_tx_empty;
-			uart_tx_data = 8'h61;
-			if(uart_tx_empty)
-				next_rx_state = `STATE_RX_PINT1;
-		end
-		
-		`STATE_RX_PINT1: begin
-			uart_tx_latch = uart_tx_empty & pint_fifo_valid;
-			uart_tx_data = pint_fifo_data;
-			pint_fifo_latch = uart_tx_latch;
-			if(!pint_fifo_valid)
-				next_rx_state = `STATE_RX_END;
-		end
-		
+
 		`STATE_RX_END: begin
 			uart_tx_latch = uart_tx_empty;
 			uart_tx_data = 8'h0a;
@@ -326,7 +335,13 @@ end
 always @(posedge clk) begin
 	if(reset) begin
 		rx_state <= `STATE_RX_IDLE;
+		cur_interface <= 1'b0;
+		which_hex_char <= 1'b0;
 	end else begin
+		if(latch_interface)
+			cur_interface <= which_interface;
+		if(switch_hex_char)
+			which_hex_char <= ~which_hex_char;
 		rx_state <= next_rx_state;
 	end
 end
