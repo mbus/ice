@@ -35,7 +35,7 @@ assign SCL_PD = SCL_mpd;
 assign SCL_PU = ~SCL_mpu;
 assign SCL_TRI = SCL_mpd | SCL_mpu;
 
-parameter clock_div = 24;
+parameter clock_div = 99;
 
 //FIFO to queue up outgoing transmissions.  An extra bit to denote frame boundaries...
 //NOTE: Make sure this doesn't overfill
@@ -194,20 +194,19 @@ always @(posedge clk) begin
 	SCL_mpu <= (scl_drive) ? ((scl_drive_val) ? 1'b1 : 1'b0) : 1'b0;
 	SCL_mpd <= (scl_drive) ? ((scl_drive_val) ? 1'b0 : 1'b1) : 1'b0;
 		
-	//Everything SDA is delayed by 1/4 cycle
-	if(clock_counter >= (clock_div >> 2)) begin
-		SDA_mpu <= (sda_drive) ? ((sda_drive_val) ? 1'b1 : 1'b0) : 1'b0;
-		SDA_mpd <= (sda_drive) ? ((sda_drive_val) ? 1'b0 : 1'b1) : 1'b0;
-	end
+	
 	
 	//Every time we stop driving SDA, we should pull it high first
 	if(!sda_drive) begin
-		if(sda_drive_counter <= (clock_div >> 3)) begin
+		if(sda_drive_counter <= 11) begin
+			sda_drive_counter <= sda_drive_counter + 1;
+			sda_drive_real <= 1'b1;
+		end else if(sda_drive_counter <= 23) begin
 			sda_drive_counter <= sda_drive_counter + 1;
 			sda_drive_real <= 1'b1;
 			SDA_mpu <= 1'b1;
 			SDA_mpd <= 1'b0;
-		end else if(sda_drive_counter <= (clock_div >> 2)) begin
+		end else if(sda_drive_counter <= 24) begin
 			sda_drive_counter <= sda_drive_counter + 1;
 			sda_drive_real <= 1'b0;
 			SDA_mpu <= 1'b1;
@@ -217,8 +216,13 @@ always @(posedge clk) begin
 			SDA_mpd <= 1'b0;
 		end
 	end else if(sda_drive) begin
-		sda_drive_counter <= 0;
-		sda_drive_real <= 1'b1;
+		//Everything SDA is delayed by 1/4 cycle
+		if(clock_counter >= (clock_div >> 2)) begin
+			SDA_mpu <= (sda_drive) ? ((sda_drive_val) ? 1'b1 : 1'b0) : 1'b0;
+			SDA_mpd <= (sda_drive) ? ((sda_drive_val) ? 1'b0 : 1'b1) : 1'b0;
+			sda_drive_counter <= 0;
+			sda_drive_real <= 1'b1;
+		end
 	end
 
 	if(reset) begin

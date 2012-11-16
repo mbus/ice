@@ -74,8 +74,21 @@ reg pint_tx_char_latch;
 reg pint_tx_cmd_type;
 reg [3:0] hex_sr;
 wire pint_rx_latch;
-wire [2:0] pint_rx_num_bytes;
-wire [39:0] pint_rx_data;
+wire [7:0] pint_rx_data;
+wire pint_rx_req;
+wire [7:0] pint_fifo_data;
+reg pint_fifo_latch;
+wire pint_fifo_valid;
+fifo #(8,4) f00(
+	.clk(clk),
+	.reset(reset),
+	.in(pint_rx_data),
+	.in_latch(pint_rx_latch),
+	.out(pint_fifo_data),
+	.out_latch(pint_fifo_latch),
+	.out_valid(pint_fifo_valid)
+);
+
 pint_int pi1(
 	.reset(reset),
 	.clk(clk),
@@ -86,7 +99,7 @@ pint_int pi1(
 	.tx_char_latch(pint_tx_char_latch),
 	.rx_latch(pint_rx_latch),
 	.rx_data(pint_rx_data),
-	.rx_num_bytes(pint_rx_num_bytes),
+	.rx_req(pint_rx_req),
 	.PINT_WRREQ(PINT_WRREQ),
 	.PINT_WRDATA(PINT_WRDATA),
 	.PINT_CLK(PINT_CLK),
@@ -140,10 +153,10 @@ discrete_int di01(
 
 //DEBUG:
 //assign debug = uart_rx_data;
-//assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
+assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 //assign debug = {uart_rx_latch, uart_rx_data[6:0]};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
-assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
+//assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 
 //Controller state machine
 parameter STATE_IDLE = 0;
@@ -261,6 +274,7 @@ always @* begin
 	uart_tx_latch = 1'b0;
 	uart_tx_data = 8'd0;
 	disc_fifo_latch = 1'b0;
+	pint_fifo_latch = 1'b0;
 	
 	case(rx_state)
 		`STATE_RX_IDLE: begin
@@ -285,7 +299,7 @@ always @* begin
 				next_rx_state = `STATE_RX_END;
 		end
 		
-		`STATE_RX_PINT0: begin
+		`STATE_RX_PINT0: begin //TODO: This is all essentially the same as the discrete stuff... may as well just combine them...
 			uart_tx_latch = uart_tx_empty;
 			uart_tx_data = 8'h61;
 			if(uart_tx_empty)
@@ -293,9 +307,11 @@ always @* begin
 		end
 		
 		`STATE_RX_PINT1: begin
-			uart_tx_latch = 1;
-			uart_tx_data = pint_rx_data[7:0];//TODO: This needs to be filled in differently
-			next_rx_state = `STATE_RX_END;
+			uart_tx_latch = uart_tx_empty & pint_fifo_valid;
+			uart_tx_data = pint_fifo_data;
+			pint_fifo_latch = uart_tx_latch;
+			if(!pint_fifo_valid)
+				next_rx_state = `STATE_RX_END;
 		end
 		
 		`STATE_RX_END: begin
