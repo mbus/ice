@@ -31,9 +31,9 @@ reg ack;
 
 reg SDA_mpu;
 reg SDA_mpd;
-assign SDA_PD = (ack) ? 1'b0 : SDA_mpd;
-assign SDA_PU = (ack) ? 1'b0 : ~SDA_mpu;
-assign SDA_TRI = (ack) ? sda_drive_real : 1'b1;
+assign SDA_PD = (ack) ? 1'b1 : SDA_mpd;
+assign SDA_PU = (ack) ? 1'b1 : ~SDA_mpu;
+assign SDA_TRI = (ack) ? 1'b1 : sda_drive_real;
 
 reg SCL_mpu;
 reg SCL_mpd;
@@ -301,6 +301,7 @@ always @* begin
 			next_rx_busy = 1'b0;
 			rx_counter_reset = 1'b1;
 			addr_enable = 1'b1;
+			ack_reset = 1'b1;
 			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_rx_state = STATE_RX_DATA;
 		end

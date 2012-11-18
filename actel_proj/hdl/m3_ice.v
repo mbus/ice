@@ -38,15 +38,19 @@ module m3_ice(
 
 wire reset;
 
+//Stupid Actel-specific global clock buffer assignment...
+wire SYS_CLK_BUF;
+CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
+
 debounce_ms db0(
-	.clk_in(SYS_CLK),
+	.clk_in(SYS_CLK_BUF),
 	.db_in(~PB[1]),
 	.db_out(reset)
 );
 
 ice_controller ic1(
 	.reset(reset),
-	.clk(SYS_CLK),
+	.clk(SYS_CLK_BUF),
 
 	.USB_UART_TXD(USB_UART_TXD),
 	.USB_UART_RXD(USB_UART_RXD),
