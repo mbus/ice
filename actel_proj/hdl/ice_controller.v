@@ -229,6 +229,8 @@ always @* begin
 	sr_clear = 1'b0;
 	disc_tx_latch = 1'b0;
 	disc_tx_req = 1'b0;
+	disc_addr_latch = 1'b0;
+	disc_addr_req = 1'b0;
 
 	case(tx_state)
 		//Idle state listens for specific command identifiers
