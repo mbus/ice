@@ -1,3 +1,4 @@
+//TODO: At some point this module should just be dedicated to hex decoding... need to move everything else over to a shared bus architecture....
 module character_decoder(
 	input [7:0] in_char,
 	input in_char_valid,
@@ -18,7 +19,7 @@ always @* begin
 	cmd = 4'd0;
 
 	if(in_char_valid) begin
-		if(in_char >= 8'h61 && in_char <= 8'h63) begin
+		if(in_char >= 8'h61 && in_char <= 8'h64) begin
 			is_cmd = 1'b1;
 			cmd = in_char[3:0]-4'd1;
 		end

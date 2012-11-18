@@ -12,6 +12,11 @@ module discrete_int(
 	output SDA_PU,
 	output SDA_TRI,
 
+	//I2C address match interface
+	input [7:0] addr_match_char,
+	input addr_match_latch,
+	input addr_match_reset,
+
 	input [7:0] tx_char,
 	input tx_char_latch,
 	input tx_req,
@@ -22,12 +27,13 @@ module discrete_int(
 );
 
 reg sda_drive_real;
+reg ack;
 
 reg SDA_mpu;
 reg SDA_mpd;
-assign SDA_PD = SDA_mpd;
-assign SDA_PU = ~SDA_mpu;
-assign SDA_TRI = sda_drive_real;
+assign SDA_PD = (ack) ? 1'b0 : SDA_mpd;
+assign SDA_PU = (ack) ? 1'b0 : ~SDA_mpu;
+assign SDA_TRI = (ack) ? sda_drive_real : 1'b1;
 
 reg SCL_mpu;
 reg SCL_mpd;
@@ -193,8 +199,6 @@ always @(posedge clk) begin
 	
 	SCL_mpu <= (scl_drive) ? ((scl_drive_val) ? 1'b1 : 1'b0) : 1'b0;
 	SCL_mpd <= (scl_drive) ? ((scl_drive_val) ? 1'b0 : 1'b1) : 1'b0;
-		
-	
 	
 	//Every time we stop driving SDA, we should pull it high first
 	if(!sda_drive) begin
@@ -261,6 +265,23 @@ reg rx_shift_out;
 reg next_rx_busy, next_rx_char_latch;
 reg sda_db, sda_db_last, sda_db_0;
 reg scl_db, scl_db_last, scl_db_0;
+reg addr_enable, addr_disable, cur_addr_flag;
+reg [7:0] cur_addr;
+reg ack_set, ack_reset;
+
+//Address matching RAM (can accept any I2C address)
+wire [7:0] cur_addr_word;
+reg [3:0] addr_match_addr;
+ram #(8,4) addrMatchRam(
+	.clk(clk),
+	.reset(reset),
+	.in_data(addr_match_char),
+	.in_addr(addr_match_addr),
+	.in_latch(addr_match_latch),
+	.out_addr(cur_addr[7:4]),
+	.out_data(cur_addr_word)
+);
+wire addr_match = cur_addr_word[cur_addr[3:1]];
 
 always @* begin
 	next_rx_state = rx_state;
@@ -270,11 +291,16 @@ always @* begin
 	next_rx_char_latch = 1'b0;
 	rx_req = 1'b0;
 	rx_shift_out = 1'b0;
+	addr_enable = 1'b0;
+	addr_disable = 1'b0;
+	ack_set = 1'b0;
+	ack_reset = 1'b0;
 	
 	case(rx_state)
 		STATE_RX_IDLE: begin
 			next_rx_busy = 1'b0;
 			rx_counter_reset = 1'b1;
+			addr_enable = 1'b1;
 			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_rx_state = STATE_RX_DATA;
 		end
@@ -297,13 +323,18 @@ always @* begin
 		end
 		
 		STATE_RX_ACK: begin
+			//According to the 'mm3 sensor node - I2C.pptx' documentation, I can just pull down for ACK during the whole cycle without any repercussions
+			addr_disable = 1'b1;
 			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
 				rx_req = 1'b1;
 				next_rx_state = STATE_RX_IDLE;
 			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
+				if(addr_match)
+					ack_set = 1'b1;
 				//TODO: Need some sort of address matching in here!!!
 				rx_counter_incr = 1'b1;
 				if(rx_counter == 4'd1) begin
+					ack_reset = 1'b1;
 					rx_counter_reset = 1'b1;
 					next_rx_state = STATE_RX_DATA;
 				end
@@ -333,9 +364,30 @@ always @(posedge clk) begin
 		
 	if(rx_shift_out)
 		rx_char <= {rx_char[6:0], sda_db};
-	
+
+	//First byte of the I2C transaction is the I2C address
+	if(addr_enable)
+		cur_addr_flag <= 1'b1;
+	else if(addr_disable)
+		cur_addr_flag <= 1'b0;
+	if(rx_shift_out && cur_addr_flag)
+		cur_addr <= {cur_addr[6:0], sda_db};
+
+	//Ack overrides the tx state machine logic to pull SDA down
+	if(ack_reset)
+		ack <= 1'b0;
+	else if(ack_set)
+		ack <= 1'b1;
+
+	//Increment through the address match RAM when loading stuff in
+	if(addr_match_reset)
+		addr_match_addr <= 0;
+	else if(addr_match_latch)
+		addr_match_addr <= addr_match_addr + 1;
+
 	if(reset) begin
 		rx_state <= STATE_RX_IDLE;
+		addr_match_addr <= 4'd0;
 	end else begin
 		rx_state <= next_rx_state;
 	end

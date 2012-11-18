@@ -117,6 +117,7 @@ wire [7:0] disc_fifo_data;
 wire disc_fifo_valid;
 reg disc_fifo_latch;
 reg disc_tx_latch, disc_tx_req;
+reg disc_addr_latch, disc_addr_req;
 fifo #(8,4) f01(
 	.clk(clk),
 	.reset(reset),
@@ -140,6 +141,10 @@ discrete_int di01(
 	.SDA_PD(SDA_PD),
 	.SDA_PU(SDA_PU),
 	.SDA_TRI(SDA_TRI),
+
+	.addr_match_char({hex_sr,cd_hex_decode}),
+	.addr_match_latch(disc_addr_latch),
+	.addr_match_reset(disc_addr_req),
 
 	.tx_char({hex_sr,cd_hex_decode}),
 	.tx_char_latch(disc_tx_latch),
@@ -177,6 +182,7 @@ parameter STATE_PINT_SEND0 = 1;
 parameter STATE_PINT_SEND1 = 2;
 parameter STATE_PINT_SEND2 = 3;
 parameter STATE_DISC_SEND = 4;
+parameter STATE_DISC_ADDR_SEND = 5;
 
 reg [3:0] tx_state;
 reg [3:0] next_tx_state;
@@ -212,6 +218,7 @@ always @(posedge clk) begin
 end
 
 //Next-state logic (For TX state machine)
+//TODO: This is ugly... should replace with shared bus...
 always @* begin
 	next_tx_state = tx_state;
 	shift_in_hex_data = 1'b0;
@@ -231,6 +238,8 @@ always @* begin
 					next_tx_state = STATE_PINT_SEND0;
 				else if(last_cmd == 4'd2) 
 					next_tx_state = STATE_DISC_SEND;
+				else if(last_cmd == 4'd3)
+					next_tx_state = STATE_DISC_ADDR_SEND;
 			end
 		end
 
@@ -259,10 +268,22 @@ always @* begin
 			if(cd_is_hex) begin
 				shift_in_hex_data = 1'b1;
 				disc_tx_latch = sr_count[0];
-			end else  if(cd_is_eol) begin
+			end else if(cd_is_eol) begin
 				sr_clear = 1'b1;
 				disc_tx_latch = 1'b1;
 				disc_tx_req = 1'b1;
+				next_tx_state = STATE_IDLE;
+			end
+		end
+
+		STATE_DISC_ADDR_SEND: begin
+			if(cd_is_hex) begin
+				shift_in_hex_data = 1'b1;
+				disc_addr_latch = sr_count[0];
+			end else if(cd_is_eol) begin
+				sr_clear = 1'b1;
+				disc_addr_latch = 1'b1;
+				disc_addr_req = 1'b1;
 				next_tx_state = STATE_IDLE;
 			end
 		end
