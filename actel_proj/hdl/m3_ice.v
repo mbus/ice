@@ -7,6 +7,8 @@ module m3_ice(
 
     input USB_UART_TXD,
     output USB_UART_RXD,
+	
+	inout POR_PAD,
 
     output FPGA_PINT_RESETN,
     output FPGA_PINT_RDREQ,
@@ -36,7 +38,8 @@ module m3_ice(
     */
 );
 
-wire reset;
+wire reset, reset_button, por_n;
+assign reset = reset_button | (~por_n);
 
 //Stupid Actel-specific global clock buffer assignment...
 wire SYS_CLK_BUF;
@@ -45,7 +48,13 @@ CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
 debounce_ms db0(
 	.clk_in(SYS_CLK_BUF),
 	.db_in(~PB[1]),
-	.db_out(reset)
+	.db_out(reset_button)
+);
+
+por r1(
+	.clk(SYS_CLK_BUF),
+	.PAD(POR_PAD),
+	.reset(por_n)
 );
 
 ice_controller ic1(
