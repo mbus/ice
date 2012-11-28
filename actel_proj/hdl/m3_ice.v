@@ -2,7 +2,7 @@
 module m3_ice(
     input SYS_CLK,
     input [1:1] PB, //These are active-low!
-    //input [4:1] DIP_SW,
+    input [2:1] DIP_SW,
     output [8:1] LED,
 
     input USB_UART_TXD,
@@ -84,6 +84,8 @@ ice_controller ic1(
 	//.SCL_DIG(FPGA_IO[0]),
 	//.SDA_DIG(FPGA_IO[1]),
 
+	.pint_enable(~DIP_SW[1]),
+	.discrete_enable(~DIP_SW[2]),
 	.debug(LED[8:1])
 );
 

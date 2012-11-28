@@ -33,7 +33,7 @@ wire [7:0] fifo_char;
 wire fifo_valid;
 wire fifo_req;
 reg fifo_latch;
-fifo #(9,4) f1(
+fifo #(9,9) f1(
 	.clk(clk),
 	.reset(reset),
 	.in({tx_req, tx_char}),

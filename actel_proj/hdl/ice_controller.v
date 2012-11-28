@@ -29,6 +29,10 @@ module ice_controller (
 	input SCL_DIG,
 	input SDA_DIG,
 
+	//Enable signals for each subsystem
+	input pint_enable,
+	input discrete_enable,
+	
 	//Debug signals
 	output [7:0] debug
 );
@@ -78,19 +82,21 @@ wire [7:0] pint_rx_data;
 wire pint_rx_req;
 wire [7:0] pint_fifo_data;
 reg pint_fifo_latch;
-wire pint_fifo_valid;
-fifo #(8,4) f00(
+wire pint_fifo_valid, pint_fifo_req;
+wire [8:0] pint_fifo_flag_count;
+fifo #(9,9) f00(
 	.clk(clk),
 	.reset(reset),
-	.in(pint_rx_data),
+	.in({pint_rx_req,pint_rx_data}),
 	.in_latch(pint_rx_latch),
-	.out(pint_fifo_data),
+	.out({pint_fifo_req,pint_fifo_data}),
 	.out_latch(pint_fifo_latch),
-	.out_valid(pint_fifo_valid)
+	.out_valid(pint_fifo_valid),
+	.out_flag_count(pint_fifo_flag_count)
 );
 
 pint_int pi1(
-	.reset(reset),
+	.reset(reset | ~pint_enable),
 	.clk(clk),
 	.busy(pint_busy),
 	.tx_req(pint_tx_req_latch),
@@ -114,22 +120,24 @@ wire [7:0] disc_rx_char;
 wire disc_rx_char_latch;
 wire disc_rx_req;
 wire [7:0] disc_fifo_data;
-wire disc_fifo_valid;
+wire disc_fifo_valid, disc_fifo_req;
 reg disc_fifo_latch;
+wire [8:0] disc_fifo_flag_count;
 reg disc_tx_latch, disc_tx_req;
 reg disc_addr_latch, disc_addr_req;
-fifo #(8,4) f01(
+fifo #(9,9) f01(
 	.clk(clk),
 	.reset(reset),
-	.in(disc_rx_char),
-	.in_latch(disc_rx_char_latch),
-	.out(disc_fifo_data),
+	.in({disc_rx_req,disc_rx_char}),
+	.in_latch(disc_rx_char_latch | disc_rx_req),
+	.out({disc_fifo_req,disc_fifo_data}),
 	.out_latch(disc_fifo_latch),
-	.out_valid(disc_fifo_valid)
+	.out_valid(disc_fifo_valid),
+	.out_flag_count(disc_fifo_flag_count)
 );
 
 discrete_int di01(
-	.reset(reset),
+	.reset(reset | ~discrete_enable),
 	.clk(clk),
 
 	.SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
@@ -161,6 +169,7 @@ reg which_hex_char;
 wire [7:0] ce_in = (cur_interface) ? disc_fifo_data : pint_fifo_data;
 wire [7:0] ce_out;
 wire ce_valid = (cur_interface) ? disc_fifo_valid : pint_fifo_valid;
+wire ce_flag = (cur_interface) ? disc_fifo_req : pint_fifo_req;
 character_encoder ce0(
 	.char_in(ce_in),
 	.which_hex_char(which_hex_char),
@@ -298,13 +307,14 @@ end
 `define STATE_RX_IDLE 0
 `define STATE_RX0 1
 `define STATE_RX1 2
-`define STATE_RX_END 3
+`define STATE_RX_END0 3
+`define STATE_RX_END1 4
 
 reg [3:0] rx_state;
 reg [3:0] next_rx_state;
 reg latch_interface, which_interface;
 reg switch_hex_char;
-//reg which_hex_char;
+reg which_hex_char;
 always @* begin
 	next_rx_state = rx_state;
 	uart_tx_latch = 1'b0;
@@ -318,10 +328,10 @@ always @* begin
 	case(rx_state)
 		`STATE_RX_IDLE: begin
 			latch_interface = 1'b1;
-			if(disc_rx_req) begin
+			if(disc_fifo_flag_count > 0) begin
 				which_interface = 1'b1;
 				next_rx_state = `STATE_RX0;
-			end else if(pint_rx_latch) begin
+			end else if(pint_fifo_flag_count > 0) begin
 				which_interface = 1'b0;
 				next_rx_state = `STATE_RX0;
 			end
@@ -335,18 +345,29 @@ always @* begin
 		end
 		
 		`STATE_RX1: begin //TODO: At some point should make this a little more robust (what if multiple sequences come in over I2C before one is finished transferring over-the-line?)
-			uart_tx_latch = uart_tx_empty & ce_valid;
+			uart_tx_latch = uart_tx_empty & ~ce_flag;
 			uart_tx_data = ce_out;
 			switch_hex_char = uart_tx_latch;
 			if(cur_interface)
 				disc_fifo_latch = uart_tx_latch & which_hex_char;
 			else
 				pint_fifo_latch = uart_tx_latch & which_hex_char;
-			if(!ce_valid)
-				next_rx_state = `STATE_RX_END;
+			if(!ce_valid || ce_flag)
+				next_rx_state = `STATE_RX_END0;
 		end
 
-		`STATE_RX_END: begin
+		`STATE_RX_END0: begin
+			if(cur_interface) //Get rid of the flag character at the end...
+				disc_fifo_latch = uart_tx_empty;
+			else
+				pint_fifo_latch = uart_tx_empty;
+			uart_tx_latch = uart_tx_empty;
+			uart_tx_data = 8'h0d;
+			if(uart_tx_empty)
+				next_rx_state = `STATE_RX_END1;
+		end
+		
+		`STATE_RX_END1: begin
 			uart_tx_latch = uart_tx_empty;
 			uart_tx_data = 8'h0a;
 			if(uart_tx_empty)

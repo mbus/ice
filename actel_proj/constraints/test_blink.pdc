@@ -15,6 +15,46 @@
 # I/O constraints
 # 
 
+set_io {DIP_SW[1]}        \
+    -pinname 85           \
+    -fixed yes            \
+    -iostd LVCMOS33       \
+    -HOLD_STATE Off       \
+    -RES_PULL None        \
+    -SCHMITT_TRIGGER Off  \
+    -DIRECTION Input
+
+
+set_io {DIP_SW[2]}        \
+    -pinname 86           \
+    -fixed yes            \
+    -iostd LVCMOS33       \
+    -HOLD_STATE Off       \
+    -RES_PULL None        \
+    -SCHMITT_TRIGGER Off  \
+    -DIRECTION Input
+
+
+#set_io {DIP_SW[3]}        \
+#    -pinname 90           \
+#    -fixed yes            \
+#    -iostd LVCMOS33       \
+#    -HOLD_STATE Off       \
+#    -RES_PULL None        \
+#    -SCHMITT_TRIGGER Off  \
+#    -DIRECTION Input
+#
+#
+#set_io {DIP_SW[4]}        \
+#    -pinname 91           \
+#    -fixed yes            \
+#    -iostd LVCMOS33       \
+#    -HOLD_STATE Off       \
+#    -RES_PULL None        \
+#    -SCHMITT_TRIGGER Off  \
+#    -DIRECTION Input
+
+
 set_io FPGA_PINT_CLK   \
     -pinname 69        \
     -fixed yes         \
