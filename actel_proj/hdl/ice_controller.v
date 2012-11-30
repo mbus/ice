@@ -163,6 +163,36 @@ discrete_int di01(
 	.rx_req(disc_rx_req)
 );
 
+//GOK interface module & FIFO
+reg gok_tx_latch, gok_tx_req;
+wire gok_pin;
+reg gok_cnt_latch;
+reg [21:0] gok_cnt;
+wire [7:0] gok_fifo_data;
+wire gok_fifo_latch;
+wire gok_fifo_valid;
+fifo #(8,9) f02(
+	.clk(clk),
+	.reset(reset),
+	.in({hex_sr,cd_hex_decode}),
+	.in_latch(gok_tx_latch),
+	.out(gok_fifo_data),
+	.out_latch(gok_fifo_latch),
+	.out_valid(gok_fifo_valid)
+);
+
+pwm_mod gok0(
+	.clk(clk),
+	.resetn(~reset),
+	.fifo_din(gok_fifo_data),
+	.fifo_RE(gok_fifo_latch),
+	.fifo_empty(~gok_fifo_valid),
+	.start_tx(gok_tx_req),
+	.PWM_OUT(gok_pin),
+	.base_cnt_update(gok_cnt_latch),
+	.base_counter(gok_cnt)
+);
+
 //Character encoder to hex-encode FIFO data
 reg cur_interface;
 reg which_hex_char;
@@ -180,7 +210,8 @@ character_encoder ce0(
 
 //DEBUG:
 //assign debug = uart_rx_data;
-assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
+//assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
+assign debug = {3'd0, USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF, ~gok_pin};
 //assign debug = {uart_rx_latch, uart_rx_data[6:0]};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
@@ -192,6 +223,8 @@ parameter STATE_PINT_SEND1 = 2;
 parameter STATE_PINT_SEND2 = 3;
 parameter STATE_DISC_SEND = 4;
 parameter STATE_DISC_ADDR_SEND = 5;
+parameter STATE_GOK_SEND = 6;
+parameter STATE_GOK_CNT_SET = 7;
 
 reg [3:0] tx_state;
 reg [3:0] next_tx_state;
@@ -200,6 +233,7 @@ reg [3:0] sr_count;
 reg sr_clear;
 reg last_is_cmd;
 reg shift_in_hex_data, pad_sr_data;
+reg shift_gok_cnt;
 
 //Sequential logic
 always @(posedge clk) begin
@@ -208,6 +242,7 @@ always @(posedge clk) begin
 
 	if(reset) begin
 		tx_state <= STATE_IDLE;
+		gok_cnt <= 0;
 	end else begin
 		tx_state <= next_tx_state;
 		//Commands automatically push state to IDLE
@@ -223,6 +258,9 @@ always @(posedge clk) begin
 		end else if(sr_clear) begin
 			sr_count <= 4'd0;
 		end
+		
+		if(shift_gok_cnt)
+			gok_cnt <= {gok_cnt[17:0], cd_hex_decode};
 	end
 end
 
@@ -240,6 +278,10 @@ always @* begin
 	disc_tx_req = 1'b0;
 	disc_addr_latch = 1'b0;
 	disc_addr_req = 1'b0;
+	gok_tx_latch = 1'b0;
+	gok_tx_req = 1'b0;
+	shift_gok_cnt = 1'b0;
+	gok_cnt_latch = 1'b0;
 
 	case(tx_state)
 		//Idle state listens for specific command identifiers
@@ -251,6 +293,10 @@ always @* begin
 					next_tx_state = STATE_DISC_SEND;
 				else if(last_cmd == 4'd3)
 					next_tx_state = STATE_DISC_ADDR_SEND;
+				else if(last_cmd == 4'd4)
+					next_tx_state = STATE_GOK_SEND;
+				else if(last_cmd == 4'd5)
+					next_tx_state = STATE_GOK_CNT_SET;
 			end
 		end
 
@@ -295,6 +341,26 @@ always @* begin
 				sr_clear = 1'b1;
 				disc_addr_latch = 1'b1;
 				disc_addr_req = 1'b1;
+				next_tx_state = STATE_IDLE;
+			end
+		end
+		
+		STATE_GOK_SEND: begin
+			if(cd_is_hex) begin
+				shift_in_hex_data = 1'b1;
+				gok_tx_latch = sr_count[0];
+			end else if(cd_is_eol) begin
+				sr_clear = 1'b1;
+				gok_tx_req = 1'b1;
+				next_tx_state = STATE_IDLE;
+			end
+		end
+		
+		STATE_GOK_CNT_SET: begin
+			if(cd_is_hex) begin
+				shift_gok_cnt = 1'b1;
+			end else if(cd_is_eol) begin
+				gok_cnt_latch = 1'b1;
 				next_tx_state = STATE_IDLE;
 			end
 		end

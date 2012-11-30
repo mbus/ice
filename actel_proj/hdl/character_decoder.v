@@ -19,7 +19,7 @@ always @* begin
 	cmd = 4'd0;
 
 	if(in_char_valid) begin
-		if(in_char >= 8'h61 && in_char <= 8'h64) begin
+		if(in_char >= 8'h61 && in_char <= 8'h66) begin
 			is_cmd = 1'b1;
 			cmd = in_char[3:0]-4'd1;
 		end
