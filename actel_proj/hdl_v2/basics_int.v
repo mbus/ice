@@ -23,10 +23,10 @@ parameter VERSION_MAJOR = 0;
 parameter VERSION_MINOR = 0;
 
 wire [7:0] local_sl_data;
-reg [7:0] local_message_data;
+reg [7:0] local_data;
 reg [15:0] version_in;
-reg local_data_latch, local_frame_valid;
-wire local_data_overflow;
+reg local_frame_valid;
+wire local_data_latch, local_data_overflow;
 
 //State machine locals
 reg [7:0] latched_eid;
@@ -42,10 +42,10 @@ message_fifo #(8) mf1(
 	.clk(clk),
 	.rst(rst),
 	
-	.in_data(),
-	.in_data_latch(),
-	.in_frame_valid(),
-	.in_data_overflow(),
+	.in_data(local_data),
+	.in_data_latch(local_data_latch),
+	.in_frame_valid(local_frame_valid),
+	.in_data_overflow(local_data_overflow),
 	.populate_frame_length(1'b1),
 
 	.out_data(local_sl_data),
@@ -54,6 +54,25 @@ message_fifo #(8) mf1(
 );
 
 //Main 'basics' state machine - takes care of version requests, query requests, and immediate NAKs
+parameter STATE_IDLE = 0;
+parameter STATE_SEND_EID = 1;
+parameter STATE_SKIP_LENGTH = 2;
+parameter STATE_NAK0 = 3;
+parameter STATE_RESP_QUERY0 = 4;
+parameter STATE_RESP_VER0 = 5;
+parameter STATE_RESP_VER1 = 6;
+parameter STATE_RESP_VER2 = 7;
+parameter STATE_RESP_VER3 = 8;
+
+reg [3:0] state, next_state;
+reg [7:0] counter;
+reg [2:0] latched_command;
+reg send_addr, send_eid, send_nak_code, send_ack_code, send_major_ver, send_minor_ver;
+reg latch_command;
+reg data_counter_incr;
+reg shift_ver_in;
+
+assign local_data_latch = send_addr | send_eid | send_nak_code | send_ack_code | send_major_ver | send_minor_ver;
 wire query_request_match = ma_frame_valid && (ma_addr == 8'h3F);
 wire ver_request_match = ma_frame_valid && (ma_addr == 8'h56);
 always @* begin
@@ -68,13 +87,14 @@ always @* begin
 	latch_command = 1'b0;
 	data_counter_incr = 1'b1;
 	local_frame_valid = 1'b1;
+	shift_ver_in = 1'b0;
 
-	case(state) begin
+	case(state)
 		STATE_IDLE: begin
 			local_frame_valid = 1'b0;
 			latch_eid = 1'b1;
 			latch_command = 1'b1;
-			if(generate_nak || query_request_match || version_request_match) begin
+			if(generate_nak || query_request_match || ver_request_match) begin
 				send_addr = 1'b1;
 				local_frame_valid = 1'b1;
 				next_state = STATE_SKIP_LENGTH;
@@ -114,7 +134,7 @@ always @* begin
 
 		STATE_RESP_VER0: begin
 			shift_ver_in = ma_data_valid;
-			counter_incr = ma_data_valid;
+			data_counter_incr = ma_data_valid;
 			if(counter == 8'd1 && ma_data_valid)
 				next_state = STATE_RESP_VER1;
 		end
@@ -138,9 +158,10 @@ always @* begin
 			send_minor_ver = 1'b1;
 			next_state = STATE_IDLE;
 		end
-	end
+	endcase
 
 	//Mux the data out to the message fifo
+	local_data = ma_addr;
 	if(send_addr) local_data = ma_addr;
 	else if(send_eid) local_data = latched_eid;
 	else if(send_nak_code) local_data = 8'd1;
@@ -164,7 +185,7 @@ always @(posedge clk) begin
 		version_in <= {version_in[7:0], ma_data};
 
 	if(latch_command) 
-		latched_command <= {version_request_match, query_request_match, generate_nak};
+		latched_command <= {ver_request_match, query_request_match, generate_nak};
 
 	if(rst) begin
 		state <= STATE_IDLE;

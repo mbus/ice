@@ -26,8 +26,9 @@ reg after_frame_count;
 assign in_data_overflow = (head == tail-1);
 assign out_data = fifo_ram[tail][7:0];
 assign sof_marker = fifo_ram[tail][8];
-assign out_frame_valid = (num_valid_frames > 0) && !(dispensing_frame && sof_marker);
+assign out_frame_valid = (num_valid_frames > 0) && !(sof_marker);
 always @(posedge clk) begin
+	dispensing_frame <= 1'b0; //TODO: Completely forgot what this is for...
 	last_frame_valid <= in_frame_valid;
 	last_out_data_latch <= out_data_latch;
 
@@ -61,9 +62,9 @@ always @(posedge clk) begin
 				num_valid_frames <= num_valid_frames + 1;
 				after_frame_count <= 2'd0;
 			end
-		end else if(after_frame_count == 2'd0 && populate_frame_len) begin
+		end else if(after_frame_count == 2'd0 && populate_frame_length) begin
 			fifo_ram[old_head+2] <= num_frame_bytes[15:8];
-		end else if(after_frame_count == 2'd1 && populate_frame_len) begin
+		end else if(after_frame_count == 2'd1 && populate_frame_length) begin
 			fifo_ram[old_head+3] <= num_frame_bytes[7:0];
 		end
 
