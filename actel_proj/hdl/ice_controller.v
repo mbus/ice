@@ -211,7 +211,7 @@ character_encoder ce0(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = {3'd0, USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF, ~gok_pin};
+assign debug = {2'd0, gok_pin, USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF, ~gok_pin};
 //assign debug = {uart_rx_latch, uart_rx_data[6:0]};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
@@ -243,6 +243,7 @@ always @(posedge clk) begin
 	if(reset) begin
 		tx_state <= STATE_IDLE;
 		gok_cnt <= 0;
+		sr_count <= 4'd0;
 	end else begin
 		tx_state <= next_tx_state;
 		//Commands automatically push state to IDLE
