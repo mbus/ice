@@ -1,37 +1,38 @@
-module ice_bus_controller(
-	input clk,
-	input rst,
-	
-	//Interface to UART (or other character device)
-	input [7:0] rx_char,
-	input rx_char_valid,
-	output [7:0] tx_char,
-	output tx_char_valid,
-	input tx_char_ready,
-
-	//Immediate NAKs have their own controller =)
-	output reg generate_nak,
-	output reg [7:0] evt_id,
-	
-	//Master-driven bus (data & control)
-	output [7:0] ma_data,
-	output [7:0] ma_addr,
-	output ma_data_valid,
-	output ma_frame_valid,
-	input sl_overflow,
-	
-	//Bus controller outputs (data & control)
-	input [7:0] sl_data,
-	input sl_arb_request,
-	output sl_arb_grant,
-	output sl_data_latch
-);
+module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_data, sl_arb_request, sl_arb_grant, sl_data_latch);
 parameter NUM_DEV=2;
 
-wire [NUM_DEV-1:0] sl_arb_grant, sl_arb_request;
+input clk;
+input rst;
+
+//Interface to UART (or other character device)
+input [7:0] rx_char;
+input rx_char_valid;
+output [7:0] tx_char;
+output tx_char_valid;
+input tx_char_ready;
+
+//Immediate NAKs have their own controller =)
+output reg generate_nak;
+output reg [7:0] evt_id;
+
+//Master-driven bus (data & control)
+output [7:0] ma_data;
+output reg [7:0] ma_addr;
+output reg ma_data_valid;
+output reg ma_frame_valid;
+input sl_overflow;
+
+//Bus controller outputs (data & control)
+input [7:0] sl_data;
+input [NUM_DEV-1:0] sl_arb_request;
+output [NUM_DEV-1:0] sl_arb_grant;
+output sl_data_latch;
+
+//For now the master bus is just a direct connection to the UART rx character bus.  May always be this way??
+assign ma_data = rx_char;
 
 wire pri_en, pri_granted;
-reg pri_latch;
+wire pri_latch;
 priority_select #(NUM_DEV) pri1(
 	.clk(clk),
 	.rst(rst),
@@ -44,7 +45,8 @@ priority_select #(NUM_DEV) pri1(
 );
 
 reg record_addr, record_evt_id;
-reg next_frame_valid;
+reg byte_counter_incr, byte_counter_decr, byte_counter_reset, set_byte_counter;
+reg shift_in_pyld_len;
 reg [15:0] byte_counter;
 reg [15:0] payload_len;
 
@@ -54,6 +56,7 @@ parameter STATE_RX_ID = 1;
 parameter STATE_RX_LEN = 2;
 parameter STATE_RX_PYLD = 3;
 parameter STATE_RX_OVERFLOW = 4;
+reg [3:0] state, next_state;
 
 always @* begin
 	next_state = state;
@@ -66,12 +69,13 @@ always @* begin
 	ma_data_valid = 1'b0;
 	ma_frame_valid = 1'b0;
 	set_byte_counter = 1'b0;
+	generate_nak = 1'b0;
 	
-	case(rx_state)
+	case(state)
 		STATE_RX_IDLE: begin
 			record_addr = 1'b1;
 			byte_counter_reset = 1'b1;
-			if(rx_char_vaild)
+			if(rx_char_valid)
 				next_state = STATE_RX_ID;
 		end
 		
@@ -118,9 +122,10 @@ always @(posedge clk) begin
 		evt_id <= rx_char;
 
 	if(rst) begin
-		state <= STATE_IDLE;
+		state <= STATE_RX_IDLE;
 		byte_counter <= 16'd0;
 	end else begin
+		state <= next_state;
 			
 		//Byte counter keeps track of packets up to 65535 bytes in size
 		if(byte_counter_reset)
@@ -134,6 +139,7 @@ end
 //Luckily, this is extremely easy to take care of
 assign tx_char = sl_data;
 assign tx_char_valid = tx_char_ready & pri_granted;
+assign sl_data_latch = tx_char_valid;
 assign pri_latch = ~pri_granted;
 assign pri_en = 1'b1;
 

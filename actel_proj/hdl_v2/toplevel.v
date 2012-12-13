@@ -1,5 +1,4 @@
-// Top-level Verilog module for M3 ICE Board
-module m3_ice(
+module m3_ice_top(
     input SYS_CLK,
     input [1:1] PB, //These are active-low!
     //input [4:1] DIP_SW,
@@ -83,6 +82,8 @@ ice_bus ic1(
 	
 	//.SCL_DIG(FPGA_IO[0]),
 	//.SDA_DIG(FPGA_IO[1]),
+	.SCL_DIG(1'b0),
+	.SDA_DIG(1'b0),
 
 	.debug(LED[8:1])
 );

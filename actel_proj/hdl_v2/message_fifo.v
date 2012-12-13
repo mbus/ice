@@ -20,6 +20,15 @@ wire sof_marker;
 reg [DEPTH_LOG2-1:0] head, old_head, tail, num_valid_frames;
 reg [15:0] num_frame_bytes;
 reg [8:0] fifo_ram [DEPTH-1:0];
+ram fr1(
+	.clk(clk),
+	.reset(rst),
+	.in_data(),
+	.in_addr(),
+	.in_latch(),
+	.out_data(),
+	.out_addr()
+);
 reg recording_frame, dispensing_frame, last_frame_valid, last_out_data_latch;
 reg after_frame_count;
 
@@ -41,7 +50,7 @@ always @(posedge clk) begin
 		after_frame_count <= 2'd3;
 		num_frame_bytes <= 0;
 	end else begin
-		if(in_frame_valid && ~last_frame_valid) begin
+		if(in_frame_valid & ~last_frame_valid) begin
 			recording_frame <= 1'b1;
 			old_head <= head;
 			fifo_ram[head] <= {1'b1, in_data}; //The first byte will be the event id for every message

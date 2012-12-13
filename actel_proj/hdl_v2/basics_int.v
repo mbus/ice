@@ -190,6 +190,7 @@ always @(posedge clk) begin
 	if(rst) begin
 		state <= STATE_IDLE;
 	end else begin
+		state <= next_state;
 	end
 end
 

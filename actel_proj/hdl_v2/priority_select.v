@@ -1,17 +1,16 @@
-module priority_select(
-	input clk,
-	input rst,
-	input enable,
-	input latch,
-	
-	input requests,
-	output grants,
-	output granted
-);
-parameter WIDTH=8;
+module priority_select(clk, rst, enable, latch, requests, grants, granted);
+parameter WIDTH=8;	
 
-wire [WIDTH-1:0] requests;
-reg [WIDTH-1:0] grants, temp_grants;
+input clk;
+input rst;
+input enable;
+input latch;
+
+input [WIDTH-1:0] requests;
+output reg [WIDTH-1:0] grants;
+output granted;
+
+reg [WIDTH-1:0] temp_grants;
 
 assign granted = (grants & requests) > 0;
 
