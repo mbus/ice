@@ -11,19 +11,77 @@ module discrete_int(
 	output SDA_PD,
 	output SDA_PU,
 	output SDA_TRI,
+	
+	//Master input bus
+	input [7:0] ma_data,
+	input [7:0] ma_addr,
+	input ma_data_valid,
+	input ma_frame_valid,
+	inout sl_overflow,
 
-	//I2C address match interface
-	input [7:0] addr_match_char,
-	input addr_match_latch,
-	input addr_match_reset,
+	//Slave output bus
+	inout [7:0] sl_data,
+	output [1:0] sl_arb_request,
+	input [1:0] sl_arb_grant,
+	input sl_data_latch
+);
 
-	input [7:0] tx_char,
-	input tx_char_latch,
-	input tx_req,
+//Local wires/buses
+wire [7:0] tx_char;
+wire tx_char_valid;
+wire tx_req;
+reg tx_data_latch;
 
-	output reg [7:0] rx_char,
-	output reg rx_char_latch,
-	output reg rx_req
+reg [7:0] rx_char;
+reg rx_char_latch;
+reg rx_reg;
+
+wire [7:0] addr_match_char;
+wire addr_match_latch;
+wire addr_match_nreset;
+
+//Bus interface takes care of all buffering, etc for discrete data...
+bus_interface #(8'h64,1,1) bi0(
+	.clk(clk),
+	.rst(reset),
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[0]),
+	.sl_arb_grant(sl_arb_grant[0]),
+	.sl_data_latch(sl_data_latch),
+	.in_frame_data(tx_char),
+	.in_frame_data_valid(tx_char_valid),
+	.in_frame_valid(tx_req),
+	.in_frame_data_latch(tx_data_latch),
+	.out_frame_data(rx_char),
+	.out_frame_valid(rx_req),
+	.out_frame_data_latch(rx_char_latch)
+);
+
+//This bus interface listens for address matching data...
+bus_interface #(8'h45,0,0) bi0(
+	.clk(clk),
+	.rst(reset),
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[1]),
+	.sl_arb_grant(sl_arb_grant[1]),
+	.sl_data_latch(sl_data_latch),
+	.in_frame_data(addr_match_char),
+	.in_frame_data_valid(addr_match_latch),
+	.in_frame_valid(addr_match_nreset),
+	.in_frame_data_latch(1'b1),
+	.out_frame_data(),//TODO: Fill these in to send back ACKs, etc
+	.out_frame_valid(),
+	.out_frame_data_latch()
 );
 
 reg sda_drive_real;
@@ -42,22 +100,6 @@ assign SCL_PU = ~SCL_mpu;
 assign SCL_TRI = SCL_mpd | SCL_mpu;
 
 parameter clock_div = 99;
-
-//FIFO to queue up outgoing transmissions.  An extra bit to denote frame boundaries...
-//NOTE: Make sure this doesn't overfill
-wire [7:0] fifo_char;
-wire fifo_valid;
-wire fifo_req;
-reg fifo_latch;
-fifo #(9,4) f1(
-	.clk(clk),
-	.reset(reset),
-	.in({tx_req, tx_char}),
-	.in_latch(tx_char_latch | tx_req),
-	.out({fifo_req, fifo_char}),
-	.out_latch(fifo_latch),
-	.out_valid(fifo_valid)
-);
 
 reg rx_busy;
 reg tx_req_clear;
@@ -88,7 +130,7 @@ always @* begin
 	tx_req_clear = 1'b0;
 	cur_bit_decr = 1'b0;
 	cur_bit_reset = 1'b0;
-	fifo_latch = 1'b0;
+	tx_data_latch = 1'b0;
 
 	sda_drive = 1'b0;
 	scl_drive = 1'b0;
@@ -108,7 +150,7 @@ always @* begin
 			if(clock_counter <= clock_div)
 				sda_drive_val = 1'b1;
 			else begin
-				if(fifo_req == 1'b1) //Jump to the stop bit in case this is a blank I2C transaction (special for M3)
+				if(tx_req == 1'b1) //Jump to the stop bit in case this is a blank I2C transaction (special for M3)
 					next_tx_state = STATE_TX_STOP1;
 				else
 					sda_drive_val = 1'b0;
@@ -122,7 +164,7 @@ always @* begin
 		STATE_TX_SCL_LOW: begin
 			sda_drive = 1'b1;
 			scl_drive = 1'b1;
-			sda_drive_val = fifo_char[cur_bit];
+			sda_drive_val = tx_char[cur_bit];
 			scl_drive_val = 1'b0;
 			if(clock_counter == clock_div)
 				next_tx_state = STATE_TX_SCL_HIGH;
@@ -131,7 +173,7 @@ always @* begin
 		STATE_TX_SCL_HIGH: begin
 			sda_drive = 1'b1;
 			scl_drive = 1'b1;
-			sda_drive_val = fifo_char[cur_bit];
+			sda_drive_val = tx_char[cur_bit];
 			if(clock_counter == clock_div) begin
 				cur_bit_decr = 1'b1;
 				if(cur_bit > 0) begin
@@ -146,7 +188,7 @@ always @* begin
 			scl_drive = 1'b1;
 			scl_drive_val = 1'b0;
 			if(clock_counter == clock_div) begin
-				fifo_latch = 1'b1;
+				tx_data_latch = 1'b1;
 				next_tx_state = STATE_TX_ACK_SCL_HIGH;
 			end
 		end
@@ -156,7 +198,7 @@ always @* begin
 			scl_drive_val = 1'b1;
 			cur_bit_reset = 1'b1;
 			if(clock_counter == clock_div) begin
-				if(fifo_req == 1'b0 && fifo_valid)
+				if(tx_req == 1'b0 && tx_char_valid)
 					next_tx_state = STATE_TX_SCL_LOW;
 				else
 					next_tx_state = STATE_TX_STOP0;
@@ -187,7 +229,7 @@ always @* begin
 			sda_drive = 1'b1;
 			sda_drive_val = 1'b1;
 			if(clock_counter == clock_div) begin
-				fifo_latch = 1'b1;
+				tx_data_latch = 1'b1;
 				next_tx_state = STATE_IDLE;
 			end
 		end
@@ -289,7 +331,7 @@ always @* begin
 	rx_counter_incr = 1'b0;
 	rx_counter_reset = 1'b0;
 	next_rx_char_latch = 1'b0;
-	rx_req = 1'b0;
+	rx_req = 1'b1;
 	rx_shift_out = 1'b0;
 	addr_enable = 1'b0;
 	addr_disable = 1'b0;
@@ -302,6 +344,7 @@ always @* begin
 			rx_counter_reset = 1'b1;
 			addr_enable = 1'b1;
 			ack_reset = 1'b1;
+			rx_req = 1'b0;
 			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_rx_state = STATE_RX_DATA;
 		end
@@ -318,7 +361,6 @@ always @* begin
 			end
 			//If we've seen a stop bit, proceed to go, collect $200
 			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
-				rx_req = 1'b1;
 				next_rx_state = STATE_RX_IDLE;
 			end
 		end
@@ -327,7 +369,6 @@ always @* begin
 			//According to the 'mm3 sensor node - I2C.pptx' documentation, I can just pull down for ACK during the whole cycle without any repercussions
 			addr_disable = 1'b1;
 			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
-				rx_req = 1'b1;
 				next_rx_state = STATE_RX_IDLE;
 			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
 				if(addr_match)
@@ -381,7 +422,7 @@ always @(posedge clk) begin
 		ack <= 1'b1;
 
 	//Increment through the address match RAM when loading stuff in
-	if(addr_match_reset)
+	if(~addr_match_nreset)
 		addr_match_addr <= 0;
 	else if(addr_match_latch)
 		addr_match_addr <= addr_match_addr + 1;

@@ -33,7 +33,7 @@ module ice_bus (
 	output [7:0] debug
 );
 
-parameter NUM_DEV = 1;
+parameter NUM_DEV = 3;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -106,6 +106,35 @@ basics_int bi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
+	.sl_data_latch(sl_data_latch)
+);
+
+//Discrete interface module controls all of the discrete interface signals
+discrete_int di0(
+	.clk(clk),
+	.reset(reset),
+	
+	.SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
+	.SCL_PD(SCL_PD),
+	.SCL_PU(SCL_PU),
+	.SCL_TRI(SCL_TRI),
+	
+	.SDA_DISCRETE_BUF(SDA_DISCRETE_BUF),
+	.SDA_PD(SDA_PD),
+	.SDA_PU(SDA_PU),
+	.SDA_TRI(SDA_TRI),
+	
+	//Master input bus
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[2:1]),
+	.sl_arb_grant(sl_arb_grant[2:1]),
 	.sl_data_latch(sl_data_latch)
 );
 	
