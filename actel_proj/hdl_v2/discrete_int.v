@@ -34,7 +34,7 @@ reg tx_data_latch;
 
 reg [7:0] rx_char;
 reg rx_char_latch;
-reg rx_reg;
+reg rx_req;
 
 wire [7:0] addr_match_char;
 wire addr_match_latch;
@@ -63,7 +63,7 @@ bus_interface #(8'h64,1,1) bi0(
 );
 
 //This bus interface listens for address matching data...
-bus_interface #(8'h45,0,0) bi0(
+bus_interface #(8'h45,0,0) bi1(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),

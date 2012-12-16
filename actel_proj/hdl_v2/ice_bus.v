@@ -1,6 +1,8 @@
 module ice_bus (
 	input reset,
 	input clk,
+	
+	input [4:1] PB,
 
 	//USB to UART signals
 	input USB_UART_TXD,
@@ -88,6 +90,7 @@ ice_bus_controller #(NUM_DEV) ice1(
 );
 
 //Basics module responds to basic requests (query info, etc)
+wire [7:0] basics_debug;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -97,7 +100,6 @@ basics_int bi0(
 
 	//Master input bus
 	.ma_data(ma_data),
-	.ma_addr(ma_addr),
 	.ma_data_valid(ma_data_valid),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
@@ -106,7 +108,9 @@ basics_int bi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
-	.sl_data_latch(sl_data_latch)
+	.sl_data_latch(sl_data_latch),
+	
+	.debug(basics_debug)
 );
 
 //Discrete interface module controls all of the discrete interface signals
@@ -133,10 +137,12 @@ discrete_int di0(
 
 	//Slave output bus
 	.sl_data(sl_data),
-	.sl_arb_request(sl_arb_request[2:1]),
+	.sl_arb_request(),//sl_arb_request[2:1]),
 	.sl_arb_grant(sl_arb_grant[2:1]),
 	.sl_data_latch(sl_data_latch)
 );
+
+assign sl_arb_request[2:1] = 2'b00;
 	
 /*//PINT interface module
 wire pint_busy;
@@ -218,8 +224,10 @@ discrete_int di01(
 
 //DEBUG:
 //assign debug = uart_rx_data;
-assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-//assign debug = {uart_rx_latch, uart_rx_data[6:0]};
+//assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
+assign debug = (~PB[4]) ? ma_data : 
+               (~PB[3]) ? basics_debug : 
+			   (~PB[2]) ? {sl_arb_request[0], sl_data[6:0]} : {ma_data_valid, ma_frame_valid, ma_data[5:0]};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 

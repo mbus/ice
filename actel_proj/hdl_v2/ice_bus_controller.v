@@ -47,8 +47,8 @@ priority_select #(NUM_DEV) pri1(
 reg record_addr, record_evt_id;
 reg byte_counter_incr, byte_counter_decr, byte_counter_reset, set_byte_counter;
 reg shift_in_pyld_len;
-reg [15:0] byte_counter;
-reg [15:0] payload_len;
+reg [7:0] byte_counter;
+reg [7:0] payload_len;
 
 //Bus controller RX state machine
 parameter STATE_RX_IDLE = 0;
@@ -74,13 +74,15 @@ always @* begin
 	case(state)
 		STATE_RX_IDLE: begin
 			record_addr = 1'b1;
+			ma_frame_valid = rx_char_valid;
 			byte_counter_reset = 1'b1;
 			if(rx_char_valid)
 				next_state = STATE_RX_ID;
 		end
 		
 		STATE_RX_ID: begin
-			ma_frame_valid = rx_char_valid;
+			ma_frame_valid = 1'b1;
+			ma_data_valid = rx_char_valid;
 			record_evt_id = 1'b1;
 			if(rx_char_valid)
 				next_state = STATE_RX_LEN;
@@ -88,9 +90,10 @@ always @* begin
 		
 		STATE_RX_LEN: begin
 			ma_frame_valid = 1'b1;
+			ma_data_valid = rx_char_valid;
 			byte_counter_incr = rx_char_valid;
 			shift_in_pyld_len = rx_char_valid;
-			if(byte_counter[1:0] == 2'd2) begin
+			if(rx_char_valid) begin
 				byte_counter_reset = 1'b1;
 				next_state = STATE_RX_PYLD;
 			end
@@ -115,7 +118,7 @@ end
 
 always @(posedge clk) begin
 	if(shift_in_pyld_len)
-		payload_len <= {payload_len[7:0], rx_char};
+		payload_len <= rx_char;
 	if(record_addr)
 		ma_addr <= rx_char;
 	if(record_evt_id)
@@ -139,7 +142,7 @@ end
 //Luckily, this is extremely easy to take care of
 assign tx_char = sl_data;
 assign tx_char_valid = tx_char_ready & pri_granted;
-assign sl_data_latch = tx_char_valid;
+assign sl_data_latch = tx_char_valid & pri_granted;
 assign pri_latch = ~pri_granted;
 assign pri_en = 1'b1;
 

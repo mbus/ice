@@ -10,7 +10,7 @@ module bus_interface(
 	inout sl_overflow,
 	
 	//Slave bus
-	output [7:0] sl_data,
+	inout [7:0] sl_data,
 	output sl_arb_request,
 	input sl_arb_grant,
 	input sl_data_latch,
@@ -73,15 +73,13 @@ generate
 			.populate_frame_length(1'b1),
 			.out_data(local_sl_data),
 			.out_frame_valid(sl_arb_request),
-			.out_data_latch(local_sl_data_latch)
+			.out_data_latch(sl_data_latch)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
-		assign sl_data_latch = (sl_arb_grant) ? local_sl_data_latch : 1'bz;
 	end else begin
 		//TODO: This should just be able to store 1 ACK/NAK... (right now it doesn't do anything =(
-		assign local_sl_data = 8'd0;
+		assign sl_data = (sl_arb_grant) ? 8'd0 : 8'bzzzzzzzz;
 		assign sl_arb_request = 1'b0;
-		assign sl_data_latch = 1'bz;
 	end
 endgenerate
 

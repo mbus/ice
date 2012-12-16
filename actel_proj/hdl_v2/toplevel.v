@@ -1,6 +1,6 @@
 module m3_ice_top(
     input SYS_CLK,
-    input [1:1] PB, //These are active-low!
+    input [4:1] PB, //These are active-low!
     //input [4:1] DIP_SW,
     output [8:1] LED,
 
@@ -59,6 +59,8 @@ por r1(
 ice_bus ic1(
 	.reset(reset),
 	.clk(SYS_CLK_BUF),
+	
+	.PB(PB[4:1]),
 
 	.USB_UART_TXD(USB_UART_TXD),
 	.USB_UART_RXD(USB_UART_RXD),
