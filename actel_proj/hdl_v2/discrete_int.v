@@ -101,14 +101,16 @@ ack_generator ag0(
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [7:0] mf_sl_data;
+reg [7:0] message_idx;
+reg local_frame_valid, send_idx;
 assign sl_data = (sl_arb_grant[2]) ? mf_sl_data : 8'bzzzzzzzz;
 message_fifo #(8) mf1(
 	.clk(clk),
 	.rst(reset),
 	
-	.in_data(ack_message_data),
-	.in_data_latch(ack_message_data_valid),
-	.in_frame_valid(ack_message_frame_valid),
+	.in_data((send_idx) ? message_idx : ack_message_data),
+	.in_data_latch(ack_message_data_valid | send_idx),
+	.in_frame_valid(ack_message_frame_valid | local_frame_valid),
 	.populate_frame_length(1'b1),
 
 	.out_data(mf_sl_data),
@@ -202,11 +204,16 @@ parameter STATE_TX_STOP2 = 8;
 parameter STATE_FRAGMENT_IDLE = 9;
 parameter STATE_RX_DATA=10;
 parameter STATE_RX_ACK=11;
+parameter STATE_NAK0=12;
+parameter STATE_NAK1=13;
+parameter STATE_NAK2=14;
+parameter STATE_CLEAR_FIFO=15;
 
 reg [3:0] state;
 reg [3:0] next_state;
 reg sda_drive, scl_drive;
 reg sda_drive_val, scl_drive_val;
+reg reset_idx, incr_idx;
 
 always @* begin
 	next_state = state;
@@ -215,6 +222,10 @@ always @* begin
 	cur_bit_reset = 1'b0;
 	tx_data_latch = 1'b0;
 	hd_header_done_clear = 1'b0;
+	local_frame_valid = 1'b0;
+	send_idx = 1'b0;
+	reset_idx = 1'b0;
+	incr_idx = 1'b0;
 
 	sda_drive = 1'b0;
 	scl_drive = 1'b0;
@@ -239,6 +250,7 @@ always @* begin
 			rx_counter_reset = 1'b1;
 			addr_enable = 1'b1;
 			ack_reset = 1'b1;
+			reset_idx = 1'b1;
 			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_state = STATE_RX_DATA;
 			else if(hd_header_done)
@@ -248,6 +260,7 @@ always @* begin
 		STATE_FRAGMENT_IDLE: begin
 			scl_drive = 1'b1;
 			scl_drive_val = 1'b0;
+			reset_idx = 1'b1;
 			if(hd_header_done)
 				next_state = STATE_TX_SCL_LOW;
 		end
@@ -295,7 +308,36 @@ always @* begin
 			scl_drive_val = 1'b0;
 			if(clock_counter == clock_div) begin
 				tx_data_latch = 1'b1; //TODO: This should only be done conditionally (if it received an ACK)
-				next_state = STATE_TX_ACK_SCL_HIGH;
+				if(sda_db == 1'b1) begin
+					next_state = STATE_NAK0;
+				end else begin
+					next_state = STATE_TX_ACK_SCL_HIGH;
+				end
+			end
+		end
+		
+		STATE_NAK0: begin
+			ackgen_generate_nak = 1'b1;
+			next_state = STATE_NAK1;
+		end
+		
+		STATE_NAK1: begin
+			local_frame_valid = 1'b1;
+			if(ack_message_frame_valid == 1'b0)
+				next_state = STATE_NAK2;
+		end
+		
+		STATE_NAK2: begin
+			local_frame_valid = 1'b1;
+			send_idx = 1'b1;
+			next_state = STATE_CLEAR_FIFO;
+		end
+		
+		STATE_CLEAR_FIFO: begin
+			tx_data_latch = 1'b1;
+			if((~hd_frame_valid) | (~tx_char_valid)) begin
+				hd_header_done_clear = 1'b1;
+				next_state = STATE_IDLE;
 			end
 		end
 
@@ -304,6 +346,7 @@ always @* begin
 			scl_drive_val = 1'b1;
 			cur_bit_reset = 1'b1;
 			if(clock_counter == clock_div) begin
+				incr_idx = 1'b1;
 				if(hd_frame_valid & tx_char_valid)
 					next_state = STATE_TX_SCL_LOW;
 				else if(hd_is_fragment) begin
@@ -423,12 +466,19 @@ always @(posedge clk) begin
 		state <= STATE_IDLE;
 		sda_drive_real <= 1'b0;
 		sda_drive_counter <= 0;
+		message_idx <= 0;
 	end else begin
 		state <= next_state;
 	
 		clock_counter <= clock_counter + 1;
 		if(state != next_state)
 			clock_counter <= 0;
+			
+		//message_idx keeps track of where we are in the current i2c transaction (for NAKing)
+		if(reset_idx)
+			message_idx <= 0;
+		else if(incr_idx)
+			message_idx <= message_idx + 1;
 
 		if(cur_bit_reset)
 			cur_bit <= 7;
