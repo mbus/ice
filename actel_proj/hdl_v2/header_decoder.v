@@ -32,7 +32,7 @@ always @(posedge clk) begin
 		if(header_done_clear)
 			header_done <= 1'b0;
 		if(latch_is_fragment) begin
-			if(in_frame_data == 8'h00)
+			if(in_frame_data == 8'hFF)
 				is_fragment <= 1'b1;
 			else
 				is_fragment <= 1'b0;

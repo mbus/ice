@@ -35,7 +35,7 @@ module ice_bus (
 	output [7:0] debug
 );
 
-parameter NUM_DEV = 4;
+parameter NUM_DEV = 3;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -91,6 +91,8 @@ ice_bus_controller #(NUM_DEV) ice1(
 
 //Basics module responds to basic requests (query info, etc)
 wire [7:0] basics_debug;
+wire [7:0] i2c_speed;
+wire [15:0] i2c_addr;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -110,6 +112,10 @@ basics_int bi0(
 	.sl_arb_grant(sl_arb_grant[0]),
 	.sl_data_latch(sl_data_latch),
 	
+	//I2C settings
+	.i2c_speed(i2c_speed),
+	.i2c_addr(i2c_addr),
+	
 	.debug()
 );
 
@@ -128,6 +134,10 @@ discrete_int di0(
 	.SDA_PU(SDA_PU),
 	.SDA_TRI(SDA_TRI),
 	
+	//I2C settings
+	.i2c_speed(i2c_speed),
+	.i2c_addr(i2c_addr),
+	
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
@@ -137,8 +147,8 @@ discrete_int di0(
 
 	//Slave output bus
 	.sl_data(sl_data),
-	.sl_arb_request(sl_arb_request[3:1]),
-	.sl_arb_grant(sl_arb_grant[3:1]),
+	.sl_arb_request(sl_arb_request[2:1]),
+	.sl_arb_grant(sl_arb_grant[2:1]),
 	.sl_data_latch(sl_data_latch),
 	
 	.debug(basics_debug)

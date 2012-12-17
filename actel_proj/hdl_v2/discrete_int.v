@@ -12,6 +12,10 @@ module discrete_int(
 	output SDA_PU,
 	output SDA_TRI,
 	
+	//I2C Settings
+	input [7:0] i2c_speed,
+	input [15:0] i2c_addr,
+	
 	//Master input bus
 	input [7:0] ma_data,
 	input [7:0] ma_addr,
@@ -21,8 +25,8 @@ module discrete_int(
 
 	//Slave output bus
 	inout [7:0] sl_data,
-	output [2:0] sl_arb_request,
-	input [2:0] sl_arb_grant,
+	output [1:0] sl_arb_request,
+	input [1:0] sl_arb_grant,
 	input sl_data_latch,
 	
 	output [7:0] debug
@@ -36,10 +40,6 @@ reg tx_data_latch;
 reg [7:0] rx_char;
 reg rx_char_latch;
 reg rx_req;
-
-wire [7:0] addr_match_char;
-wire addr_match_latch;
-wire addr_match_nreset;
 
 //Bus interface takes care of all buffering, etc for discrete data...
 wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment;
@@ -103,7 +103,7 @@ ack_generator ag0(
 wire [7:0] mf_sl_data;
 reg [7:0] message_idx;
 reg local_frame_valid, send_idx;
-assign sl_data = (sl_arb_grant[2]) ? mf_sl_data : 8'bzzzzzzzz;
+assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 8'bzzzzzzzz;
 message_fifo #(8) mf1(
 	.clk(clk),
 	.rst(reset),
@@ -114,14 +114,17 @@ message_fifo #(8) mf1(
 	.populate_frame_length(1'b1),
 
 	.out_data(mf_sl_data),
-	.out_frame_valid(sl_arb_request[2]),
-	.out_data_latch(sl_data_latch & sl_arb_grant[2])
+	.out_frame_valid(sl_arb_request[1]),
+	.out_data_latch(sl_data_latch & sl_arb_grant[1])
 );
 /************************************************************/
 
 assign debug = {hd_data_valid, hd_frame_valid, hd_is_fragment, tx_char_valid, tx_data_latch, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF};
 
 //This bus interface listens for address matching data...
+/*wire [7:0] addr_match_char;
+wire addr_match_latch;
+wire addr_match_nreset;
 bus_interface #(8'h45,0,0) bi1(
 	.clk(clk),
 	.rst(reset),
@@ -131,8 +134,8 @@ bus_interface #(8'h45,0,0) bi1(
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 	.sl_data(sl_data),
-	.sl_arb_request(sl_arb_request[1]),
-	.sl_arb_grant(sl_arb_grant[1]),
+	.sl_arb_request(sl_arb_request[2]),
+	.sl_arb_grant(sl_arb_grant[2]),
 	.sl_data_latch(sl_data_latch),
 	.in_frame_data(addr_match_char),
 	.in_frame_data_valid(addr_match_latch),
@@ -141,7 +144,7 @@ bus_interface #(8'h45,0,0) bi1(
 	.out_frame_data(),//TODO: Fill these in to send back ACKs, etc
 	.out_frame_valid(),
 	.out_frame_data_latch()
-);
+);*/
 
 reg sda_drive_real;
 reg ack;
@@ -158,12 +161,11 @@ assign SCL_PD = SCL_mpd;
 assign SCL_PU = ~SCL_mpu;
 assign SCL_TRI = SCL_mpd | SCL_mpu;
 
-parameter clock_div = 99;
-
 reg tx_req_clear;
 reg cur_bit_decr;
 reg cur_bit_reset;
-reg [7:0] clock_counter;
+reg [8:0] clock_counter;
+wire [8:0] clock_div = {1'b0, i2c_speed};
 reg [2:0] cur_bit;
 
 reg [3:0] rx_counter;
@@ -178,7 +180,7 @@ reg [7:0] cur_addr;
 reg ack_set, ack_reset;
 
 //Address matching RAM (can accept any I2C address)
-wire [7:0] cur_addr_word;
+/*wire [7:0] cur_addr_word;
 reg [3:0] addr_match_addr;
 ram #(8,4) addrMatchRam(
 	.clk(clk),
@@ -189,7 +191,10 @@ ram #(8,4) addrMatchRam(
 	.out_addr(cur_addr[7:4]),
 	.out_data(cur_addr_word)
 );
-wire addr_match = cur_addr_word[cur_addr[3:1]];
+wire addr_match = cur_addr_word[cur_addr[3:1]];*/
+wire [7:0] ones_mask = i2c_addr[15:8];
+wire [7:0] zeros_mask = i2c_addr[7:0];
+wire addr_match = ((cur_addr & ones_mask) == ones_mask) && ((~cur_addr & zeros_mask) == zeros_mask);
 
 //Defining states as parameters since `defines have global scope
 parameter STATE_IDLE = 0;
@@ -336,6 +341,7 @@ always @* begin
 		STATE_CLEAR_FIFO: begin
 			tx_data_latch = 1'b1;
 			if((~hd_frame_valid) | (~tx_char_valid)) begin
+				tx_data_latch = 1'b0;
 				hd_header_done_clear = 1'b1;
 				next_state = STATE_IDLE;
 			end
@@ -523,14 +529,14 @@ always @(posedge clk) begin
 		ack <= 1'b1;
 
 	//Increment through the address match RAM when loading stuff in
-	if(~addr_match_nreset)
+	/*if(~addr_match_nreset)
 		addr_match_addr <= 0;
 	else if(addr_match_latch)
 		addr_match_addr <= addr_match_addr + 1;
 
 	if(reset) begin
 		addr_match_addr <= 4'd0;
-	end
+	end*/
 end
 
 endmodule

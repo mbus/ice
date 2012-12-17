@@ -91,7 +91,6 @@ always @* begin
 		STATE_RX_LEN: begin
 			ma_frame_valid = 1'b1;
 			ma_data_valid = rx_char_valid;
-			byte_counter_incr = rx_char_valid;
 			shift_in_pyld_len = rx_char_valid;
 			if(rx_char_valid) begin
 				byte_counter_reset = 1'b1;
@@ -118,8 +117,8 @@ end
 
 always @(posedge clk) begin
 	if(shift_in_pyld_len) begin
-		if(rx_char == 0)
-			payload_len <= 8'd255;
+		if(rx_char == 8'hFF)
+			payload_len <= 8'd254;
 		else
 			payload_len <= rx_char;
 	end
