@@ -14,7 +14,7 @@ module message_fifo(
 	
 	output [7:0] debug
 );
-parameter DEPTH_LOG2=8;
+parameter DEPTH_LOG2=9;
 parameter DEPTH = (1 << DEPTH_LOG2);
 
 wire eof_marker;
@@ -48,7 +48,7 @@ assign ram_wr_addr = (insert_frame_ctr) ? old_head + 2 : head;
 assign ram_wr_data = (insert_frame_ctr) ? {1'b0, num_frame_bytes} : {insert_fvbit,in_data};
 assign ram_wr_latch = (insert_frame_ctr | insert_in_data | insert_fvbit); 
 
-reg last_frame_valid, last_out_data_latch;
+reg last_frame_valid;
 
 assign in_data_overflow = (head == tail-1);
 assign out_frame_valid = (num_valid_frames > 0);
@@ -62,7 +62,6 @@ reg [3:0] state, next_state;
 assign debug = {eof_marker,state[2:0]};
 always @(posedge clk) begin
 	last_frame_valid <= in_frame_valid;
-	last_out_data_latch <= out_data_latch;
 
 	if(rst) begin
 		state <= STATE_IDLE;

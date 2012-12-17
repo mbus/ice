@@ -21,15 +21,16 @@ module discrete_int(
 
 	//Slave output bus
 	inout [7:0] sl_data,
-	output [1:0] sl_arb_request,
-	input [1:0] sl_arb_grant,
-	input sl_data_latch
+	output [2:0] sl_arb_request,
+	input [2:0] sl_arb_grant,
+	input sl_data_latch,
+	
+	output [7:0] debug
 );
 
 //Local wires/buses
 wire [7:0] tx_char;
 wire tx_char_valid;
-wire tx_req;
 reg tx_data_latch;
 
 reg [7:0] rx_char;
@@ -41,6 +42,9 @@ wire addr_match_latch;
 wire addr_match_nreset;
 
 //Bus interface takes care of all buffering, etc for discrete data...
+wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment;
+wire [7:0] hd_header_eid;
+reg hd_header_done_clear;
 bus_interface #(8'h64,1,1) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -54,13 +58,66 @@ bus_interface #(8'h64,1,1) bi0(
 	.sl_arb_grant(sl_arb_grant[0]),
 	.sl_data_latch(sl_data_latch),
 	.in_frame_data(tx_char),
-	.in_frame_data_valid(tx_char_valid),
-	.in_frame_valid(tx_req),
-	.in_frame_data_latch(tx_data_latch),
+	.in_frame_data_valid(hd_data_valid),//tx_char_valid),
+	.in_frame_valid(hd_frame_valid),//tx_req),
+	.in_frame_data_latch(tx_data_latch | hd_data_latch),
 	.out_frame_data(rx_char),
 	.out_frame_valid(rx_req),
 	.out_frame_data_latch(rx_char_latch)
 );
+header_decoder hd0(
+	.clk(clk),
+	.rst(reset),
+	.in_frame_data(tx_char),
+	.in_frame_data_valid(hd_data_valid),
+	.in_frame_valid(hd_frame_valid),
+	.header_eid(hd_header_eid),
+	.is_fragment(hd_is_fragment),
+	.frame_data_latch(hd_data_latch),
+	.header_done(hd_header_done),
+	.header_done_clear(hd_header_done_clear)
+);
+assign tx_char_valid = hd_data_valid & hd_header_done;
+
+/************************************************************
+ *Ack generator is used to easily create ACK & NAK sequences*
+ ************************************************************/
+reg ackgen_generate_ack, ackgen_generate_nak;
+wire [7:0] ack_message_data;
+wire ack_message_data_valid;
+wire ack_message_frame_valid;
+ack_generator ag0(
+	.clk(clk),
+	.reset(reset),
+	
+	.generate_ack(ackgen_generate_ack),
+	.generate_nak(ackgen_generate_nak),
+	.eid_in(hd_header_eid),
+	
+	.message_data(ack_message_data),
+	.message_data_valid(ack_message_data_valid),
+	.message_frame_valid(ack_message_frame_valid)
+);
+
+//Only using an output message fifo here because we should be able to keep up with requests in real-time
+wire [7:0] mf_sl_data;
+assign sl_data = (sl_arb_grant[2]) ? mf_sl_data : 8'bzzzzzzzz;
+message_fifo #(8) mf1(
+	.clk(clk),
+	.rst(reset),
+	
+	.in_data(ack_message_data),
+	.in_data_latch(ack_message_data_valid),
+	.in_frame_valid(ack_message_frame_valid),
+	.populate_frame_length(1'b1),
+
+	.out_data(mf_sl_data),
+	.out_frame_valid(sl_arb_request[2]),
+	.out_data_latch(sl_data_latch & sl_arb_grant[2])
+);
+/************************************************************/
+
+assign debug = {hd_data_valid, hd_frame_valid, hd_is_fragment, tx_char_valid, tx_data_latch, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF};
 
 //This bus interface listens for address matching data...
 bus_interface #(8'h45,0,0) bi1(
@@ -101,12 +158,36 @@ assign SCL_TRI = SCL_mpd | SCL_mpu;
 
 parameter clock_div = 99;
 
-reg rx_busy;
 reg tx_req_clear;
 reg cur_bit_decr;
 reg cur_bit_reset;
 reg [7:0] clock_counter;
 reg [2:0] cur_bit;
+
+reg [3:0] rx_counter;
+reg rx_counter_incr;
+reg rx_counter_reset;
+reg rx_shift_out;
+reg next_rx_char_latch;
+reg sda_db, sda_db_last, sda_db_0;
+reg scl_db, scl_db_last, scl_db_0;
+reg addr_enable, addr_disable, cur_addr_flag;
+reg [7:0] cur_addr;
+reg ack_set, ack_reset;
+
+//Address matching RAM (can accept any I2C address)
+wire [7:0] cur_addr_word;
+reg [3:0] addr_match_addr;
+ram #(8,4) addrMatchRam(
+	.clk(clk),
+	.reset(reset),
+	.in_data(addr_match_char),
+	.in_addr(addr_match_addr),
+	.in_latch(addr_match_latch),
+	.out_addr(cur_addr[7:4]),
+	.out_data(cur_addr_word)
+);
+wire addr_match = cur_addr_word[cur_addr[3:1]];
 
 //Defining states as parameters since `defines have global scope
 parameter STATE_IDLE = 0;
@@ -118,29 +199,57 @@ parameter STATE_TX_ACK_SCL_HIGH = 5;
 parameter STATE_TX_STOP0 = 6;
 parameter STATE_TX_STOP1 = 7;
 parameter STATE_TX_STOP2 = 8;
+parameter STATE_FRAGMENT_IDLE = 9;
+parameter STATE_RX_DATA=10;
+parameter STATE_RX_ACK=11;
 
-reg [3:0] tx_state;
-reg [3:0] next_tx_state;
+reg [3:0] state;
+reg [3:0] next_state;
 reg sda_drive, scl_drive;
 reg sda_drive_val, scl_drive_val;
-reg tx_req_hist;
 
 always @* begin
-	next_tx_state = tx_state;
+	next_state = state;
 	tx_req_clear = 1'b0;
 	cur_bit_decr = 1'b0;
 	cur_bit_reset = 1'b0;
 	tx_data_latch = 1'b0;
+	hd_header_done_clear = 1'b0;
 
 	sda_drive = 1'b0;
 	scl_drive = 1'b0;
 	sda_drive_val = 1'b1;
 	scl_drive_val = 1'b1;
 	
-	case(tx_state)
+	ackgen_generate_ack = 1'b0;
+	ackgen_generate_nak = 1'b0;
+	
+	rx_counter_incr = 1'b0;
+	rx_counter_reset = 1'b0;
+	next_rx_char_latch = 1'b0;
+	rx_req = 1'b0;
+	rx_shift_out = 1'b0;
+	addr_enable = 1'b0;
+	addr_disable = 1'b0;
+	ack_set = 1'b0;
+	ack_reset = 1'b0;
+	
+	case(state)
 		STATE_IDLE: begin
-			if(tx_req_hist && !rx_busy)
-				next_tx_state = STATE_TX_START;
+			rx_counter_reset = 1'b1;
+			addr_enable = 1'b1;
+			ack_reset = 1'b1;
+			if(sda_db == 1'b0 && scl_db == 1'b1)
+				next_state = STATE_RX_DATA;
+			else if(hd_header_done)
+				next_state = STATE_TX_START;
+		end
+		
+		STATE_FRAGMENT_IDLE: begin
+			scl_drive = 1'b1;
+			scl_drive_val = 1'b0;
+			if(hd_header_done)
+				next_state = STATE_TX_SCL_LOW;
 		end
 
 		STATE_TX_START: begin
@@ -150,14 +259,11 @@ always @* begin
 			if(clock_counter <= clock_div)
 				sda_drive_val = 1'b1;
 			else begin
-				if(tx_req == 1'b1) //Jump to the stop bit in case this is a blank I2C transaction (special for M3)
-					next_tx_state = STATE_TX_STOP1;
-				else
-					sda_drive_val = 1'b0;
+				sda_drive_val = 1'b0;
 			end
 			cur_bit_reset = 1'b1;
 			if(clock_counter == clock_div*2) begin
-				next_tx_state = STATE_TX_SCL_LOW;
+				next_state = STATE_TX_SCL_LOW;
 			end
 		end
 
@@ -167,7 +273,7 @@ always @* begin
 			sda_drive_val = tx_char[cur_bit];
 			scl_drive_val = 1'b0;
 			if(clock_counter == clock_div)
-				next_tx_state = STATE_TX_SCL_HIGH;
+				next_state = STATE_TX_SCL_HIGH;
 		end
 
 		STATE_TX_SCL_HIGH: begin
@@ -177,9 +283,9 @@ always @* begin
 			if(clock_counter == clock_div) begin
 				cur_bit_decr = 1'b1;
 				if(cur_bit > 0) begin
-					next_tx_state = STATE_TX_SCL_LOW;
+					next_state = STATE_TX_SCL_LOW;
 				end else begin
-					next_tx_state = STATE_TX_ACK_SCL_LOW;
+					next_state = STATE_TX_ACK_SCL_LOW;
 				end
 			end
 		end
@@ -188,8 +294,8 @@ always @* begin
 			scl_drive = 1'b1;
 			scl_drive_val = 1'b0;
 			if(clock_counter == clock_div) begin
-				tx_data_latch = 1'b1;
-				next_tx_state = STATE_TX_ACK_SCL_HIGH;
+				tx_data_latch = 1'b1; //TODO: This should only be done conditionally (if it received an ACK)
+				next_state = STATE_TX_ACK_SCL_HIGH;
 			end
 		end
 
@@ -198,10 +304,14 @@ always @* begin
 			scl_drive_val = 1'b1;
 			cur_bit_reset = 1'b1;
 			if(clock_counter == clock_div) begin
-				if(tx_req == 1'b0 && tx_char_valid)
-					next_tx_state = STATE_TX_SCL_LOW;
-				else
-					next_tx_state = STATE_TX_STOP0;
+				if(hd_frame_valid & tx_char_valid)
+					next_state = STATE_TX_SCL_LOW;
+				else if(hd_is_fragment) begin
+					hd_header_done_clear = 1'b1;
+					ackgen_generate_ack = 1'b1;
+					next_state = STATE_FRAGMENT_IDLE;
+				end else
+					next_state = STATE_TX_STOP0;
 			end
 		end
 
@@ -211,7 +321,7 @@ always @* begin
 			sda_drive = 1'b1;
 			sda_drive_val = 1'b0;
 			if(clock_counter == clock_div)
-				next_tx_state = STATE_TX_STOP1;
+				next_state = STATE_TX_STOP1;
 		end
 
 		STATE_TX_STOP1: begin
@@ -220,7 +330,7 @@ always @* begin
 			sda_drive = 1'b1;
 			sda_drive_val = 1'b0;
 			if(clock_counter == clock_div)
-				next_tx_state = STATE_TX_STOP2;
+				next_state = STATE_TX_STOP2;
 		end
 
 		STATE_TX_STOP2: begin
@@ -229,14 +339,51 @@ always @* begin
 			sda_drive = 1'b1;
 			sda_drive_val = 1'b1;
 			if(clock_counter == clock_div) begin
-				tx_data_latch = 1'b1;
-				next_tx_state = STATE_IDLE;
+				hd_header_done_clear = 1'b1;
+				ackgen_generate_ack = 1'b1;
+				next_state = STATE_IDLE;
+			end
+		end
+		
+		STATE_RX_DATA: begin
+			rx_req = 1'b1;
+			if(scl_db_last == 1'b0 && scl_db == 1'b1) begin
+				rx_counter_incr = 1'b1;
+				rx_shift_out = 1'b1;
+				if(rx_counter == 4'd7) begin
+					rx_counter_reset = 1'b1;
+					next_rx_char_latch = 1'b1;
+					next_state = STATE_RX_ACK;
+				end
+			end
+			//If we've seen a stop bit, proceed to go, collect $200
+			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
+				next_state = STATE_IDLE;
+			end
+		end
+		
+		STATE_RX_ACK: begin
+			rx_req = 1'b1;
+			//According to the 'mm3 sensor node - I2C.pptx' documentation, I can just pull down for ACK during the whole cycle without any repercussions
+			addr_disable = 1'b1;
+			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
+				next_state = STATE_IDLE;
+			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
+				if(addr_match)
+					ack_set = 1'b1;
+				//TODO: Need some sort of address matching in here!!!
+				rx_counter_incr = 1'b1;
+				if(rx_counter == 4'd1) begin
+					ack_reset = 1'b1;
+					rx_counter_reset = 1'b1;
+					next_state = STATE_RX_DATA;
+				end
 			end
 		end
 	endcase
 end
 
-reg [7:0] sda_drive_counter;
+reg [4:0] sda_drive_counter;
 always @(posedge clk) begin
 	
 	SCL_mpu <= (scl_drive) ? ((scl_drive_val) ? 1'b1 : 1'b0) : 1'b0;
@@ -273,19 +420,14 @@ always @(posedge clk) begin
 
 	if(reset) begin
 		clock_counter <= 0;
-		tx_req_hist <= 1'b0;
-		tx_state <= STATE_IDLE;
+		state <= STATE_IDLE;
 		sda_drive_real <= 1'b0;
 		sda_drive_counter <= 0;
 	end else begin
-		tx_state <= next_tx_state;
-
-		tx_req_hist <= tx_req_hist | tx_req;
-		if(tx_req_clear)
-			tx_req_hist <= 1'b0;
+		state <= next_state;
 	
 		clock_counter <= clock_counter + 1;
-		if(tx_state != next_tx_state)
+		if(state != next_state)
 			clock_counter <= 0;
 
 		if(cur_bit_reset)
@@ -295,98 +437,7 @@ always @(posedge clk) begin
 	end
 end
 
-parameter STATE_RX_IDLE=0;
-parameter STATE_RX_DATA=1;
-parameter STATE_RX_ACK=2;
-
-reg [3:0] rx_state, next_rx_state;
-reg [3:0] rx_counter;
-reg rx_counter_incr;
-reg rx_counter_reset;
-reg rx_shift_out;
-reg next_rx_busy, next_rx_char_latch;
-reg sda_db, sda_db_last, sda_db_0;
-reg scl_db, scl_db_last, scl_db_0;
-reg addr_enable, addr_disable, cur_addr_flag;
-reg [7:0] cur_addr;
-reg ack_set, ack_reset;
-
-//Address matching RAM (can accept any I2C address)
-wire [7:0] cur_addr_word;
-reg [3:0] addr_match_addr;
-ram #(8,4) addrMatchRam(
-	.clk(clk),
-	.reset(reset),
-	.in_data(addr_match_char),
-	.in_addr(addr_match_addr),
-	.in_latch(addr_match_latch),
-	.out_addr(cur_addr[7:4]),
-	.out_data(cur_addr_word)
-);
-wire addr_match = cur_addr_word[cur_addr[3:1]];
-
-always @* begin
-	next_rx_state = rx_state;
-	next_rx_busy = 1'b1;
-	rx_counter_incr = 1'b0;
-	rx_counter_reset = 1'b0;
-	next_rx_char_latch = 1'b0;
-	rx_req = 1'b1;
-	rx_shift_out = 1'b0;
-	addr_enable = 1'b0;
-	addr_disable = 1'b0;
-	ack_set = 1'b0;
-	ack_reset = 1'b0;
-	
-	case(rx_state)
-		STATE_RX_IDLE: begin
-			next_rx_busy = 1'b0;
-			rx_counter_reset = 1'b1;
-			addr_enable = 1'b1;
-			ack_reset = 1'b1;
-			rx_req = 1'b0;
-			if(sda_db == 1'b0 && scl_db == 1'b1)
-				next_rx_state = STATE_RX_DATA;
-		end
-		
-		STATE_RX_DATA: begin
-			if(scl_db_last == 1'b0 && scl_db == 1'b1) begin
-				rx_counter_incr = 1'b1;
-				rx_shift_out = 1'b1;
-				if(rx_counter == 4'd7) begin
-					rx_counter_reset = 1'b1;
-					next_rx_char_latch = 1'b1;
-					next_rx_state = STATE_RX_ACK;
-				end
-			end
-			//If we've seen a stop bit, proceed to go, collect $200
-			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
-				next_rx_state = STATE_RX_IDLE;
-			end
-		end
-		
-		STATE_RX_ACK: begin
-			//According to the 'mm3 sensor node - I2C.pptx' documentation, I can just pull down for ACK during the whole cycle without any repercussions
-			addr_disable = 1'b1;
-			if(sda_db_last == 1'b0 && sda_db == 1'b1 && scl_db == 1'b1) begin
-				next_rx_state = STATE_RX_IDLE;
-			end else if(scl_db_last == 1'b1 && scl_db == 1'b0) begin
-				if(addr_match)
-					ack_set = 1'b1;
-				//TODO: Need some sort of address matching in here!!!
-				rx_counter_incr = 1'b1;
-				if(rx_counter == 4'd1) begin
-					ack_reset = 1'b1;
-					rx_counter_reset = 1'b1;
-					next_rx_state = STATE_RX_DATA;
-				end
-			end
-		end
-	endcase
-end
-
 always @(posedge clk) begin
-	rx_busy <= next_rx_busy;
 	
 	//Debouncing for SDA & SCL
 	sda_db_0 <= SDA_DISCRETE_BUF;
@@ -428,10 +479,7 @@ always @(posedge clk) begin
 		addr_match_addr <= addr_match_addr + 1;
 
 	if(reset) begin
-		rx_state <= STATE_RX_IDLE;
 		addr_match_addr <= 4'd0;
-	end else begin
-		rx_state <= next_rx_state;
 	end
 end
 
