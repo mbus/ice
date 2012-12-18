@@ -54,6 +54,17 @@ uart #(174) u1(
 	.rx_latch(uart_rx_latch)
 );
 
+//Global event counter is used for tagging messages in time
+wire disc_ctr_incr;
+wire [7:0] global_counter;
+global_event_counter gec1(
+	.clk(clk),
+	.rst(reset),
+	
+	.ctr_incr(disc_ctr_incr),
+	.counter_out(global_counter)
+);
+
 //Main bus connections
 wire ma_generate_nak;
 wire [7:0] ma_data, ma_addr;
@@ -151,6 +162,10 @@ discrete_int di0(
 	.sl_arb_grant(sl_arb_grant[2:1]),
 	.sl_data_latch(sl_data_latch),
 	
+	//Global counter for 'time-tagging'
+	.global_counter(global_counter),
+	.incr_ctr(disc_ctr_incr),
+	
 	.debug(basics_debug)
 );
 	
@@ -235,9 +250,9 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? ma_data : 
+assign debug = (~PB[4]) ? {USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
                (~PB[3]) ? basics_debug : 
-			   (~PB[2]) ? {sl_arb_request[0], sl_data[6:0]} : {ma_data_valid, ma_frame_valid, ma_data[5:0]};
+			   (~PB[2]) ? {sl_arb_request[1], sl_arb_grant[1], sl_data[5:0]} : {ma_data_valid, ma_frame_valid, ma_data[5:0]};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 

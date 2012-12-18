@@ -24,7 +24,9 @@ module bus_interface(
 	//Local output data interface
 	input [7:0] out_frame_data,
 	input out_frame_valid,
-	input out_frame_data_latch);
+	input out_frame_data_latch,
+	
+	output [7:0] debug);
 parameter ADDR = 0;
 parameter INCLUDE_INPUT_FIFO = 0;
 parameter INCLUDE_OUTPUT_FIFO = 0;
@@ -33,7 +35,6 @@ parameter INCLUDE_OUTPUT_FIFO = 0;
 wire in_mf_overflow;
 wire addr_match = (ma_addr == ADDR);
 wire [7:0] local_sl_data;
-wire local_sl_data_latch;
 
 //Only include an input FIFO if it has been requested
 generate
@@ -62,7 +63,7 @@ endgenerate
 
 //Output FIFO will always be needed in this case
 generate
-	if(INCLUDE_INPUT_FIFO) begin
+	if(INCLUDE_OUTPUT_FIFO) begin
 		message_fifo mf1(
 			.clk(clk),
 			.rst(rst),
@@ -73,7 +74,8 @@ generate
 			.populate_frame_length(1'b1),
 			.out_data(local_sl_data),
 			.out_frame_valid(sl_arb_request),
-			.out_data_latch(sl_data_latch)
+			.out_data_latch(sl_data_latch & sl_arb_grant),
+			.debug(debug)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
 	end else begin
