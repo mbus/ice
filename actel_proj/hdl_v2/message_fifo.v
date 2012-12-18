@@ -27,10 +27,16 @@ reg revert_head_ptr;
 reg incr_byte_ctr;
 reg incr_frame_ctr;
 reg insert_frame_ctr;
+reg save_latched_data;
+reg insert_old_header;
+reg insert_saved_data;
+
+reg [7:0] fragment_save_data;
+reg [15:0] old_header;
 
 //Inferred ram block
 reg [DEPTH_LOG2-1:0] head, old_head, tail, num_valid_frames;
-reg [7:0] num_frame_bytes;
+reg [8:0] num_frame_bytes;
 wire [DEPTH_LOG2-1:0] ram_wr_addr;
 wire [8:0] ram_wr_data;
 wire ram_wr_latch;
@@ -45,8 +51,10 @@ ram #(9,DEPTH_LOG2) fr1(
 );
 
 assign ram_wr_addr = (insert_frame_ctr) ? old_head + 2 : head;
-assign ram_wr_data = (insert_frame_ctr) ? {1'b0, num_frame_bytes} : {insert_fvbit,in_data};
-assign ram_wr_latch = (insert_frame_ctr | insert_in_data | insert_fvbit); 
+assign ram_wr_data = (insert_frame_ctr) ? {1'b0, num_frame_bytes[7:0]} : 
+                     (insert_old_header) ? {1'b0, old_header[15:8]} : 
+					 (insert_saved_data) ? {1'b0, fragment_save_data} : {insert_fvbit,in_data};
+assign ram_wr_latch = (insert_frame_ctr | insert_in_data | insert_fvbit | insert_old_header | insert_saved_data); 
 
 reg last_frame_valid;
 
@@ -57,6 +65,9 @@ assign out_frame_valid = (num_valid_frames > 0);
 parameter STATE_IDLE = 0;
 parameter STATE_RECORDING_FRAME = 1;
 parameter STATE_POPULATE_FLEN = 2;
+parameter STATE_FRAGMENT0 = 3;
+parameter STATE_FRAGMENT1 = 4;
+parameter STATE_FRAGMENT2 = 5;
 
 reg [3:0] state, next_state;
 assign debug = {eof_marker,state[2:0]};
@@ -77,7 +88,7 @@ always @(posedge clk) begin
 			old_head <= head;
 			num_frame_bytes <= -2;
 		end
-		if(insert_in_data | insert_fvbit)
+		if(insert_in_data | insert_fvbit | insert_old_header | insert_saved_data)
 			head <= head + 1;
 		if(revert_head_ptr)
 			head <= old_head;
@@ -85,6 +96,12 @@ always @(posedge clk) begin
 			num_frame_bytes <= num_frame_bytes + 1;
 		if(incr_frame_ctr)
 			num_valid_frames <= num_valid_frames + 1;
+			
+		//Save a header in case we need it for a fragment later
+		if((insert_in_data && num_frame_bytes < 2) || insert_old_header)
+			old_header <= {old_header[7:0], in_data};
+		if(save_latched_data)
+			fragment_save_data <= in_data;
 
 		if(out_data_latch)
 			tail <= tail + 1;
@@ -103,6 +120,9 @@ always @* begin
 	incr_byte_ctr = 1'b0;
 	incr_frame_ctr = 1'b0;
 	insert_frame_ctr = 1'b0;
+	save_latched_data = 1'b0;
+	insert_old_header = 1'b0;
+	insert_saved_data = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -114,7 +134,14 @@ always @* begin
 		end
 		
 		STATE_RECORDING_FRAME: begin
-			if(in_data_overflow) begin
+			//Check to see if we have to fragment a packet
+			if(populate_frame_length && in_data_latch && (num_frame_bytes == 9'hFE)) begin
+				save_latched_data = 1'b1;
+				insert_fvbit = 1'b1;
+				incr_frame_ctr = 1'b1;
+				incr_byte_ctr = 1'b1;
+				next_state = STATE_FRAGMENT0;
+			end else if(in_data_overflow) begin
 				revert_head_ptr = 1'b1;
 				next_state = STATE_IDLE;
 			end else if(in_data_latch) begin
@@ -135,6 +162,34 @@ always @* begin
 			insert_frame_ctr = 1'b1;
 			next_state = STATE_IDLE;
 		end
+		
+		STATE_FRAGMENT0: begin
+			insert_frame_ctr = 1'b1;
+			latch_old_head = 1'b1;
+			next_state = STATE_FRAGMENT1;
+		end
+		
+		STATE_FRAGMENT1: begin
+			insert_old_header = 1'b1;
+			incr_byte_ctr = 1'b1;
+			if(in_data_overflow) begin
+				revert_head_ptr = 1'b1;
+				next_state = STATE_IDLE;
+			end
+			if(num_frame_bytes == 9'd0)
+				next_state = STATE_FRAGMENT2;
+		end
+		
+		STATE_FRAGMENT2: begin
+			insert_saved_data = 1'b1;
+			incr_byte_ctr = 1'b1;
+			if(in_data_overflow) begin
+				revert_head_ptr = 1'b1;
+				next_state = STATE_IDLE;
+			end
+			next_state = STATE_RECORDING_FRAME;
+		end
+		
 	endcase
 end
 
