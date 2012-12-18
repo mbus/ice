@@ -7,6 +7,7 @@ module header_decoder(
 	output reg [7:0] header_eid,
 	output reg frame_data_latch,
 	output reg header_done,
+	output reg packet_is_empty,
 	output reg is_fragment,
 	input header_done_clear
 );
@@ -23,12 +24,18 @@ always @(posedge clk) begin
 		state <= STATE_IDLE;
 		header_done <= 1'b0;
 		is_fragment <= 1'b0;
+		packet_is_empty <= 1'b0;
 	end else begin
 		state <= next_state;
 		if(latch_eid)
 			header_eid <= in_frame_data;
-		if(set_header_done)
+		if(set_header_done) begin
 			header_done <= 1'b1;
+			if(in_frame_data == 8'h00)
+				packet_is_empty <= 1'b1;
+			else
+				packet_is_empty <= 1'b0;
+		end
 		if(header_done_clear)
 			header_done <= 1'b0;
 		if(latch_is_fragment) begin

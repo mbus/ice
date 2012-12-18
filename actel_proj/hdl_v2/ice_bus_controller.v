@@ -117,10 +117,7 @@ end
 
 always @(posedge clk) begin
 	if(shift_in_pyld_len) begin
-		if(rx_char == 8'hFF)
-			payload_len <= 8'd254;
-		else
-			payload_len <= rx_char;
+		payload_len <= rx_char;
 	end
 	if(record_addr)
 		ma_addr <= rx_char;

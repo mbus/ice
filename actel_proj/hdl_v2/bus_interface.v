@@ -30,6 +30,7 @@ module bus_interface(
 parameter ADDR = 0;
 parameter INCLUDE_INPUT_FIFO = 0;
 parameter INCLUDE_OUTPUT_FIFO = 0;
+parameter SUPPORTS_FRAGMENTATION = 0;
 
 //Local wires/buses
 wire in_mf_overflow;
@@ -39,7 +40,7 @@ wire [7:0] local_sl_data;
 //Only include an input FIFO if it has been requested
 generate
 	if(INCLUDE_INPUT_FIFO) begin
-		message_fifo mf0(
+		message_fifo #(9,0) mf0(
 			.clk(clk),
 			.rst(rst),
 			.in_data(ma_data),
@@ -64,7 +65,7 @@ endgenerate
 //Output FIFO will always be needed in this case
 generate
 	if(INCLUDE_OUTPUT_FIFO) begin
-		message_fifo mf1(
+		message_fifo #(9,SUPPORTS_FRAGMENTATION) mf1(
 			.clk(clk),
 			.rst(rst),
 			.in_data(out_frame_data),

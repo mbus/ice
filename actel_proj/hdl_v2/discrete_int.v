@@ -46,14 +46,14 @@ reg rx_char_latch;
 reg rx_req;
 
 //Bus interface takes care of all buffering, etc for discrete data...
-wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment;
+wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment, hd_is_empty;
 wire [7:0] hd_header_eid;
 reg hd_header_done_clear;
 reg send_flag, send_ctr;
 wire [7:0] rx_frame_data = (send_flag) ? 8'h64 : (send_ctr) ? global_counter : rx_char;
 wire [7:0] bi_debug;
 wire rx_frame_data_latch = rx_char_latch | send_ctr;
-bus_interface #(8'h64,1,1) bi0(
+bus_interface #(8'h64,1,1,1) bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),
@@ -84,6 +84,7 @@ header_decoder hd0(
 	.is_fragment(hd_is_fragment),
 	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
+	.packet_is_empty(hd_is_empty),
 	.header_done_clear(hd_header_done_clear)
 );
 assign tx_char_valid = hd_data_valid & hd_header_done;
@@ -145,7 +146,6 @@ assign SCL_PD = SCL_mpd;
 assign SCL_PU = ~SCL_mpu;
 assign SCL_TRI = SCL_mpd | SCL_mpu;
 
-reg tx_req_clear;
 reg cur_bit_decr;
 reg cur_bit_reset;
 reg [8:0] clock_counter;
@@ -153,6 +153,8 @@ wire [8:0] clock_div = {1'b0, i2c_speed};
 reg [2:0] cur_bit;
 
 reg [3:0] rx_counter;
+reg [7:0] rx_char_ctr;
+reg reset_rx_char_ctr;
 reg rx_counter_incr;
 reg rx_counter_reset;
 reg rx_shift_out;
@@ -186,6 +188,7 @@ parameter STATE_NAK2=14;
 parameter STATE_CLEAR_FIFO=15;
 parameter STATE_RX_HDR0=16;
 parameter STATE_RX_HDR1=17;
+parameter STATE_RX_FRAGMENT=18;
 
 reg [4:0] state;
 reg [4:0] next_state;
@@ -196,7 +199,6 @@ reg fail, fail_set, fail_reset;
 
 always @* begin
 	next_state = state;
-	tx_req_clear = 1'b0;
 	cur_bit_decr = 1'b0;
 	cur_bit_reset = 1'b0;
 	tx_data_latch = 1'b0;
@@ -228,6 +230,7 @@ always @* begin
 	incr_ctr = 1'b0;
 	fail_set = 1'b0;
 	fail_reset = 1'b0;
+	reset_rx_char_ctr = 1'b0;
 	
 	case(state)
 		STATE_IDLE: begin
@@ -238,20 +241,28 @@ always @* begin
 			reset_idx = 1'b1;
 			if(sda_db == 1'b0 && scl_db == 1'b1)
 				next_state = STATE_RX_HDR0;
-			else if(hd_header_done)
+			else if(hd_header_done & ~hd_is_empty)
 				next_state = STATE_TX_START;
+			else if(hd_header_done) begin //The packet IS empty
+				hd_header_done_clear = 1'b1;
+				ackgen_generate_ack = 1'b1;
+			end
 		end
 		
 		STATE_FRAGMENT_IDLE: begin
 			scl_drive = 1'b1;
 			scl_drive_val = 1'b0;
 			reset_idx = 1'b1;
-			if(hd_header_done)
+			if(hd_header_done & ~hd_is_empty)
 				next_state = STATE_TX_SCL_LOW;
+			else if(hd_header_done) begin //The packet IS empty
+				hd_header_done_clear = 1'b1;
+				ackgen_generate_ack = 1'b1;
+				next_state = STATE_IDLE;
+			end
 		end
 
 		STATE_TX_START: begin
-			tx_req_clear = 1'b1;
 			sda_drive = 1'b1;
 			scl_drive = 1'b1;
 			if(clock_counter <= clock_div)
@@ -384,6 +395,7 @@ always @* begin
 		end
 		
 		STATE_RX_HDR1: begin
+			reset_rx_char_ctr = 1'b1;
 			rx_req = 1'b1;
 			send_ctr = 1'b1;
 			if(clock_counter[0]) begin
@@ -423,9 +435,17 @@ always @* begin
 				if(rx_counter == 4'd1) begin
 					ack_reset = 1'b1;
 					rx_counter_reset = 1'b1;
-					next_state = STATE_RX_DATA;
+					if(rx_char_ctr == 8'hFF)
+						next_state = STATE_RX_FRAGMENT;
+					else
+						next_state = STATE_RX_DATA;
 				end
 			end
+		end
+		
+		STATE_RX_FRAGMENT: begin
+			if(clock_counter[0]) //Give the message fifo a cycle to populate the length data
+				next_state = STATE_RX_HDR0;
 		end
 	endcase
 end
@@ -510,6 +530,14 @@ always @(posedge clk) begin
 	scl_db_last <= scl_db;
 	
 	rx_char_latch <= next_rx_char_latch;
+	if(reset)
+		rx_char_ctr <= 0;
+	else begin
+		if(reset_rx_char_ctr)
+			rx_char_ctr <= 0;
+		if(next_rx_char_latch)
+			rx_char_ctr <= rx_char_ctr + 1;
+	end
 	
 	if(rx_counter_reset)
 		rx_counter <= 0;
