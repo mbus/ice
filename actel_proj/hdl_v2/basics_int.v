@@ -21,18 +21,29 @@ module basics_int(
 	output reg [7:0] i2c_speed,
 	output reg [15:0] i2c_addr,
 	
+	//GOC settings
+	output reg [21:0] goc_speed,
+	
+	//GPIO interface
+	input [23:0] gpio_read,
+	output reg [23:0] gpio_level,
+	output reg [23:0] gpio_direction,
+	
 	output [7:0] debug
 );
 
 parameter VERSION_MAJOR = 8'h00;
 parameter VERSION_MINOR = 8'h01;
-
+	
 reg [7:0] ma_addr;
 wire [7:0] local_sl_data;
 reg [7:0] local_data;
 reg [15:0] version_in;
 reg local_frame_valid;
 wire local_data_latch, local_data_overflow;
+
+//Local copies of gpio settings to avoid shift-register complications
+reg [23:0] gpio_level_temp, gpio_direction_temp;
 
 //State machine locals
 reg [7:0] latched_eid;
@@ -94,19 +105,19 @@ parameter STATE_RESP_VER1 = 6;
 parameter STATE_RESP_VER2 = 7;
 parameter STATE_RESP_VER3 = 8;
 parameter STATE_RESP_VER4 = 9;
-parameter STATE_QUERY_I2C0 = 10;
-parameter STATE_QUERY_I2C1 = 11;
-parameter STATE_QUERY_I2C2 = 12;
-parameter STATE_SET_I2C0 = 13;
-parameter STATE_SET_I2C1 = 14;
-parameter STATE_SET_I2C2 = 15;
+parameter STATE_QUERY_PARAM0 = 10;
+parameter STATE_QUERY_PARAM1 = 11;
+parameter STATE_QUERY_PARAM2 = 12;
+parameter STATE_SET_PARAM0 = 13;
+parameter STATE_SET_PARAM2 = 15;
+parameter STATE_SET_PARAM1 = 14;
 
 reg [3:0] state, next_state;
 reg [7:0] counter;
-reg [4:0] latched_command;
-reg [15:0] parameter_staging;
+reg [8:0] latched_command;
+reg [23:0] parameter_staging;
 reg send_major_ver, send_minor_ver;
-reg latch_command;
+reg latch_command, latch_temps;
 reg data_counter_incr;
 reg shift_ver_in;
 reg new_command;
@@ -120,6 +131,10 @@ wire query_request_match = new_command && (ma_addr == 8'h56);
 wire ver_request_match = new_command && (ma_addr == 8'h76);
 wire query_i2c_match = new_command && (ma_addr == 8'h49);
 wire set_i2c_match = new_command && (ma_addr == 8'h69);
+wire query_goc_match = new_command && (ma_addr == 8'h4F);
+wire set_goc_match = new_command && (ma_addr == 8'h6F);
+wire query_gpio_match = new_command && (ma_addr == 8'h47);
+wire set_gpio_match = new_command && (ma_addr == 8'h67);
 always @* begin
 	next_state = state;
 	latch_eid = 1'b0;
@@ -136,11 +151,12 @@ always @* begin
 	shift_parameter = 1'b0;
 	store_to_parameter = 1'b0;
 	shift_to_parameter = 1'b0;
+	latch_temps = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
 			latch_command = 1'b1;
-			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match) begin
+			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match) begin
 				next_state = STATE_LATCH_EID;
 			end
 		end
@@ -159,10 +175,10 @@ always @* begin
 					next_state = STATE_RESP_QUERY0;
 				else if(latched_command[2])
 					next_state = STATE_RESP_VER0;
-				else if(latched_command[3])
-					next_state = STATE_QUERY_I2C0;
-				else if(latched_command[4])
-					next_state = STATE_SET_I2C0;
+				else if(latched_command[3] | latched_command[5] | latched_command[7])
+					next_state = STATE_QUERY_PARAM0;
+				else if(latched_command[4] | latched_command[6] | latched_command[8])
+					next_state = STATE_SET_PARAM0;
 			end
 		end
 
@@ -214,21 +230,21 @@ always @* begin
 			next_state = STATE_IDLE;
 		end
 		
-		STATE_QUERY_I2C0: begin
+		STATE_QUERY_PARAM0: begin
 			store_parameter = 1'b1;
 			if(ma_data_valid) begin
 				ackgen_generate_ack = 1'b1;
-				next_state = STATE_QUERY_I2C1;
+				next_state = STATE_QUERY_PARAM1;
 			end
 		end
 		
-		STATE_QUERY_I2C1: begin
+		STATE_QUERY_PARAM1: begin
 			local_frame_valid = 1'b1;
 			if(ack_message_frame_valid == 1'b0)
-				next_state = STATE_QUERY_I2C2;
+				next_state = STATE_QUERY_PARAM2;
 		end
 		
-		STATE_QUERY_I2C2: begin
+		STATE_QUERY_PARAM2: begin
 			local_frame_valid = 1'b1;
 			send_parameter = 1'b1;
 			shift_parameter = 1'b1;
@@ -236,19 +252,20 @@ always @* begin
 				next_state = STATE_IDLE;
 		end
 		
-		STATE_SET_I2C0: begin
+		STATE_SET_PARAM0: begin
 			store_to_parameter = 1'b1;
 			if(ma_data_valid)
-				next_state = STATE_SET_I2C1;
+				next_state = STATE_SET_PARAM1;
 		end
 		
-		STATE_SET_I2C1: begin
+		STATE_SET_PARAM1: begin
 			shift_to_parameter = ma_data_valid;
 			if(parameter_shift_countdown == 0)
-				next_state = STATE_SET_I2C2;
+				next_state = STATE_SET_PARAM2;
 		end
 		
-		STATE_SET_I2C2: begin
+		STATE_SET_PARAM2: begin
+			latch_temps = 1'b1;
 			ackgen_generate_ack = 1'b1;
 			next_state = STATE_IDLE;
 		end
@@ -257,33 +274,57 @@ always @* begin
 	//Mux the data out to the message fifo
 	local_data = VERSION_MAJOR;
 	if(send_minor_ver) local_data = VERSION_MINOR;
-	else if(send_parameter) local_data = parameter_staging[7:0];
+	else if(send_parameter) local_data = parameter_staging[23:16];
 end
 
 reg last_ma_frame_valid;
-reg to_parameter;
+reg [2:0] to_parameter;
 always @(posedge clk) begin
 	//Parameter setting/querying logic
 	if(store_parameter) begin
-		if(ma_data == 8'h63) begin
-			parameter_staging <= i2c_speed;
-			parameter_shift_countdown <= 1;
-		end else if(ma_data == 8'h61) begin
-			parameter_staging <= i2c_addr;
-			parameter_shift_countdown <= 2;
+		if(latched_command[3]) begin //I2C parameter query
+			if(ma_data == 8'h63) begin
+				parameter_staging <= {i2c_speed,16'h0000};
+				parameter_shift_countdown <= 1;
+			end else if(ma_data == 8'h61) begin
+				parameter_staging <= {i2c_addr,8'h00};
+				parameter_shift_countdown <= 2;
+			end
+		end else if(latched_command[5]) begin //GOC parameter query (only one is speed...)
+			parameter_staging <= goc_speed;
+			parameter_shift_countdown <= 3;
+		end else if(latched_command[7]) begin
+			if(ma_data == 8'h6c) begin
+				parameter_staging <= gpio_read;
+				parameter_shift_countdown <= 3;
+			end else if(ma_data == 8'h64) begin
+				parameter_staging <= gpio_direction;
+				parameter_shift_countdown <= 3;
+			end
 		end
 	end
 	if(shift_parameter) begin
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
-		parameter_staging <= {8'h00, parameter_staging[15:8]};
+		parameter_staging <= {parameter_staging[15:0], 8'h00};
 	end
 	if(store_to_parameter) begin
-		if(ma_data == 8'h63) begin
-			to_parameter <= 0;
-			parameter_shift_countdown <= 1;
-		end else if(ma_data == 8'h61) begin
-			to_parameter <= 1;
-			parameter_shift_countdown <= 2;
+		if(latched_command[4]) begin //I2C parameter setting
+			if(ma_data == 8'h63) begin
+				to_parameter <= 0;
+				parameter_shift_countdown <= 1;
+			end else if(ma_data == 8'h61) begin
+				to_parameter <= 1;
+				parameter_shift_countdown <= 2;
+			end
+		end else if(latched_command[6]) begin //GOC parameter setting
+			to_parameter <= 2;
+			parameter_shift_countdown <= 3;
+		end else if(latched_command[8]) begin //GPIO parameter setting
+			if(ma_data == 8'h6c) 
+				to_parameter <= 3;
+			else if(ma_data== 8'h64)
+				to_parameter <= 4;
+			parameter_shift_countdown <= 3;
 		end
 	end
 	if(shift_to_parameter) begin
@@ -291,7 +332,20 @@ always @(posedge clk) begin
 			i2c_speed <= ma_data;
 		else if(to_parameter == 1)
 			i2c_addr <= {i2c_addr[7:0], ma_data};
+		else if(to_parameter == 2)
+			goc_speed <= {goc_speed[13:0], ma_data};
+		else if(to_parameter == 3)
+			gpio_level_temp <= {gpio_level_temp[15:0], ma_data};
+		else if(to_parameter == 4)
+			gpio_direction_temp <= {gpio_direction_temp[15:0], ma_data};
+			
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
+	end
+	if(latch_temps) begin
+		if(to_parameter == 3)
+			gpio_level <= gpio_level_temp;
+		else if(to_parameter == 4)
+			gpio_direction <= gpio_direction_temp;
 	end
 
 	last_ma_frame_valid <= ma_frame_valid;
@@ -314,13 +368,16 @@ always @(posedge clk) begin
 		version_in <= {version_in[7:0], ma_data};
 
 	if(latch_command) 
-		latched_command <= {set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+		latched_command <= {set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
 
 	if(rst) begin
 		state <= STATE_IDLE;
 		counter <= 8'd0;
 		i2c_speed <= 8'd99;
 		i2c_addr <= 16'hFFFF;
+		goc_speed <= 22'h30D400;
+		gpio_direction <= 24'h000000;
+		gpio_level <= 24'h000000;
 	end else begin
 		state <= next_state;
 	end

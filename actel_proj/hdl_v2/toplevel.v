@@ -24,7 +24,9 @@ module m3_ice_top(
     output SCL_TRI,
     output SDA_TRI,
     input SCL_DISCRETE_BUF,
-    input SDA_DISCRETE_BUF//,
+    input SDA_DISCRETE_BUF,
+	
+	inout [23:0] GPIO
 	
 	//input FPGA_IO[1:0]
 
@@ -81,6 +83,8 @@ ice_bus ic1(
     .SDA_TRI(SDA_TRI),
     .SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
     .SDA_DISCRETE_BUF(SDA_DISCRETE_BUF),
+	
+	.GPIO(GPIO),
 	
 	//.SCL_DIG(FPGA_IO[0]),
 	//.SDA_DIG(FPGA_IO[1]),

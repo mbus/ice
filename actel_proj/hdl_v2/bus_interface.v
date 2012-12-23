@@ -55,10 +55,11 @@ generate
 		assign in_frame_data_valid = 1'b1;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end else begin
+		assign in_mf_overflow = 1'b0;
 		assign in_frame_data = ma_data;
 		assign in_frame_valid = ma_frame_valid;
 		assign in_frame_data_valid = ma_data_valid;
-		assign sl_overflow = (addr_match) ? 1'b0 : 1'bz;
+		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end
 endgenerate
 

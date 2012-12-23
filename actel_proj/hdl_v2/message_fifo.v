@@ -28,13 +28,10 @@ reg revert_head_ptr;
 reg incr_byte_ctr;
 reg incr_frame_ctr;
 reg insert_frame_ctr;
-reg insert_old_header;
-
-reg [7:0] old_header;
 
 //Inferred ram block
 reg [DEPTH_LOG2-1:0] head, old_head, tail, num_valid_frames;
-reg [8:0] num_frame_bytes;
+reg [7:0] num_frame_bytes;
 wire [DEPTH_LOG2-1:0] ram_wr_addr;
 wire [8:0] ram_wr_data;
 wire ram_wr_latch;
@@ -49,8 +46,8 @@ ram #(9,DEPTH_LOG2) fr1(
 );
 
 assign ram_wr_addr = (insert_frame_ctr) ? old_head + 2 : head;
-assign ram_wr_data = (insert_frame_ctr) ? {1'b0, num_frame_bytes[7:0]} : {insert_fvbit,in_data};
-assign ram_wr_latch = (insert_frame_ctr | insert_in_data | insert_fvbit | insert_old_header); 
+assign ram_wr_data = (insert_frame_ctr) ? {1'b0, num_frame_bytes} : {insert_fvbit,in_data};
+assign ram_wr_latch = (insert_frame_ctr | insert_in_data | insert_fvbit); 
 
 reg last_frame_valid;
 
@@ -84,7 +81,7 @@ always @(posedge clk) begin
 			old_head <= head;
 			num_frame_bytes <= -2;
 		end
-		if(insert_in_data | insert_fvbit | insert_old_header)
+		if(insert_in_data | insert_fvbit)
 			head <= head + 1;
 		if(revert_head_ptr)
 			head <= old_head;
@@ -92,10 +89,6 @@ always @(posedge clk) begin
 			num_frame_bytes <= num_frame_bytes + 1;
 		if(incr_frame_ctr)
 			num_valid_frames <= num_valid_frames + 1;
-			
-		//Save a header in case we need it for a fragment later
-		if(state == STATE_IDLE)
-			old_header <= in_data;
 
 		if(out_data_latch)
 			tail <= tail + 1;
@@ -114,7 +107,6 @@ always @* begin
 	incr_byte_ctr = 1'b0;
 	incr_frame_ctr = 1'b0;
 	insert_frame_ctr = 1'b0;
-	insert_old_header = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin

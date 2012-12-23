@@ -36,7 +36,7 @@ always @(posedge clk) begin
 			else
 				packet_is_empty <= 1'b0;
 		end
-		if(header_done_clear)
+		if(header_done_clear | ~in_frame_valid)
 			header_done <= 1'b0;
 		if(latch_is_fragment) begin
 			if(in_frame_data == 8'hFF)

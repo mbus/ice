@@ -30,12 +30,18 @@ module ice_bus (
 	//PINT Debug signals
 	input SCL_DIG,
 	input SDA_DIG,
+	
+	//GPIO pads
+	inout [23:0] GPIO,
+	
+	//GOC pad
+	output GOC_PAD,
 
 	//Debug signals
 	output [7:0] debug
 );
 
-parameter NUM_DEV = 3;
+parameter NUM_DEV = 5;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -55,13 +61,13 @@ uart #(174) u1(
 );
 
 //Global event counter is used for tagging messages in time
-wire disc_ctr_incr;
+wire disc_ctr_incr, gpio_ctr_incr;
 wire [7:0] global_counter;
 global_event_counter gec1(
 	.clk(clk),
 	.rst(reset),
 	
-	.ctr_incr(disc_ctr_incr),
+	.ctr_incr(disc_ctr_incr | gpio_ctr_incr),
 	.counter_out(global_counter)
 );
 
@@ -104,6 +110,9 @@ ice_bus_controller #(NUM_DEV) ice1(
 wire [7:0] basics_debug;
 wire [7:0] i2c_speed;
 wire [15:0] i2c_addr;
+wire [21:0] goc_speed;
+wire [23:0] gpio_level;
+wire [23:0] gpio_direction;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -126,6 +135,14 @@ basics_int bi0(
 	//I2C settings
 	.i2c_speed(i2c_speed),
 	.i2c_addr(i2c_addr),
+	
+	//GOC settings
+	.goc_speed(goc_speed),
+	
+	//GPIO settings
+	.gpio_read(GPIO),
+	.gpio_level(gpio_level),
+	.gpio_direction(gpio_direction),
 	
 	.debug()
 );
@@ -167,6 +184,50 @@ discrete_int di0(
 	.incr_ctr(disc_ctr_incr),
 	
 	.debug(basics_debug)
+);
+
+//GOC interface flashes pretty lights
+goc_int gi0(
+	.clk(clk),
+	.reset(reset),
+	
+	.GOC_PAD(GOC_PAD),
+	
+	.goc_speed(goc_speed),
+	
+	//Master input bus
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[3]),
+	.sl_arb_grant(sl_arb_grant[3]),
+	.sl_data_latch(sl_data_latch)
+);
+
+//GPIO interface 
+gpio_int gi1(
+	.clk(clk),
+	.reset(reset),
+	
+	.GPIO(GPIO),
+	
+	.gpio_level(gpio_level),
+	.gpio_direction(gpio_direction),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[4]),
+	.sl_arb_grant(sl_arb_grant[4]),
+	.sl_data_latch(sl_data_latch),
+	
+	//Global counter for 'time-tagging'
+	.global_counter(global_counter),
+	.incr_ctr(gpio_ctr_incr)
 );
 	
 /*//PINT interface module
@@ -252,7 +313,7 @@ discrete_int di01(
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 assign debug = (~PB[4]) ? {USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
                (~PB[3]) ? basics_debug : 
-			   (~PB[2]) ? {sl_arb_request[1], sl_arb_grant[1], sl_data[5:0]} : {ma_data_valid, ma_frame_valid, ma_data[5:0]};
+			   (~PB[2]) ? {sl_arb_request[1], sl_arb_grant[1], sl_data[5:0]} : {ma_data_valid, ma_frame_valid, ~GOC_PAD};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 
