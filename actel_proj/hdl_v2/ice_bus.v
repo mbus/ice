@@ -7,6 +7,10 @@ module ice_bus (
 	//USB to UART signals
 	input USB_UART_TXD,
 	output USB_UART_RXD,
+	
+	//PMU I2C signals
+	inout PMU_SDA,
+	inout PMU_SCL,
 
 	//PINT signals
 	output PINT_WRREQ,
@@ -41,7 +45,7 @@ module ice_bus (
 	output [7:0] debug
 );
 
-parameter NUM_DEV = 5;
+parameter NUM_DEV = 6;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -229,6 +233,29 @@ gpio_int gi1(
 	.global_counter(global_counter),
 	.incr_ctr(gpio_ctr_incr)
 );
+
+//PMU interface
+pmu_int pi0(
+	.clk(clk),
+	.reset(reset),
+	
+	.pmu_scl(PMU_SCL),
+	.pmu_sda(PMU_SDA),
+	
+	//Master input bus
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[5]),
+	.sl_arb_grant(sl_arb_grant[5]),
+	.sl_data_latch(sl_data_latch)
+);
+
 	
 /*//PINT interface module
 wire pint_busy;

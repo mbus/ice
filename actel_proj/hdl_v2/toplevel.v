@@ -3,11 +3,18 @@ module m3_ice_top(
     input [4:1] PB, //These are active-low!
     //input [4:1] DIP_SW,
     output [8:1] LED,
+	
+	output M3_0P6_ON,
+	output M3_1P2_ON,
+	output M3_VBATT_ON,
 
     input USB_UART_TXD,
     output USB_UART_RXD,
 	
 	inout POR_PAD,
+	
+	inout PMU_SCL,
+	inout PMU_SDA,
 
     output FPGA_PINT_RESETN,
     output FPGA_PINT_RDREQ,
@@ -39,6 +46,11 @@ module m3_ice_top(
     */
 );
 
+//Default all of the 3589 control lines to low (should be able to get rid of them altogether...)
+assign M3_0P6_ON = 1'b0;
+assign M3_1P2_ON = 1'b0;
+assign M3_VBATT_ON = 1'b0;
+
 wire reset, reset_button, por_n;
 assign reset = reset_button | (~por_n);
 
@@ -63,6 +75,9 @@ ice_bus ic1(
 	.clk(SYS_CLK_BUF),
 	
 	.PB(PB[4:1]),
+	
+	.PMU_SCL(PMU_SCL),
+	.PMU_SDA(PMU_SDA),
 
 	.USB_UART_TXD(USB_UART_TXD),
 	.USB_UART_RXD(USB_UART_RXD),
