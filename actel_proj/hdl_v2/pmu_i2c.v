@@ -8,10 +8,13 @@ module pmu_i2c(
 	input [7:0] data,
 	input start,
 	input done,
+	input rw,
 	output reg data_latch,
 	
 	output reg ready,
 	output reg failed,
+	output reg [7:0] in_data,
+	output reg in_data_valid,
 	input clear_failed
 );
 parameter CLK_DIV = 50;
@@ -23,17 +26,21 @@ reg sda_pd, sda_pd_latched;
 reg scl_pd, scl_pd_latched;
 reg latch_ack;
 reg shift_latched_data;
+reg rw_latched;
+reg in_data_latch;
 
 assign scl = (scl_pd_latched) ? 1'b0 : 1'bz;
-assign sda = (sda_pd_latched) ? 1'b0 : 1'bz;
+assign sda = (sda_pd_latched & rw_latched) ? 1'b0 : 1'bz;
 
 reg [3:0] state, next_state;
 parameter STATE_IDLE = 0;
 parameter STATE_START = 1;
-parameter STATE_LATCH_DATA = 2;
-parameter STATE_DATA = 3;
-parameter STATE_SHIFT_DATA = 4;
-parameter STATE_ACK = 5;
+parameter STATE_SCL_START = 2;
+parameter STATE_LATCH_DATA = 3;
+parameter STATE_DATA = 4;
+parameter STATE_SHIFT_DATA = 5;
+parameter STATE_ACK = 6;
+parameter STATE_STOP = 7;
 
 always @(posedge clk) begin
 	scl_pd_latched <= scl_pd;
@@ -44,6 +51,7 @@ always @(posedge clk) begin
 		state_counter <= 0;
 		shift_counter <= 0;
 		failed <= 0;
+		rw_latched <= 0;
 	end else begin
 		state <= next_state;
 		
@@ -56,6 +64,8 @@ always @(posedge clk) begin
 		//Latch data locally every time we're ready for it
 		if(data_latch)
 			latched_data <= data;
+		if(ready)
+			rw_latched <= rw;
 		if(shift_latched_data) begin
 			shift_counter <= shift_counter + 1'b1;
 			latched_data <= {latched_data[6:0], 1'b0};
@@ -66,6 +76,10 @@ always @(posedge clk) begin
 			failed <= sda;
 		if(clear_failed)
 			failed <= 1'b0;
+			
+		//Shift in data if we're actually reading data back over I2C
+		if(in_data_latch)
+			in_data <= {in_data[6:0], sda};
 	end
 end
 
@@ -77,6 +91,8 @@ always @* begin
 	shift_latched_data = 1'b0;
 	ready = 1'b0;
 	latch_ack = 1'b0;
+	in_data_valid = 1'b0;
+	in_data_latch = 1'b0;
 	
 	case(state)
 		STATE_IDLE: begin
@@ -88,19 +104,32 @@ always @* begin
 		STATE_START: begin
 			sda_pd = 1'b1;
 			if(state_counter == CLK_DIV-1)
-				next_state = STATE_DATA;
+				next_state = STATE_SCL_START;
+		end
+		
+		STATE_SCL_START: begin
+			sda_pd = 1'b1;
+			scl_pd = 1'b1;
+			if(state_counter == CLK_DIV/4)
+				next_state = STATE_LATCH_DATA;
 		end
 		
 		STATE_LATCH_DATA: begin
 			sda_pd = 1'b1;
+			scl_pd = 1'b1;
 			data_latch = 1'b1;
 			next_state = STATE_DATA;
 		end
 		
 		STATE_DATA: begin
-			sda_pd = ~latched_data[7];
-			if(state_counter < CLK_DIV/2)
+			if(rw_latched)
+				sda_pd = ~latched_data[7];
+			if(state_counter < CLK_DIV/4)
 				scl_pd = 1'b1;
+			else if(state_counter > CLK_DIV*3/4)
+				scl_pd = 1'b1;
+			if(state_counter == CLK_DIV/2)
+				in_data_latch = 1'b1;
 			if(state_counter == CLK_DIV-1)
 				next_state = STATE_SHIFT_DATA;
 		end
@@ -109,19 +138,33 @@ always @* begin
 			shift_latched_data = 1'b1;
 			if(shift_counter == 7)
 				next_state = STATE_ACK;
+			else
+				next_state = STATE_DATA;
 		end
 		
 		STATE_ACK: begin
-			if(state_counter < CLK_DIV/2)
+			if(state_counter < CLK_DIV/4)
+				scl_pd = 1'b1;
+			else if(state_counter > CLK_DIV*3/4)
 				scl_pd = 1'b1;
 			if(state_counter == CLK_DIV/2)
 				latch_ack = 1'b1;
 			if(state_counter == CLK_DIV-1) begin
+				in_data_valid = 1'b1;
 				if(failed || done)
-					next_state = STATE_IDLE;
+					next_state = STATE_STOP;
 				else
 					next_state = STATE_LATCH_DATA;
 			end
+		end
+		
+		STATE_STOP: begin
+			if(state_counter < CLK_DIV-1)
+				sda_pd = 1'b1;
+			if(state_counter < CLK_DIV/4)
+				scl_pd = 1'b1;
+			if(state_counter == CLK_DIV*2-1)
+				next_state = STATE_IDLE;
 		end
 	endcase
 end

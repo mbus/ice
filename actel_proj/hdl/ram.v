@@ -10,11 +10,12 @@ input reset;
 input [DATA_WIDTH-1:0] in_data;
 input [DEPTH_LOG2-1:0] in_addr;
 input in_latch;
-output reg [DATA_WIDTH-1:0] out_data;
+output [DATA_WIDTH-1:0] out_data;
 input [DEPTH_LOG2-1:0] out_addr;
 
 //Locals
 reg [DATA_WIDTH-1:0] ram [DEPTH-1:0];
+assign out_data = ram[out_addr];
 
 always @(posedge clk) begin
 	if(reset) begin
@@ -23,7 +24,6 @@ always @(posedge clk) begin
 		if(in_latch) begin
 			ram[in_addr] <= in_data;
 		end
-		out_data <= ram[out_addr];
 	end
 end
 
