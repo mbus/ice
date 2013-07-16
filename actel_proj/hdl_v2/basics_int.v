@@ -29,11 +29,16 @@ module basics_int(
 	output reg [23:0] gpio_level,
 	output reg [23:0] gpio_direction,
 	
+	//M3 Switch settings
+	output reg M3_0P6_SW,
+	output reg M3_1P2_SW,
+	output reg M3_VBATT_SW,
+	
 	output [7:0] debug
 );
 
 parameter VERSION_MAJOR = 8'h00;
-parameter VERSION_MINOR = 8'h01;
+parameter VERSION_MINOR = 8'h02;
 	
 reg [7:0] ma_addr;
 wire [7:0] local_sl_data;
@@ -114,7 +119,7 @@ parameter STATE_SET_PARAM1 = 14;
 
 reg [3:0] state, next_state;
 reg [7:0] counter;
-reg [8:0] latched_command;
+reg [10:0] latched_command;
 reg [23:0] parameter_staging;
 reg send_major_ver, send_minor_ver;
 reg latch_command, latch_temps;
@@ -135,6 +140,8 @@ wire query_goc_match = new_command && (ma_addr == 8'h4F);
 wire set_goc_match = new_command && (ma_addr == 8'h6F);
 wire query_gpio_match = new_command && (ma_addr == 8'h47);
 wire set_gpio_match = new_command && (ma_addr == 8'h67);
+wire query_m3sw_match = new_command && (ma_addr == 8'h53);
+wire set_m3sw_match = new_command && (ma_addr == 8'h73);
 always @* begin
 	next_state = state;
 	latch_eid = 1'b0;
@@ -156,7 +163,7 @@ always @* begin
 	case(state)
 		STATE_IDLE: begin
 			latch_command = 1'b1;
-			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match) begin
+			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match || set_m3sw_match || query_m3sw_match) begin
 				next_state = STATE_LATCH_EID;
 			end
 		end
@@ -175,9 +182,9 @@ always @* begin
 					next_state = STATE_RESP_QUERY0;
 				else if(latched_command[2])
 					next_state = STATE_RESP_VER0;
-				else if(latched_command[3] | latched_command[5] | latched_command[7])
+				else if(latched_command[3] | latched_command[5] | latched_command[7] | latched_command[9])
 					next_state = STATE_QUERY_PARAM0;
-				else if(latched_command[4] | latched_command[6] | latched_command[8])
+				else if(latched_command[4] | latched_command[6] | latched_command[8] | latched_command[10])
 					next_state = STATE_SET_PARAM0;
 			end
 		end
@@ -301,6 +308,9 @@ always @(posedge clk) begin
 				parameter_staging <= gpio_direction;
 				parameter_shift_countdown <= 3;
 			end
+		end else if(latched_command[9]) begin
+			parameter_staging <= {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
+			parameter_shift_countdown <= 1;
 		end
 	end
 	if(shift_parameter) begin
@@ -325,6 +335,9 @@ always @(posedge clk) begin
 			else if(ma_data== 8'h64)
 				to_parameter <= 4;
 			parameter_shift_countdown <= 3;
+		end else if(latched_command[10]) begin
+			to_parameter <= 5;
+			parameter_shift_countdown <= 1;
 		end
 	end
 	if(shift_to_parameter) begin
@@ -338,6 +351,8 @@ always @(posedge clk) begin
 			gpio_level_temp <= {gpio_level_temp[15:0], ma_data};
 		else if(to_parameter == 4)
 			gpio_direction_temp <= {gpio_direction_temp[15:0], ma_data};
+		else if(to_parameter == 5)
+			{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= ma_data[2:0];
 			
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
 	end
@@ -368,7 +383,7 @@ always @(posedge clk) begin
 		version_in <= {version_in[7:0], ma_data};
 
 	if(latch_command) 
-		latched_command <= {set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+		latched_command <= {set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
 
 	if(rst) begin
 		state <= STATE_IDLE;
@@ -378,6 +393,7 @@ always @(posedge clk) begin
 		goc_speed <= 22'h30D400;
 		gpio_direction <= 24'h000000;
 		gpio_level <= 24'h000000;
+		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= 3'h7;
 	end else begin
 		state <= next_state;
 	end

@@ -30,6 +30,10 @@ module ice_bus (
 	output SDA_PD,
 	output SDA_PU,
 	output SDA_TRI,
+	input SPARE_DISCRETE_BUF,
+	output SPARE_PD,
+	output SPARE_PU,
+	output SPARE_TRI,
 	
 	//PINT Debug signals
 	input SCL_DIG,
@@ -40,12 +44,22 @@ module ice_bus (
 	
 	//GOC pad
 	output GOC_PAD,
+	
+	//M3 Power switch pads
+	output M3_0P6_SW,
+	output M3_1P2_SW,
+	output M3_VBATT_SW,
 
 	//Debug signals
-	output [7:0] debug
+	output [3:0] debug
 );
 
 parameter NUM_DEV = 6;
+
+//TODO: Will we ever be using the SPARE port for anything?
+assign SPARE_PU = 1'b1;
+assign SPARE_PD = 1'b1;
+assign SPARE_TRI = 1'b1;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -147,6 +161,11 @@ basics_int bi0(
 	.gpio_read(GPIO),
 	.gpio_level(gpio_level),
 	.gpio_direction(gpio_direction),
+	
+	//M3 Power Switch Settings
+	.M3_VBATT_SW(M3_VBATT_SW),
+	.M3_1P2_SW(M3_1P2_SW),
+	.M3_0P6_SW(M3_0P6_SW),
 	
 	.debug()
 );
@@ -341,9 +360,9 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? {USB_UART_TXD, USB_UART_RXD, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
-               (~PB[3]) ? {pmu_debug[4:3], 1'b0, pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
-			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {~GOC_PAD, GOC_PAD, 3'd0, ma_data_valid, ma_frame_valid};
+assign debug = (~PB[4]) ? {SPARE_DISCRETE_BUF, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
+               (~PB[3]) ? {pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
+			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 
