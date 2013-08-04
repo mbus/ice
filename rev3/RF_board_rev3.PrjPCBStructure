@@ -1,0 +1,3 @@
+Record=SheetSymbol|SourceDocument=RF_top.SchDoc|Designator=Analog Front End|SchDesignator=Analog Front End|FileName=analog_front_end.SchDoc|SymbolType=Normal|RawFileName=analog_front_end.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=RF_top.SchDoc|Designator=Microcontroller|SchDesignator=Microcontroller|FileName=microcontroller.SchDoc|SymbolType=Normal|RawFileName=microcontroller.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=TopLevelDocument|FileName=RF_top.SchDoc
