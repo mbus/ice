@@ -1,6 +1,6 @@
-`include "include/mbus_def.v"
+`include "mbus_def_ice.v"
 
-module mbus_int_ctrl
+module mbus_int_ctrl_ice
   (
     input	CLKIN,
     input	RESETn,

@@ -1,8 +1,8 @@
 
-`include "include/mbus_def.v"
+`include "mbus_def_ice.v"
 // simulate the always on register file which holds the assigned address
 
-module mbus_addr_rf(
+module mbus_addr_rf_ice(
 	input		RESETn,
 	input		RELEASE_ISO_FROM_SLEEP_CTRL,
 	output	reg	[`DYNA_WIDTH-1:0] ADDR_OUT,

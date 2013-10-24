@@ -1,7 +1,7 @@
 
-`include "include/mbus_def.v"
+`include "mbus_def_ice.v"
 
-module mbus_layer_wrapper(
+module mbus_layer_wrapper_ice(
 	input 	CLKIN, 
 	input 	RESETn, 
 	input 	DIN, 

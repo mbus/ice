@@ -9,9 +9,9 @@
 
 `timescale 1ns/1ps
 
-`include "include/mbus_def.v"
+`include "mbus_def_ice.v"
 
-module mbus_wire_ctrl(
+module mbus_wire_ctrl_ice(
 	input RESETn,
 	input DIN,
 	input CLKIN,
