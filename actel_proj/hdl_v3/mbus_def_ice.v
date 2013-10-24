@@ -18,7 +18,7 @@
 `define IO_HOLD 1'b1
 `define IO_RELEASE 1'b0
 
-`define POWER_GATING
+//`define POWER_GATING
 
 // A broadcast message consists of two segaments,
 // 0x0A			0xBB_XXXXXX for short address or
