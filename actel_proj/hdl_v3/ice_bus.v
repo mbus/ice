@@ -3,6 +3,7 @@ module ice_bus (
 	input clk,
 	
 	input [4:1] PB,
+	inout [5:0] USER,
 
 	//USB to UART signals
 	input USB_UART_TXD,
@@ -44,10 +45,8 @@ module ice_bus (
 
 parameter NUM_DEV = 6;
 
-//TODO: Will we ever be using the SPARE port for anything?
-assign SPARE_PU = 1'b1;
-assign SPARE_PD = 1'b1;
-assign SPARE_TRI = 1'b1;
+//User lines are current not used as there are no daughterboards which have been made
+assign USER = 6'd0;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;

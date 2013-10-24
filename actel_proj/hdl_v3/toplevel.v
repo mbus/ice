@@ -1,15 +1,16 @@
 module m3_ice_top(
-    input SYS_CLK,
-    input [4:1] PB, //These are active-low!
-    //input [4:1] DIP_SW,
-    output [4:1] LED,
+	input SYS_CLK,
+	input [4:1] PB, //These are active-low!
+	//input [4:1] DIP_SW,
+	output [4:1] LED,
+	inout [5:0] USER,
 	
 	output M3_0P6_SW,
 	output M3_1P2_SW,
 	output M3_VBATT_SW,
 
-    input USB_UART_TXD,
-    output USB_UART_RXD,
+	input USB_UART_TXD,
+	output USB_UART_RXD,
 	
 	inout POR_PAD,
 	
@@ -79,7 +80,7 @@ ice_bus ic1(
 	.FPGA_MB_EMO(FPGA_MB_EDO),
 	.FPGA_MB_ECI(FPGA_MB_ECI),
 
-
+	.USER(USER),
 	.GPIO(GPIO),
 	
 	.M3_VBATT_SW(M3_VBATT_SW),
