@@ -348,7 +348,7 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? {SPARE_DISCRETE_BUF, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
+assign debug = (~PB[4]) ? 3'b0 : 
                (~PB[3]) ? {pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
 			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
@@ -356,4 +356,3 @@ assign debug = (~PB[4]) ? {SPARE_DISCRETE_BUF, SCL_DISCRETE_BUF, SDA_DISCRETE_BU
 
 
 endmodule
-

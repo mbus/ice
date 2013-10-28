@@ -47,6 +47,38 @@ assign reset = reset_button | (~por_n);
 wire SYS_CLK_BUF;
 CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
 
+wire [31:0] mbus_rxaddr;
+wire [31:0] mbus_rxdata;
+assign GPIO[12] = mbus_rxaddr[0] | mbus_rxaddr[31];
+assign GPIO[13] = mbus_rxdata[0] | mbus_rxdata[31];
+assign GPIO[23:14] = 10'd0;
+ 
+mbus_ctrl_layer_wrapper mclw1
+  (
+    .CLK_EXT(SYS_CLK),
+    .CLKIN(FPGA_MB_CIN),
+    .RESETn(~reset),
+    .DIN(FPGA_MB_DIN),
+    .CLKOUT(FPGA_MB_COUT),
+    .DOUT(FPGA_MB_DOUT),
+    .TX_ADDR(32'hdeadbeef),
+    .TX_DATA(32'hdeadbeef),
+    .TX_PEND(GPIO[0]),
+    .TX_REQ(GPIO[1]),
+    .TX_PRIORITY(GPIO[2]),
+    .TX_ACK(GPIO[3]),
+    .RX_ADDR(mbus_rxaddr),
+    .RX_DATA(mbus_rxdata),
+    .RX_REQ(GPIO[4]),
+    .RX_ACK(GPIO[5]),
+    .RX_BROADCAST(GPIO[6]),
+    .RX_FAIL(GPIO[7]),
+    .RX_PEND(GPIO[8]),
+    .TX_FAIL(GPIO[9]),
+    .TX_SUCC(GPIO[10]),
+    .TX_RESP_ACK(GPIO[11])
+   );
+
 debounce_ms db0(
 	.clk_in(SYS_CLK_BUF),
 	.db_in(~PB[1]),
@@ -81,7 +113,8 @@ ice_bus ic1(
 	.FPGA_MB_ECI(FPGA_MB_ECI),
 
 	.USER(USER),
-	.GPIO(GPIO),
+	//TODO: Put this back in...
+    //.GPIO(GPIO[23:14]),
 	
 	.M3_VBATT_SW(M3_VBATT_SW),
 	.M3_1P2_SW(M3_1P2_SW),
