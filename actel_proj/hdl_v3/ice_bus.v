@@ -52,8 +52,8 @@ assign USER = 6'd0;
 wire [7:0] uart_rx_data, uart_tx_data;
 wire uart_tx_latch, uart_rx_latch;
 wire uart_tx_empty;
-// 20MHz -> 115200 baud -> DIVIDE_FACTOR = 173.6
-uart #(174) u1(
+// 20MHz -> 3 Mbaud -> DIVIDE_FACTOR = 6.6666
+uart #(7) u1(
 	.reset(reset),
 	.clk(clk),
 	.rx_in(USB_UART_TXD),
@@ -66,13 +66,13 @@ uart #(174) u1(
 );
 
 //Global event counter is used for tagging messages in time
-wire disc_ctr_incr, gpio_ctr_incr;
+wire mbus_ctr_incr, gpio_ctr_incr;
 wire [7:0] global_counter;
 global_event_counter gec1(
 	.clk(clk),
 	.rst(reset),
 	
-	.ctr_incr(disc_ctr_incr | gpio_ctr_incr),
+	.ctr_incr(mbus_ctr_incr | gpio_ctr_incr),
 	.counter_out(global_counter)
 );
 
@@ -118,6 +118,8 @@ wire [15:0] i2c_addr;
 wire [21:0] goc_speed;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
+wire mbus_master_mode, mbus_cpu_mode;
+wire [19:0] mbus_long_address;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -155,6 +157,37 @@ basics_int bi0(
 	.M3_0P6_SW(M3_0P6_SW),
 	
 	.debug()
+);
+
+mbus_layer_wrapper_ice mb0(
+	.clk(clk),
+	.reset(reset),
+	
+	.DIN(FPGA_MB_DIN),
+	.DOUT(FPGA_MB_DOUT),
+	.CIN(FPGA_MB_CIN),
+	.COUT(FPGA_MB_COUT),
+
+	.MASTER_NODE(mbus_master_mode),
+	.CPU_LAYER(mbus_cpu_mode),
+	.ADDRESS(mbus_long_address),
+
+	//Master input bus
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[2:1]),
+	.sl_arb_grant(sl_arb_grant[2:1]),
+	.sl_data_latch(sl_data_latch),
+	
+	//Global counter for 'time-tagging'
+	.global_counter(global_counter),
+	.incr_ctr(mbus_ctr_incr)
 );
 
 /*
@@ -348,7 +381,7 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? 3'b0 : 
+assign debug = (~PB[4]) ? {SPARE_DISCRETE_BUF, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
                (~PB[3]) ? {pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
 			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};

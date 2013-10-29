@@ -13,6 +13,24 @@ module mbus_layer_wrapper_ice(
 	input 	DIN, 
 	output 	DOUT, 
 
+	//Master input bus
+	input [7:0] ma_data,
+	input [7:0] ma_addr,
+	input ma_data_valid,
+	input ma_frame_valid,
+	inout sl_overflow,
+	
+	//Slave output bus
+	inout [7:0] sl_data,
+	output [1:0] sl_arb_request,
+	input [1:0] sl_arb_grant,
+	input sl_data_latch,
+	
+	//Global counter for 'time-tagging'
+	input [7:0] global_counter,
+	output reg incr_ctr
+);
+
 	input 	[`ADDR_WIDTH-1:0] TX_ADDR, 
 	input 	[`DATA_WIDTH-1:0] TX_DATA, 
 	input 	TX_PEND, 
