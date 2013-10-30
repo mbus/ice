@@ -2,11 +2,11 @@
 `include "mbus_def_ice.v"
 
 module mbus_layer_wrapper_ice(
-	input 	RESETn, 
+	input clk,
+	input reset,
 
 	input MASTER_NODE,
 	input CPU_LAYER,
-	input [19:0] ADDRESS,
 
 	input 	CLKIN, 
 	output 	CLKOUT,
@@ -31,64 +31,45 @@ module mbus_layer_wrapper_ice(
 	output reg incr_ctr
 );
 
-	input 	[`ADDR_WIDTH-1:0] TX_ADDR, 
-	input 	[`DATA_WIDTH-1:0] TX_DATA, 
-	input 	TX_PEND, 
-	input 	TX_REQ, 
-	input 	TX_PRIORITY,
-	output 	TX_ACK, 
-	output 	TX_FAIL, 
-	output 	TX_SUCC, 
-	input 	TX_RESP_ACK,
+wire [31:0] mbus_rxaddr, mbus_txaddr;
+wire [31:0] mbus_rxdata, mbus_txdata;
 
-	output 	[`ADDR_WIDTH-1:0] RX_ADDR, 
-	output 	[`DATA_WIDTH-1:0] RX_DATA, 
-	output 	RX_REQ, 
-	input 	RX_ACK, 
-	output	RX_BROADCAST,
-	output 	RX_FAIL,
-	output 	RX_PEND 
+wire mbus_txpend, mbus_txreq, mbus_txack, mbus_txfail, mbus_txresp_ack, mbus_txsucc;
+wire mbus_rxpend, mbus_rxreq, mbus_rxack, mbus_rxfail, mbus_rxbcast;
+wire mbus_clk;
+wire [15:0] mbus_clk_div;
+
+mbus_clk_gen mbcg1(
+	.sys_clk(clk),
+	.reset(reset),
+	.clk_div(mbus_clk_div),
+	.mbus_clk(mbus_clk)
 );
+ 
+mbus_ctrl_layer_wrapper mclw1(
+    .CLK_EXT(mbus_clk),
+    .RESETn(~reset),
+    .CLKIN(CLKIN),
+    .DIN(DIN),
+    .CLKOUT(CLKCOUT),
+    .DOUT(DOUT),
+    .TX_ADDR(mbus_txaddr),
+    .TX_DATA(mbus_txdata),
+    .TX_PEND(mbus_txpend),
+    .TX_REQ(mbus_txreq),
+    .TX_PRIORITY(1'b0),
+    .TX_ACK(mbus_txack),
+    .TX_FAIL(mbus_txfail),
+    .TX_SUCC(mbus_txsucc),
+    .TX_RESP_ACK(mbus_txresp_ack)
+    .RX_ADDR(mbus_rxaddr),
+    .RX_DATA(mbus_rxdata),
+    .RX_REQ(mbus_rxreq),
+    .RX_ACK(mbus_rxack),
+    .RX_BROADCAST(mbus_rxbcast),
+    .RX_FAIL(mbus_rxfail),
+    .RX_PEND(mbus_rxpend),
+   );
 
-//wire	n0_power_on, n0_sleep_req, n0_release_rst, n0_release_iso_from_sc;
-wire	ext_int_to_bus, ext_int_to_wire;
-assign  ext_int_to_bus = 1'b0;
-assign  ext_int_to_wire = 1'b0;
-wire	w_n0lc0, w_n0lc0_clk_out;
-
-wire	mbc_isolate;
-assign	mbc_isolate = `IO_RELEASE;
-
-wire	[`DYNA_WIDTH-1:0] rf_addr_out_to_node, rf_addr_in_from_node;
-wire	rf_addr_valid, rf_addr_write, rf_addr_rstn;
-   
-// power gated block
-mbus_node_ice n0(
-	.CLKIN(CLKIN), .CLKOUT(w_n0lc0_clk_out), .RESETn(RESETn), .DIN(DIN), .DOUT(w_n0lc0), 
-	.TX_ADDR(TX_ADDR), .TX_DATA(TX_DATA), .TX_REQ(TX_REQ), .TX_ACK(TX_ACK), .TX_PEND(TX_PEND), .TX_FAIL(TX_FAIL), .TX_PRIORITY(TX_PRIORITY),
-	.RX_ADDR(RX_ADDR), .RX_DATA(RX_DATA), .RX_REQ(RX_REQ), .RX_ACK(RX_ACK), .RX_PEND(RX_PEND), .RX_FAIL(RX_FAIL), .RX_BROADCAST(RX_BROADCAST),
-	.TX_SUCC(TX_SUCC), .TX_RESP_ACK(TX_RESP_ACK),
-	.ASSIGNED_ADDR_IN(rf_addr_out_to_node), .ASSIGNED_ADDR_OUT(rf_addr_in_from_node), 
-	.ASSIGNED_ADDR_VALID(rf_addr_valid), .ASSIGNED_ADDR_WRITE(rf_addr_write), .ASSIGNED_ADDR_INVALIDn(rf_addr_rstn),
-	.ADDRESS(ADDRESS), .MASTER_NODE(MASTER_NODE), .CPU_LAYER(CPU_LAYER));
-
-// always on wire controller
-mbus_wire_ctrl_ice lc0
-	(.RESETn(RESETn), .DIN(DIN), .CLKIN(CLKIN),			// the same input as the node
-	 .RELEASE_ISO_FROM_SLEEP_CTRL(mbc_isolate),			// from sleep controller
-	 .DOUT_FROM_BUS(w_n0lc0), .CLKOUT_FROM_BUS(w_n0lc0_clk_out), 	// the outputs from the node
-	 .DOUT(DOUT), .CLKOUT(CLKOUT),					// to next node
-	 .EXTERNAL_INT(ext_int_to_wire));
-
-// always on register files
-mbus_addr_rf_ice rf0(
-	.RESETn	(RESETn),
-	.RELEASE_ISO_FROM_SLEEP_CTRL(mbc_isolate),
-	.ADDR_OUT(rf_addr_out_to_node),
-	.ADDR_IN(rf_addr_in_from_node),
-	.ADDR_VALID(rf_addr_valid),
-	.ADDR_WR_EN(rf_addr_write),
-	.ADDR_CLRn(rf_addr_rstn)
-);
 
 endmodule

@@ -23,6 +23,7 @@ module basics_int(
 	
 	//GOC settings
 	output reg [21:0] goc_speed,
+	output reg goc_polarity,
 	
 	//GPIO interface
 	input [23:0] gpio_read,
@@ -297,9 +298,14 @@ always @(posedge clk) begin
 				parameter_staging <= {i2c_addr,8'h00};
 				parameter_shift_countdown <= 2;
 			end
-		end else if(latched_command[5]) begin //GOC parameter query (only one is speed...)
-			parameter_staging <= goc_speed;
-			parameter_shift_countdown <= 3;
+		end else if(latched_command[5]) begin //GOC parameter query
+			if(ma_data == 8'h6f) begin
+				parameter_staging <= {goc_polarity, 16'h0000};
+				parameter_shift_countdown <= 1;
+			end else begin
+				parameter_staging <= goc_speed;
+				parameter_shift_countdown <= 3;
+			end
 		end else if(latched_command[7]) begin
 			if(ma_data == 8'h6c) begin
 				parameter_staging <= gpio_read;
@@ -327,8 +333,13 @@ always @(posedge clk) begin
 				parameter_shift_countdown <= 2;
 			end
 		end else if(latched_command[6]) begin //GOC parameter setting
-			to_parameter <= 2;
-			parameter_shift_countdown <= 3;
+			if(ma_data == 8'h6f) begin
+				to_parameter <= 6;
+				parameter_shift_countdown <= 1;
+			end else begin
+				to_parameter <= 2;
+				parameter_shift_countdown <= 3;
+			end
 		end else if(latched_command[8]) begin //GPIO parameter setting
 			if(ma_data == 8'h6c) 
 				to_parameter <= 3;
@@ -353,6 +364,8 @@ always @(posedge clk) begin
 			gpio_direction_temp <= {gpio_direction_temp[15:0], ma_data};
 		else if(to_parameter == 5)
 			{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= ma_data[2:0];
+		else if(to_parameter == 6)
+			goc_polarity <= ma_data[0];
 			
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
 	end

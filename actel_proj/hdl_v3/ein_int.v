@@ -1,12 +1,10 @@
-module goc_int(
+module ein_int(
 	input clk,
 	input reset,
 	
-	output GOC_PAD,
-	
-	//GOC Settings
-	input [21:0] goc_speed,
-	input goc_polarity,
+	output EMO_PAD,
+	output EDI_PAD,
+	output ECI_PAD,
 	
 	//Master input bus
 	input [7:0] ma_data,
@@ -33,7 +31,7 @@ wire [7:0] hd_header_eid;
 
 wire [7:0] in_char;
 wire in_char_latch;
-bus_interface #(8'h66,1,1,0) bi0(
+bus_interface #(8'h65,1,1,0) bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),
@@ -84,15 +82,17 @@ ack_generator ag0(
 wire pwm_out;
 assign GOC_PAD = pwm_out ^ goc_polarity;
 
-pwm_mod pm0(
+//Change one of EMO, EDI, ECI every 200 us
+ein_mod #(4000,12) pm0(
 	.clk(clk), 
 	.resetn(~reset), 
 	.fifo_din(in_char), 
 	.fifo_RE(in_char_latch), 
 	.fifo_empty(~hd_frame_valid), 
 	.start_tx(hd_header_done), 
-	.PWM_OUT(pwm_out),
-	.base_counter(goc_speed)
+	.EMO_OUT(EMO_PAD),
+	.EDI_OUT(EDI_PAD),
+	.ECI_OUT(ECI_PAD)
 );
 
 //One of the simplest state machines, because pwm_mod takes care of the rest

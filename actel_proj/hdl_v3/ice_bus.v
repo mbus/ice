@@ -43,7 +43,7 @@ module ice_bus (
 	output [3:0] debug
 );
 
-parameter NUM_DEV = 6;
+parameter NUM_DEV = 7;
 
 //User lines are current not used as there are no daughterboards which have been made
 assign USER = 6'd0;
@@ -116,10 +116,10 @@ wire [7:0] basics_debug;
 wire [7:0] i2c_speed;
 wire [15:0] i2c_addr;
 wire [21:0] goc_speed;
+wire goc_polairty;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
 wire mbus_master_mode, mbus_cpu_mode;
-wire [19:0] mbus_long_address;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -145,6 +145,7 @@ basics_int bi0(
 	
 	//GOC settings
 	.goc_speed(goc_speed),
+	.goc_polarity(goc_polarity),
 	
 	//GPIO settings
 	.gpio_read(GPIO),
@@ -159,7 +160,9 @@ basics_int bi0(
 	.debug()
 );
 
-mbus_layer_wrapper_ice mb0(
+//TODO: REMOVE ME!
+assign sl_arb_request[2:1] = 2'b00;
+/*mbus_layer_wrapper_ice mb0(
 	.clk(clk),
 	.reset(reset),
 	
@@ -170,7 +173,6 @@ mbus_layer_wrapper_ice mb0(
 
 	.MASTER_NODE(mbus_master_mode),
 	.CPU_LAYER(mbus_cpu_mode),
-	.ADDRESS(mbus_long_address),
 
 	//Master input bus
 	.ma_data(ma_data),
@@ -188,7 +190,7 @@ mbus_layer_wrapper_ice mb0(
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
 	.incr_ctr(mbus_ctr_incr)
-);
+);*/
 
 /*
 //Discrete interface module controls all of the discrete interface signals
@@ -238,6 +240,7 @@ goc_int gi0(
 	.GOC_PAD(GOC_PAD),
 	
 	.goc_speed(goc_speed),
+	.goc_polarity(goc_polarity),
 	
 	//Master input bus
 	.ma_data(ma_data),
@@ -250,6 +253,29 @@ goc_int gi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[3]),
 	.sl_arb_grant(sl_arb_grant[3]),
+	.sl_data_latch(sl_data_latch)
+);
+
+//EIN interface provides GOC-like interface but through direct 3-wire connection
+ein_int ei0(
+	.clk(clk),
+	.reset(reset),
+	
+	.EMO_PAD(FPGA_MB_EMO),
+	.EDI_PAD(FPGA_MB_EDI),
+	.ECI_PAD(FPGA_MB_ECI),
+	
+	//Master input bus
+	.ma_data(ma_data),
+	.ma_addr(ma_addr),
+	.ma_data_valid(ma_data_valid),
+	.ma_frame_valid(ma_frame_valid),
+	.sl_overflow(sl_overflow),
+
+	//Slave output bus
+	.sl_data(sl_data),
+	.sl_arb_request(sl_arb_request[6]),
+	.sl_arb_grant(sl_arb_grant[6]),
 	.sl_data_latch(sl_data_latch)
 );
 
@@ -381,7 +407,7 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? {SPARE_DISCRETE_BUF, SCL_DISCRETE_BUF, SDA_DISCRETE_BUF} : 
+assign debug = (~PB[4]) ? {FPGA_MB_EDI, FPGA_MB_EMO, FPGA_MB_ECI} : 
                (~PB[3]) ? {pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
 			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
