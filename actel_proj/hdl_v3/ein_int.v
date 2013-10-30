@@ -79,9 +79,6 @@ ack_generator ag0(
 	.message_frame_valid(ack_message_frame_valid)
 );
 
-wire pwm_out;
-assign GOC_PAD = pwm_out ^ goc_polarity;
-
 //Change one of EMO, EDI, ECI every 200 us
 ein_mod #(4000,12) pm0(
 	.clk(clk), 
