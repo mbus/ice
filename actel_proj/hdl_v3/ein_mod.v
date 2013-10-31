@@ -1,7 +1,9 @@
 `define STATE_RESET 0
 `define STATE_START_TX 1
-`define STATE_TX_ECI_NEG 2
-`define STATE_TX_ECI_POS 3
+`define STATE_TX_ECI_NEG1 2
+`define STATE_TX_ECI_NEG2 3
+`define STATE_TX_ECI_POS1 4
+`define STATE_TX_ECI_POS2 5
 
 module ein_mod(
 	input clk,
@@ -65,24 +67,37 @@ always @* begin
 
 		`STATE_START_TX: begin
 			if(state_ctr == CLK_DIV-1)
-				next_state = `STATE_TX_ECI_NEG;
+				next_state = `STATE_TX_ECI_NEG1;
 		end
 
-		`STATE_TX_ECI_NEG: begin
+		`STATE_TX_ECI_NEG1: begin
+			next_edi_out = EDI_OUT;
+			if(state_ctr == CLK_DIV-1)
+				next_state = `STATE_TX_ECI_NEG2;
+		end
+		
+		`STATE_TX_ECI_NEG2: begin
 			next_edi_out = fifo_din[bit_ctr];
 			if(state_ctr == CLK_DIV-1)
-				next_state = `STATE_TX_ECI_POS;
+				next_state = `STATE_TX_ECI_POS1;
 		end
 
-		`STATE_TX_ECI_POS: begin
+		`STATE_TX_ECI_POS1: begin
 			next_eci_out = 1'b1;
 			next_edi_out = fifo_din[bit_ctr];
+			if(state_ctr == CLK_DIV-1)
+				next_state = `STATE_TX_ECI_POS2;
+		end
+		
+		`STATE_TX_ECI_POS2: begin
+			next_eci_out = 1'b1;
+			next_edi_out = EDI_OUT;
 			if(state_ctr == CLK_DIV-1) begin
 				bit_ctr_incr = 1'b1;
 				if(fifo_empty)
 					next_state = `STATE_RESET;
 				else
-					next_state = `STATE_TX_ECI_NEG;
+					next_state = `STATE_TX_ECI_NEG1;
 			end
 		end
 	endcase

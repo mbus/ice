@@ -40,6 +40,10 @@ module m3_ice_top(
     */
 );
 
+//TODO: Take this out...
+assign FPGA_MB_DOUT = FPGA_MB_DIN;
+assign FPGA_MB_COUT = FPGA_MB_CIN;
+
 wire reset, reset_button, por_n;
 assign reset = reset_button | (~por_n);
 
@@ -71,10 +75,10 @@ ice_bus ic1(
 	.USB_UART_TXD(USB_UART_TXD),
 	.USB_UART_RXD(USB_UART_RXD),
 
-	.FPGA_MB_DOUT(FPGA_MB_DOUT),
+/*	.FPGA_MB_DOUT(FPGA_MB_DOUT),
 	.FPGA_MB_COUT(FPGA_MB_COUT),
 	.FPGA_MB_DIN(FPGA_MB_DIN),
-	.FPGA_MB_CIN(FPGA_MB_CIN),
+	.FPGA_MB_CIN(FPGA_MB_CIN),*/
 	
 	.FPGA_MB_EDI(FPGA_MB_EDI),
 	.FPGA_MB_EMO(FPGA_MB_EMO),

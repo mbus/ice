@@ -53,7 +53,7 @@ wire [7:0] uart_rx_data, uart_tx_data;
 wire uart_tx_latch, uart_rx_latch;
 wire uart_tx_empty;
 // 20MHz -> 3 Mbaud -> DIVIDE_FACTOR = 6.6666
-uart #(7) u1(
+uart #(173) u1(
 	.reset(reset),
 	.clk(clk),
 	.rx_in(USB_UART_TXD),
