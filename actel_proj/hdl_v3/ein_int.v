@@ -26,7 +26,7 @@ wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
 
-wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done;
+wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment;
 wire [7:0] hd_header_eid;
 
 wire [7:0] in_char;
@@ -58,6 +58,7 @@ header_decoder hd0(
 	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
 	.header_eid(hd_header_eid),
+	.is_fragment(hd_is_fragment),
 	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
 	.header_done_clear(1'b0)
@@ -84,6 +85,7 @@ ein_mod #(4000,12) pm0(
 	.clk(clk), 
 	.resetn(~reset), 
 	.fifo_din(in_char), 
+	.fragment(hd_is_fragment),
 	.fifo_RE(in_char_latch), 
 	.fifo_empty(~hd_frame_valid), 
 	.start_tx(hd_header_done), 

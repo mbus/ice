@@ -408,8 +408,9 @@ discrete_int di01(
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 assign debug = (~PB[4]) ? {FPGA_MB_EDI, FPGA_MB_EMO, FPGA_MB_ECI} : 
-               (~PB[3]) ? {pmu_debug[2:0], PMU_SCL, PMU_SDA} : 
-			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
+               (~PB[3]) ? {FPGA_MB_ECI, FPGA_MB_EDI, FPGA_MB_CIN, FPGA_MB_DIN} : 
+			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : 
+			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 

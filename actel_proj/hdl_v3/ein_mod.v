@@ -4,11 +4,13 @@
 `define STATE_TX_ECI_NEG2 3
 `define STATE_TX_ECI_POS1 4
 `define STATE_TX_ECI_POS2 5
+`define STATE_FRAGMENT_WAIT 6
 
 module ein_mod(
 	input clk,
 	input resetn,
 	input [7:0] fifo_din,
+	input fragment,
 	output fifo_RE,
 	input fifo_empty,
 	input start_tx,
@@ -27,6 +29,7 @@ reg next_emo_out;
 reg next_edi_out;
 reg next_eci_out;
 reg bit_ctr_incr;
+reg bit_ctr_reset;
 
 assign fifo_RE = bit_ctr_incr && (bit_ctr == 3'd7);
 
@@ -47,6 +50,8 @@ always @(posedge clk) begin
 			state_ctr <= #1 0;
 		else
 			state_ctr <= #1 state_ctr + 1;
+		if(bit_ctr_reset)
+			bit_ctr <= #1 0;
 		if(bit_ctr_incr)
 			bit_ctr <= #1 bit_ctr + 1;
 	end
@@ -58,6 +63,7 @@ always @* begin
 	next_edi_out = 1'b0;
 	next_eci_out = 1'b0;
 	bit_ctr_incr = 1'b0;
+	bit_ctr_reset = 1'b0;
 	case(state)
 		`STATE_RESET: begin
 			next_emo_out = 1'b0;
@@ -66,6 +72,7 @@ always @* begin
 		end
 
 		`STATE_START_TX: begin
+			bit_ctr_reset = 1'b1;
 			if(state_ctr == CLK_DIV-1)
 				next_state = `STATE_TX_ECI_NEG1;
 		end
@@ -92,13 +99,21 @@ always @* begin
 		`STATE_TX_ECI_POS2: begin
 			next_eci_out = 1'b1;
 			next_edi_out = EDI_OUT;
-			if(state_ctr == CLK_DIV-1) begin
+			if(state_ctr == CLK_DIV-3) begin
 				bit_ctr_incr = 1'b1;
-				if(fifo_empty)
+			end else if(state_ctr == CLK_DIV-1) begin
+				if(fifo_empty && fragment)
+					next_state = `STATE_FRAGMENT_WAIT;
+				else if(fifo_empty)
 					next_state = `STATE_RESET;
 				else
 					next_state = `STATE_TX_ECI_NEG1;
 			end
+		end
+		
+		`STATE_FRAGMENT_WAIT: begin
+			if(start_tx)
+				next_state = `STATE_START_TX;
 		end
 	endcase
 end
