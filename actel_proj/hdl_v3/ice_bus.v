@@ -52,10 +52,13 @@ assign USER = 6'd0;
 wire [7:0] uart_rx_data, uart_tx_data;
 wire uart_tx_latch, uart_rx_latch;
 wire uart_tx_empty;
+wire [15:0] uart_baud_div;
 // 20MHz -> 3 Mbaud -> DIVIDE_FACTOR = 6.6666
-uart #(173) u1(
+// 20MHz -> 115200 -> DIVIDE_FACTOR = 173
+uart u1(
 	.reset(reset),
 	.clk(clk),
+	.baud_div(uart_baud_div),
 	.rx_in(USB_UART_TXD),
 	.tx_out(USB_UART_RXD),
 	.tx_latch(uart_tx_latch),
@@ -156,6 +159,10 @@ basics_int bi0(
 	.M3_VBATT_SW(M3_VBATT_SW),
 	.M3_1P2_SW(M3_1P2_SW),
 	.M3_0P6_SW(M3_0P6_SW),
+	
+	//UART settings
+	.uart_baud_div(uart_baud_div),
+	.uart_tx_empty(uart_tx_empty),
 	
 	.debug()
 );
@@ -280,7 +287,8 @@ ein_int ei0(
 );
 
 //GPIO interface 
-gpio_int gi1(
+assign sl_arb_request[4] = 1'b0;
+/*gpio_int gi1(
 	.clk(clk),
 	.reset(reset),
 	
@@ -298,7 +306,7 @@ gpio_int gi1(
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
 	.incr_ctr(gpio_ctr_incr)
-);
+);*/
 
 //PMU interface
 wire [7:0] pmu_debug;
@@ -409,7 +417,7 @@ discrete_int di01(
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
 assign debug = (~PB[4]) ? {FPGA_MB_EDI, FPGA_MB_EMO, FPGA_MB_ECI} : 
                (~PB[3]) ? {FPGA_MB_ECI, FPGA_MB_EDI, FPGA_MB_CIN, FPGA_MB_DIN} : 
-			   (~PB[2]) ? {sl_arb_request, sl_arb_grant[0], sl_data[0]} : 
+			   (~PB[2]) ? {USB_UART_TXD, USB_UART_RXD} : 
 			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};

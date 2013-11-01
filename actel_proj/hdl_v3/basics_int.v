@@ -35,6 +35,10 @@ module basics_int(
 	output reg M3_1P2_SW,
 	output reg M3_VBATT_SW,
 	
+	//UART settings
+	output reg [15:0] uart_baud_div,
+	input uart_tx_empty,
+	
 	output [7:0] debug
 );
 
@@ -115,12 +119,13 @@ parameter STATE_QUERY_PARAM0 = 10;
 parameter STATE_QUERY_PARAM1 = 11;
 parameter STATE_QUERY_PARAM2 = 12;
 parameter STATE_SET_PARAM0 = 13;
-parameter STATE_SET_PARAM2 = 15;
 parameter STATE_SET_PARAM1 = 14;
+parameter STATE_SET_PARAM2 = 15;
+parameter STATE_SET_PARAM3 = 16;
 
-reg [3:0] state, next_state;
+reg [4:0] state, next_state;
 reg [7:0] counter;
-reg [10:0] latched_command;
+reg [12:0] latched_command;
 reg [23:0] parameter_staging;
 reg send_major_ver, send_minor_ver;
 reg latch_command, latch_temps;
@@ -130,9 +135,12 @@ reg new_command;
 reg [3:0] parameter_shift_countdown;
 reg store_parameter, send_parameter, shift_parameter;
 reg store_to_parameter, shift_to_parameter;
+reg [15:0] uart_baud_temp;
 
 assign local_data_latch = send_major_ver | send_minor_ver | send_parameter;
 assign debug = state;//{store_parameter,ma_data[6:0]};//{version_in[11:8],version_in[3:0]};//{latch_eid,ma_data_valid,latched_eid[5:0]};//{mf_frame_valid, sl_data_latch, sl_arb_request, sl_arb_grant, mf_debug[3:0]};//{local_frame_valid, local_data_latch, send_addr, send_eid, send_nak_code, send_ack_code, send_major_ver, send_minor_ver};
+wire query_capability_match = new_command && (ma_addr == 8'h3F);
+wire set_capability_match = new_command && (ma_addr == 8'h5F);
 wire query_request_match = new_command && (ma_addr == 8'h56);
 wire ver_request_match = new_command && (ma_addr == 8'h76);
 wire query_i2c_match = new_command && (ma_addr == 8'h49);
@@ -164,7 +172,7 @@ always @* begin
 	case(state)
 		STATE_IDLE: begin
 			latch_command = 1'b1;
-			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match || set_m3sw_match || query_m3sw_match) begin
+			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match || set_m3sw_match || query_m3sw_match || set_capability_match || query_capability_match) begin
 				next_state = STATE_LATCH_EID;
 			end
 		end
@@ -183,9 +191,9 @@ always @* begin
 					next_state = STATE_RESP_QUERY0;
 				else if(latched_command[2])
 					next_state = STATE_RESP_VER0;
-				else if(latched_command[3] | latched_command[5] | latched_command[7] | latched_command[9])
+				else if(latched_command[3] | latched_command[5] | latched_command[7] | latched_command[9] | latched_command[11])
 					next_state = STATE_QUERY_PARAM0;
-				else if(latched_command[4] | latched_command[6] | latched_command[8] | latched_command[10])
+				else if(latched_command[4] | latched_command[6] | latched_command[8] | latched_command[10] | latched_command[12])
 					next_state = STATE_SET_PARAM0;
 			end
 		end
@@ -268,15 +276,26 @@ always @* begin
 		
 		STATE_SET_PARAM1: begin
 			shift_to_parameter = ma_data_valid;
-			if(parameter_shift_countdown == 0)
+			if(parameter_shift_countdown == 0) begin
+				ackgen_generate_ack = 1'b1;
 				next_state = STATE_SET_PARAM2;
+			end
 		end
 		
+		//Wait for message to stop txing before setting any latched parameters
 		STATE_SET_PARAM2: begin
-			latch_temps = 1'b1;
-			ackgen_generate_ack = 1'b1;
-			next_state = STATE_IDLE;
+			if(sl_arb_request == 1'b1)//TODO: This could theoretically get tricky if things are backed up
+				next_state = STATE_SET_PARAM3;
 		end
+		
+		STATE_SET_PARAM3: begin
+			if(sl_arb_request == 1'b0 && uart_tx_empty) begin
+				latch_temps = 1'b1;
+				next_state = STATE_IDLE;
+			end
+		end
+		
+		
 	endcase
 
 	//Mux the data out to the message fifo
@@ -317,6 +336,9 @@ always @(posedge clk) begin
 		end else if(latched_command[9]) begin
 			parameter_staging <= {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
 			parameter_shift_countdown <= 1;
+		end else if(latched_command[11]) begin
+			parameter_staging <= {uart_baud_div,8'h00};
+			parameter_shift_countdown <= 2;
 		end
 	end
 	if(shift_parameter) begin
@@ -349,6 +371,9 @@ always @(posedge clk) begin
 		end else if(latched_command[10]) begin
 			to_parameter <= 5;
 			parameter_shift_countdown <= 1;
+		end else if(latched_command[12]) begin
+			to_parameter <= 7;
+			parameter_shift_countdown <= 2;
 		end
 	end
 	if(shift_to_parameter) begin
@@ -366,6 +391,8 @@ always @(posedge clk) begin
 			{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= ma_data[2:0];
 		else if(to_parameter == 6)
 			goc_polarity <= ma_data[0];
+		else if(to_parameter == 7)
+			uart_baud_temp <= {uart_baud_temp[7:0], ma_data};
 			
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
 	end
@@ -374,6 +401,8 @@ always @(posedge clk) begin
 			gpio_level <= gpio_level_temp;
 		else if(to_parameter == 4)
 			gpio_direction <= gpio_direction_temp;
+		else if(to_parameter == 7)
+			uart_baud_div <= uart_baud_temp;
 	end
 
 	last_ma_frame_valid <= ma_frame_valid;
@@ -396,7 +425,7 @@ always @(posedge clk) begin
 		version_in <= {version_in[7:0], ma_data};
 
 	if(latch_command) 
-		latched_command <= {set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+		latched_command <= {set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
 
 	if(rst) begin
 		state <= STATE_IDLE;
@@ -406,6 +435,7 @@ always @(posedge clk) begin
 		goc_speed <= 22'h30D400;
 		gpio_direction <= 24'h000000;
 		gpio_level <= 24'h000000;
+		uart_baud_div <= 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= 3'h7;
 	end else begin
 		state <= next_state;

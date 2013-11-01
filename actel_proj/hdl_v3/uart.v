@@ -10,6 +10,7 @@ module uart (
 	input reset             ,//Reset signal for entire UART module (active high)
 
 	input clk               ,//Clock corresponding to TX baudrate
+	input [15:0] baud_div   ,
 
 	input rx_in             ,//UART RX line
 	output reg tx_out       ,//UART TX line
@@ -21,8 +22,6 @@ module uart (
 	output reg [7:0] rx_data,//8-bit RX Data
 	output reg rx_latch      //RX Data ready line (high for one rxclk cycle)
 );
-
-parameter BAUD_DIV = 8;
 
 // Internal Variables 
 reg [7:0] tx_reg;
@@ -58,8 +57,8 @@ always @ (posedge clk) begin
 		// Start of frame detected, Proceed with rest of data
 		if (rx_busy) begin
 			rx_sample_cnt <= rx_sample_cnt + 1;
-			// Logic to sample at middle of data
-			if (rx_sample_cnt == BAUD_DIV/2) begin
+			// Logic to sample at middle of data (or just at the beginning since really this shouldn't be a big deal with bouncing...)
+			if (rx_sample_cnt == 1) begin
 				if ((rx_d2 == 1) && (rx_cnt == 0)) begin
 					rx_busy <= 0;
 				end else begin
@@ -76,7 +75,7 @@ always @ (posedge clk) begin
 						end
 					end
 				end
-			end else if(rx_sample_cnt == BAUD_DIV-1) begin
+			end else if(rx_sample_cnt == baud_div-1) begin
 				rx_sample_cnt <= 0;
 			end
 		end 
@@ -94,7 +93,7 @@ always @ (posedge clk) begin
 	end else begin
 		if (!tx_empty) begin
 			tx_sample_cnt <= tx_sample_cnt + 1;
-			if(tx_sample_cnt == BAUD_DIV-1) begin
+			if(tx_sample_cnt == baud_div-1) begin
 				tx_sample_cnt <= 0;
 				tx_cnt <= tx_cnt + 1;
 				if (tx_cnt == 0) begin

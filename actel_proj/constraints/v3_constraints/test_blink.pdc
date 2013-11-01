@@ -116,13 +116,13 @@ set_io FPGA_MB_COUT   \
 set_io FPGA_MB_DIN    \
     -pinname 71       \
     -fixed yes        \
-    -DIRECTION Input
+    -DIRECTION Output
 
 
 set_io FPGA_MB_CIN    \
     -pinname 70       \
     -fixed yes        \
-    -DIRECTION Input
+    -DIRECTION Output
 
 
 set_io FPGA_MB_EDI    \
