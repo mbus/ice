@@ -167,16 +167,15 @@ basics_int bi0(
 	.debug()
 );
 
-//TODO: REMOVE ME!
-assign sl_arb_request[2:1] = 2'b00;
-/*mbus_layer_wrapper_ice mb0(
+wire [3:0] mb_debug;
+mbus_layer_wrapper_ice mb0(
 	.clk(clk),
 	.reset(reset),
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
-	.CIN(FPGA_MB_CIN),
-	.COUT(FPGA_MB_COUT),
+	.CLKIN(FPGA_MB_CIN),
+	.CLKOUT(FPGA_MB_COUT),
 
 	.MASTER_NODE(mbus_master_mode),
 	.CPU_LAYER(mbus_cpu_mode),
@@ -196,8 +195,10 @@ assign sl_arb_request[2:1] = 2'b00;
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
-	.incr_ctr(mbus_ctr_incr)
-);*/
+	.incr_ctr(mbus_ctr_incr),
+	
+	.debug(mb_debug)
+);
 
 /*
 //Discrete interface module controls all of the discrete interface signals
@@ -240,7 +241,9 @@ discrete_int di0(
 );*/
 
 //GOC interface flashes pretty lights
-goc_int gi0(
+//TODO: Put GOC back in....
+assign sl_arb_request[3] = 1'b0;
+/*goc_int gi0(
 	.clk(clk),
 	.reset(reset),
 	
@@ -261,7 +264,7 @@ goc_int gi0(
 	.sl_arb_request(sl_arb_request[3]),
 	.sl_arb_grant(sl_arb_grant[3]),
 	.sl_data_latch(sl_data_latch)
-);
+);*/
 
 //EIN interface provides GOC-like interface but through direct 3-wire connection
 ein_int ei0(
@@ -415,9 +418,9 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? {FPGA_MB_EDI, FPGA_MB_EMO, FPGA_MB_ECI} : 
-               (~PB[3]) ? {FPGA_MB_ECI, FPGA_MB_EDI, FPGA_MB_CIN, FPGA_MB_DIN} : 
-			   (~PB[2]) ? {USB_UART_TXD, USB_UART_RXD} : 
+assign debug = (~PB[4]) ? 4'b0000 : 
+               (~PB[3]) ? mb_debug : 
+			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
 			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
