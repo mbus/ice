@@ -122,7 +122,9 @@ wire [21:0] goc_speed;
 wire goc_polairty;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
-wire mbus_master_mode, mbus_cpu_mode;
+wire mbus_master_mode;
+wire [19:0] mbus_long_addr;
+wire [21:0] mbus_clk_div;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -154,6 +156,11 @@ basics_int bi0(
 	.gpio_read(GPIO),
 	.gpio_level(gpio_level),
 	.gpio_direction(gpio_direction),
+
+	//MBus settings
+	.mbus_master_mode(mbus_master_mode),
+	.mbus_long_addr(mbus_long_addr),
+	.mbus_clk_div(mbus_clk_div),
 	
 	//M3 Power Switch Settings
 	.M3_VBATT_SW(M3_VBATT_SW),
@@ -178,7 +185,8 @@ mbus_layer_wrapper_ice mb0(
 	.CLKOUT(FPGA_MB_COUT),
 
 	.MASTER_NODE(mbus_master_mode),
-	.CPU_LAYER(mbus_cpu_mode),
+	.mbus_long_addr(mbus_long_addr),
+	.mbus_clk_div(mbus_clk_div),
 
 	//Master input bus
 	.ma_data(ma_data),

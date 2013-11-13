@@ -29,6 +29,11 @@ module basics_int(
 	input [23:0] gpio_read,
 	output reg [23:0] gpio_level,
 	output reg [23:0] gpio_direction,
+
+	//MBus settings
+	output reg mbus_master_node,
+	output reg [19:0] mbus_long_addr,
+	output reg [21:0] mbus_clk_div,
 	
 	//M3 Switch settings
 	output reg M3_0P6_SW,
@@ -125,7 +130,7 @@ parameter STATE_SET_PARAM3 = 16;
 
 reg [4:0] state, next_state;
 reg [7:0] counter;
-reg [12:0] latched_command;
+reg [14:0] latched_command;
 reg [23:0] parameter_staging;
 reg send_major_ver, send_minor_ver;
 reg latch_command, latch_temps;
@@ -151,6 +156,8 @@ wire query_gpio_match = new_command && (ma_addr == 8'h47);
 wire set_gpio_match = new_command && (ma_addr == 8'h67);
 wire query_m3sw_match = new_command && (ma_addr == 8'h53);
 wire set_m3sw_match = new_command && (ma_addr == 8'h73);
+wire query_mbus_match = new_command && (ma_addr == 8'h4d);
+wire set_mbus_match = new_command && (ma_addr == 8'h6d);
 always @* begin
 	next_state = state;
 	latch_eid = 1'b0;
@@ -172,7 +179,7 @@ always @* begin
 	case(state)
 		STATE_IDLE: begin
 			latch_command = 1'b1;
-			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match || set_m3sw_match || query_m3sw_match || set_capability_match || query_capability_match) begin
+			if(generate_nak || query_request_match || ver_request_match || query_i2c_match || set_i2c_match || query_goc_match || set_goc_match || query_gpio_match || set_gpio_match || set_m3sw_match || query_m3sw_match || set_capability_match || query_capability_match || query_mbus_match || set_mbus_match) begin
 				next_state = STATE_LATCH_EID;
 			end
 		end
@@ -191,9 +198,9 @@ always @* begin
 					next_state = STATE_RESP_QUERY0;
 				else if(latched_command[2])
 					next_state = STATE_RESP_VER0;
-				else if(latched_command[3] | latched_command[5] | latched_command[7] | latched_command[9] | latched_command[11])
+				else if(latched_command[3] | latched_command[5] | latched_command[7] | latched_command[9] | latched_command[11] | latched_command[13])
 					next_state = STATE_QUERY_PARAM0;
-				else if(latched_command[4] | latched_command[6] | latched_command[8] | latched_command[10] | latched_command[12])
+				else if(latched_command[4] | latched_command[6] | latched_command[8] | latched_command[10] | latched_command[12] | latched_command[14])
 					next_state = STATE_SET_PARAM0;
 			end
 		end
@@ -305,7 +312,7 @@ always @* begin
 end
 
 reg last_ma_frame_valid;
-reg [2:0] to_parameter;
+reg [3:0] to_parameter;
 always @(posedge clk) begin
 	//Parameter setting/querying logic
 	if(store_parameter) begin
@@ -339,6 +346,17 @@ always @(posedge clk) begin
 		end else if(latched_command[11]) begin
 			parameter_staging <= {uart_baud_div,8'h00};
 			parameter_shift_countdown <= 2;
+		end else if(latched_command[13]) begin
+			if(ma_data == 8'h6d) begin
+				parameter_staging <= {mbus_master_mode, 16'h0000};
+				parameter_shift_countdown <= 1;
+			end else if(ma_data == 8'h6c) begin
+				parameter_staging <= mbus_long_addr;
+				parameter_shift_countdown <= 3;
+			end else if(ma_data == 8'h63) begin
+				parameter_staging <= mbus_clk_div;
+				parameter_shift_countdown <= 3;
+			end
 		end
 	end
 	if(shift_parameter) begin
@@ -374,6 +392,17 @@ always @(posedge clk) begin
 		end else if(latched_command[12]) begin
 			to_parameter <= 7;
 			parameter_shift_countdown <= 2;
+		end else if(latched_command[14]) begin
+			if(ma_data == 8'h6c) begin
+				to_parameter <= 8;
+				parameter_shift_countdown <= 3;
+			end else if(ma_data == 8'h6d) begin
+				to_parameter <= 9;
+				parameter_shift_countdown <= 1;
+			end else if(ma_data == 8'h63) begin
+				to_parameter <= 10;
+				parameter_shift_countdown <= 3;
+			end
 		end
 	end
 	if(shift_to_parameter) begin
@@ -393,6 +422,12 @@ always @(posedge clk) begin
 			goc_polarity <= ma_data[0];
 		else if(to_parameter == 7)
 			uart_baud_temp <= {uart_baud_temp[7:0], ma_data};
+		else if(to_parameter == 8)
+			mbus_master_mode <= ma_data[0];
+		else if(to_parameter == 9)
+			mbus_long_addr <= {mbus_long_addr[11:0], ma_data};
+		else if(to_parameter == 10)
+			mbus_clk_div <= {mbus_clk_div[13:0], ma_data};
 			
 		parameter_shift_countdown <= parameter_shift_countdown - 1;
 	end
@@ -425,7 +460,7 @@ always @(posedge clk) begin
 		version_in <= {version_in[7:0], ma_data};
 
 	if(latch_command) 
-		latched_command <= {set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+		latched_command <= {set_mbus_match, query_mbus_match, set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
 
 	if(rst) begin
 		state <= STATE_IDLE;
@@ -437,6 +472,9 @@ always @(posedge clk) begin
 		gpio_level <= 24'h000000;
 		uart_baud_div <= 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= 3'h7;
+		mbus_master_mode <= 1'b0;
+		mbus_long_addr <= 20'h00000;
+		mbus_clk_div <= 22'h000001;
 	end else begin
 		state <= next_state;
 	end

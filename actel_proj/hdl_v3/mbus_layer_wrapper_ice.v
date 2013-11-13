@@ -5,8 +5,9 @@ module mbus_layer_wrapper_ice(
 	input clk,
 	input reset,
 
+	input [19:0] mbus_long_addr,
 	input MASTER_NODE,
-	input CPU_LAYER,
+	input [21:0] mbus_clk_div,
 
 	input 	CLKIN, 
 	output 	CLKOUT,
@@ -56,6 +57,21 @@ wire [7:0] rx_frame_data = (send_flag) ? 8'h42 : (send_ctr) ? global_counter : (
 wire [7:0] tx_char;
 wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is send_flag needed here as well?!
 
+//MBus clock generation logic
+reg mbus_clk;
+always @(posedge clk) begin
+	if(reset)
+		mbus_clk_counter <= 0;
+		mbus_clk <= 1'b0;
+	else begin
+		mbus_clk_counter <= mbus_clk_counter + 1;
+		if(mbus_clk_counter == mbus_clk_div) begin
+			mbus_clk_counter <= 0;
+			mbus_clk <= ~mbus_clk;
+		end
+	end
+end
+
 bus_interface #(8'h42,1,1,1) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -91,10 +107,50 @@ header_decoder hd0(
 );
 assign tx_char_valid = hd_data_valid & hd_header_done;
 
-wire [31:0] mbus_rxaddr, mbus_txaddr;
-wire [31:0] mbus_rxdata, mbus_txdata;
+/************************************************************
+ *Ack generator is used to easily create ACK & NAK sequences*
+ ************************************************************/
+reg ackgen_generate_ack, ackgen_generate_nak;
+wire [7:0] ack_message_data;
+wire ack_message_data_valid;
+wire ack_message_frame_valid;
+ack_generator ag0(
+	.clk(clk),
+	.reset(reset),
+	
+	.generate_ack(ackgen_generate_ack),
+	.generate_nak(ackgen_generate_nak),
+	.eid_in(hd_header_eid),
+	
+	.message_data(ack_message_data),
+	.message_data_valid(ack_message_data_valid),
+	.message_frame_valid(ack_message_frame_valid)
+);
 
-//wire mbus_txpend, mbus_txreq, mbus_txack, mbus_txfail, mbus_txresp_ack, mbus_txsucc;
+//Only using an output message fifo here because we should be able to keep up with requests in real-time
+wire [7:0] mf_sl_data;
+reg [7:0] message_idx;
+assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 8'bzzzzzzzz;
+message_fifo #(8) mf1(
+	.clk(clk),
+	.rst(reset),
+	
+	.in_data(ack_message_data),
+	.in_data_latch(ack_message_data_valid),
+	.in_frame_valid(ack_message_frame_valid),
+	.populate_frame_length(1'b1),
+
+	.out_data(mf_sl_data),
+	.out_frame_valid(sl_arb_request[1]),
+	.out_data_latch(sl_data_latch & sl_arb_grant[1])
+);
+
+
+reg [31:0] mbus_txaddr, mbus_txdata;
+wire [31:0] mbus_rxdata, mbus_rxaddr;
+
+wire mbus_txack, mbus_txfail, mbus_txsucc;
+reg mbus_txpend, mbus_txpend_next, mbus_txreq, mbus_txreq_next, mbus_txresp_ack;
 wire mbus_rxpend, mbus_rxreq, mbus_rxfail, mbus_rxbcast;
 //wire mbus_clk;
 //wire [15:0] mbus_clk_div;
@@ -104,23 +160,39 @@ reg mbus_rxack;
 assign debug = {CLKIN, mbus_rxfail, mbus_rxreq, mbus_rxack};
 reg mbus_reset, mbus_reset_pend;
  
-mbus_layer_wrapper mclw1(
+mbus_general_layer_wrapper mclw1(
     .RESETn(~mbus_reset),
+
+    .CLK_EXT(mbus_clk),
+    .MASTER_EN(MASTER_NODE),
+    .ADDRESS(mbus_long_addr),
 	
     .CLKIN(CLKIN),
     .DIN(DIN),
     .CLKOUT(CLKOUT),
     .DOUT(DOUT),
 	
-	//For now, just paying attention to RX, as we are snooping everything...
+    //RX Ports
     .RX_ADDR(mbus_rxaddr),
     .RX_DATA(mbus_rxdata),
     .RX_REQ(mbus_rxreq),
     .RX_ACK(mbus_rxack),
     .RX_BROADCAST(mbus_rxbcast),
     .RX_FAIL(mbus_rxfail),
-    .RX_PEND(mbus_rxpend)
-   );
+    .RX_PEND(mbus_rxpend),
+
+    //TX Ports
+    .TX_ADDR(mbus_txaddr),
+    .TX_DATA(mbus_txdata),
+    .TX_PEND(mbus_txpend),
+    .TX_REQ(mbus_txreq),
+    .TX_PRIORITY(1'b0),
+    .TX_ACK(mbus_txack),
+    .TX_FAIL(mbus_txfail),
+    .TX_SUCC(mbus_txsucc),
+    .TX_RESP_ACK(mbus_txresp_ack)
+);
+//TODO: Implement logic for mbus_txpend, mbus_txreq, mbus_txack, mbus_txfail, mbus_txresp_ack, mbus_txsucc, mbus_txdata, mbus_txaddr
    
 reg [3:0] state, next_state;
 reg [1:0] cur_status_bits;
@@ -128,10 +200,12 @@ reg [1:0] cur_status_bits;
 reg reset_status, store_status;
 reg store_data;
 reg next_mb_ack;
+reg shift_in_txaddr, shift_in_txdata;
 reg [1:0] rxreq_db, rxfail_db;
 reg [3:0] data_ctr;
 reg [7:0] state_ctr;
 reg [7:0] data_ctr_tot;
+reg [3:0] shift_count;
 wire rxreq = rxreq_db[1];
 wire rxfail = rxfail_db[1];
 reg first_message;
@@ -145,6 +219,13 @@ parameter STATE_RX_FRAGMENT = 5;
 parameter STATE_RX_CHECK_STATUS = 6;
 parameter STATE_RX_END = 7;
 parameter STATE_FAIL_ACK = 8;
+parameter STATE_TX_START = 9;
+parameter STATE_TX_DATA = 10;
+parameter STATE_TX_WORD0 = 11;
+parameter STATE_TX_WORD1 = 12;
+parameter STATE_TX_FRAGMENT = 13;
+parameter STATE_TX_END0 = 14;
+parameter STATE_TX_END1 = 15;
    
 always @(posedge clk) begin
 	if(reset) begin
@@ -156,6 +237,11 @@ always @(posedge clk) begin
 		state_ctr <= 8'h00;
 		mbus_reset_pend <= 1'b1;
 		mbus_reset <= 1'b0;
+		shift_count <= 4'd0;
+		mbus_txdata <= 32'd0;
+		mbus_txaddr <= 32'd0;
+		mbus_txpend <= 1'b0;
+		mbus_txreq <= 1'b0;
 	end else begin
 		if(mbus_reset_pend) begin
 			mbus_reset_pend <= 1'b0;
@@ -179,8 +265,11 @@ always @(posedge clk) begin
 			
 		if(next_state != state) begin
 			state_ctr <= 0;
+			shift_count <= 0;
 		end else begin
 			state_ctr <= state_ctr + 1;
+			if(shift_in_txaddr | shift_in_txdata)
+				shift_count <= shift_count + 4'd1;
 		end
 
 		if(store_data == 1'b1) begin
@@ -197,6 +286,16 @@ always @(posedge clk) begin
 			data_sr <= {data_sr[55:0], 8'h00};
 			data_ctr <= data_ctr - 1;
 		end
+
+		//Logic to shift in TXDATA, TXADDR
+		if(shift_in_txdata) begin
+			mbus_txdata <= {mbus_txdata[23:0], tx_char};
+		end
+		if(shift_in_txaddr) begin
+			mbus_txaddr <= {mbus_txaddr[23:0], tx_char};
+		end
+		mbus_txpend <= mbus_txpend_next;
+		mbus_txreq <= mbus_txreq_next;
 	end
 end
    
@@ -213,6 +312,14 @@ always @* begin
 	send_ctr = 1'b0;
 	incr_ctr = 1'b0;
 	hd_header_done_clear = 1'b0;
+	mbus_txpend_next = 1'b0;
+	mbus_txreq_next = 1'b0;
+	mbus_txresp_ack = 1'b0;
+	shift_in_txaddr = 1'b0;
+	shift_in_txdata = 1'b0;
+	ack_message_frame_valid = 1'b0;
+	ackgen_generate_nak = 1'b0;
+	ackgen_generate_ack = 1'b0;
 	case(state)
 		STATE_IDLE: begin
 			reset_status = 1'b1;
@@ -220,6 +327,8 @@ always @* begin
 				next_state = STATE_HDR0;
 			else if(rxfail)
 				next_state = STATE_FAIL_ACK;
+			else if(hd_header_done) //TODO: There should be no instance in which there is an empty MBus message, correct?
+				next_state = STATE_TX_START;
 		end
 		
 		STATE_HDR0: begin
@@ -283,6 +392,64 @@ always @* begin
 			if(state_ctr[1]) begin
 				next_state = STATE_IDLE;
 			end
+		end
+
+		//MBus TX states...
+		STATE_TX_START: begin
+			if(~hd_frame_valid) begin
+				next_state = STATE_TX_END;
+			end else if(shift_count == 4'd3) begin
+				next_state = STATE_TX_DATA;
+			end else if(tx_char_valid) begin
+				shift_in_txaddr = 1'b1;
+			end
+		end
+
+		STATE_TX_DATA: begin
+			if(~hd_frame_valid && hd_is_fragment) begin
+				hd_header_done_clear = 1'b1;
+				ackgen_generate_ack = 1'b1;
+				next_state = STATE_TX_FRAGMENT;
+			end else if(~hd_frame_valid) begin
+				next_state = STATE_TX_END0;
+			end else if(shift_count == 4'd4) begin
+				next_state = STATE_TX_WORD0;
+			end else if(tx_char_valid) begin
+				shift_in_txdata = 1'b1;
+			end
+		end
+
+		STATE_TX_WORD0: begin
+			mbus_txpend_next = hd_frame_valid;
+			next_state = STATE_TX_WORD1;
+		end
+
+		STATE_TX_WORD1: begin
+			mbus_txreq_next = 1'b1;
+			mbus_txpend_next = hd_frame_valid;
+			if(mbus_txack)
+				next_state = STATE_TX_DATA;
+		end
+
+		STATE_TX_FRAGMENT: begin
+			if(~ack_message_frame_valid & hd_frame_valid) begin
+				next_state = STATE_TX_DATA;
+			end
+		end
+
+		STATE_TX_END0: begin
+			hd_header_done_clear = 1'b1;
+			if(mbus_txfail) begin
+				ackgen_generate_nak = 1'b1;
+			end else if(mbus_txsucc) begin
+				ackgen_generate_ack = 1'b1;
+			end
+			next_state = STATE_TX_END1;
+		end
+		
+		STATE_TX_END1: begin
+			if(ack_message_frame_valid == 1'b0)
+				next_state = STATE_IDLE;
 		end
 	endcase
 end
