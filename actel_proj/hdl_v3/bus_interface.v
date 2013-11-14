@@ -48,7 +48,6 @@ generate
 			.in_data_latch(ma_data_valid & addr_match),
 			.in_frame_valid(ma_frame_valid & addr_match),
 			.in_data_overflow(in_mf_overflow),
-			.populate_frame_length(1'b0),
 			.out_data(in_frame_data),
 			.out_frame_valid(in_frame_valid),
 			.out_data_latch(in_frame_data_latch)

@@ -68,6 +68,7 @@ reg latch_eid;
 
 //Only drive the shared slave bus lines when we've won arbitration
 //NOTE: We assume that this module should always be able to handle the traffic.  If not, we'll miss NAKs, etc.
+wire [8:0] mf_sl_tail;
 assign sl_overflow = (sl_arb_grant) ? 1'b0 : 1'bz;
 assign sl_data = (sl_arb_grant) ? local_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
@@ -92,7 +93,6 @@ ack_generator ag0(
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [7:0] mf_data = (ack_message_data_valid) ? ack_message_data : local_data;
-wire [8:0] mf_sl_tail;
 wire [7:0] mf_debug;
 wire mf_data_latch = local_data_latch | ack_message_data_valid;
 wire mf_frame_valid = local_frame_valid | ack_message_frame_valid;

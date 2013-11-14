@@ -16,6 +16,7 @@ module message_fifo(
 parameter DEPTH_LOG2=9;
 parameter DEPTH = (1 << DEPTH_LOG2);
 
+reg last_frame_valid;
 wire insert_fvbit = (last_frame_valid & ~in_frame_valid);
 
 //Inferred ram block
@@ -34,8 +35,6 @@ ram #(9,DEPTH_LOG2) fr1(
 
 assign ram_wr_data = {insert_fvbit,in_data};
 assign ram_wr_latch = (in_data_latch | insert_fvbit); 
-
-reg last_frame_valid;
 
 assign in_data_overflow = (head == tail-1);
 assign out_frame_valid = (num_valid_frames > 0);
@@ -59,4 +58,3 @@ end
 
 
 endmodule
-

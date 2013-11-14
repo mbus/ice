@@ -149,7 +149,7 @@ reg [8:0] sl_addr_offset, sl_addr_offset_save;
 assign sl_addr = sl_tail + sl_addr_offset;
 
 parameter STATE_TX_IDLE = 0;
-parameter STATE_TX_GENLEN = 1;
+parameter STATE_TX_GETLEN = 1;
 parameter STATE_TX_HEADER = 2;
 parameter STATE_TX_LEN = 3;
 parameter STATE_TX_PAYLOAD = 4;
@@ -192,7 +192,7 @@ always @* begin
 			end
 		end
 
-		STATE_TX_GENLEN: begin
+		STATE_TX_GETLEN: begin
 			addr_offset_incr = 1'b1;
 			if(sl_data[8]) begin
 				save_offset = 1'b1;
