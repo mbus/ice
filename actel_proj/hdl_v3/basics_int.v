@@ -12,10 +12,12 @@ module basics_int(
 	inout sl_overflow,
 
 	//Slave output bus
-	inout [7:0] sl_data,
+	input [8:0] sl_addr,
+	inout [8:0] sl_tail,
+	input sl_latch_tail,
+	inout [8:0] sl_data,
 	output sl_arb_request,
 	input sl_arb_grant,
-	input sl_data_latch,
 	
 	//I2C settings
 	output reg [7:0] i2c_speed,
@@ -55,7 +57,7 @@ wire [7:0] local_sl_data;
 reg [7:0] local_data;
 reg [15:0] version_in;
 reg local_frame_valid;
-wire local_data_latch, local_data_overflow;
+wire local_data_latch;
 
 //Local copies of gpio settings to avoid shift-register complications
 reg [23:0] gpio_level_temp, gpio_direction_temp;
@@ -67,7 +69,8 @@ reg latch_eid;
 //Only drive the shared slave bus lines when we've won arbitration
 //NOTE: We assume that this module should always be able to handle the traffic.  If not, we'll miss NAKs, etc.
 assign sl_overflow = (sl_arb_grant) ? 1'b0 : 1'bz;
-assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
+assign sl_data = (sl_arb_grant) ? local_sl_data : 9'bzzzzzzzzz;
+assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
 
 //Ack generator is used to easily create ACK & NAK sequences
 reg ackgen_generate_ack, ackgen_generate_nak;
@@ -89,6 +92,7 @@ ack_generator ag0(
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [7:0] mf_data = (ack_message_data_valid) ? ack_message_data : local_data;
+wire [8:0] mf_sl_tail;
 wire [7:0] mf_debug;
 wire mf_data_latch = local_data_latch | ack_message_data_valid;
 wire mf_frame_valid = local_frame_valid | ack_message_frame_valid;
@@ -99,14 +103,12 @@ message_fifo #(8) mf1(
 	.in_data(mf_data),
 	.in_data_latch(mf_data_latch),
 	.in_frame_valid(mf_frame_valid),
-	.in_data_overflow(local_data_overflow),
-	.populate_frame_length(1'b1),
 
+	.tail(mf_sl_tail),
+	.out_data_addr(sl_addr),
 	.out_data(local_sl_data),
 	.out_frame_valid(sl_arb_request),
-	.out_data_latch(sl_data_latch & sl_arb_grant),
-	
-	.debug(mf_debug)
+	.latch_tail(sl_latch_tail & sl_arb_grant)
 );
 
 //Main 'basics' state machine - takes care of version requests, query requests, and immediate NAKs
