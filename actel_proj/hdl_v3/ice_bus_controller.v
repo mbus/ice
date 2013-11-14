@@ -1,4 +1,4 @@
-module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_data, sl_arb_request, sl_arb_grant, sl_data_latch);
+module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_addr, sl_tail, sl_latch_tail, sl_data, sl_arb_request, sl_arb_grant);
 parameter NUM_DEV=2;
 
 input clk;
@@ -8,7 +8,7 @@ input rst;
 input [7:0] rx_char;
 input rx_char_valid;
 output [7:0] tx_char;
-output tx_char_valid;
+output reg tx_char_valid;
 input tx_char_ready;
 
 //Immediate NAKs have their own controller =)
@@ -23,10 +23,12 @@ output reg ma_frame_valid;
 input sl_overflow;
 
 //Bus controller outputs (data & control)
-input [7:0] sl_data;
+output [8:0] sl_addr;
+input [8:0] sl_tail;
+output reg sl_latch_tail;
+input [8:0] sl_data;
 input [NUM_DEV-1:0] sl_arb_request;
 output [NUM_DEV-1:0] sl_arb_grant;
-output sl_data_latch;
 
 //For now the master bus is just a direct connection to the UART rx character bus.  May always be this way??
 assign ma_data = rx_char;
@@ -138,12 +140,91 @@ always @(posedge clk) begin
 	end
 end
 
-//TX state machine... (though it doesn't seem to really be a state machine at the moment...)
-//Luckily, this is extremely easy to take care of
-assign tx_char = sl_data;
-assign tx_char_valid = tx_char_ready & pri_granted;
-assign sl_data_latch = tx_char_valid & pri_granted;
+//TX state machine...
+//assign tx_char_valid = tx_char_ready & pri_granted;
 assign pri_latch = ~pri_granted;
 assign pri_en = 1'b1;
+
+reg [8:0] sl_addr_offset, sl_addr_offset_save;
+assign sl_addr = sl_tail + sl_addr_offset;
+
+parameter STATE_TX_IDLE = 0;
+parameter STATE_TX_GENLEN = 1;
+parameter STATE_TX_HEADER = 2;
+parameter STATE_TX_LEN = 3;
+parameter STATE_TX_PAYLOAD = 4;
+
+reg [3:0] tx_state, next_tx_state;
+reg save_offset;
+reg tx_len;
+reg addr_offset_clear, addr_offset_incr;
+
+assign tx_char = (tx_len) ? sl_data : sl_addr_offset_save[7:0];
+
+always @(posedge clk) begin
+	if(rst) begin
+		tx_state <= STATE_TX_IDLE;
+		sl_addr_offset <= 0;
+	end else begin
+		tx_state <= next_tx_state;
+		if(addr_offset_clear)
+			sl_addr_offset <= 0;
+		else if(addr_offset_incr)
+			sl_addr_offset <= sl_addr_offset + 1;
+		if(save_offset)
+			sl_addr_offset_save <= sl_addr_offset + 1;
+	end
+end
+
+always @* begin
+	next_tx_state = tx_state;
+	addr_offset_clear = 1'b0;
+	addr_offset_incr = 1'b0;
+	save_offset = 1'b0;
+	tx_char_valid = 1'b0;
+	tx_len = 1'b0;
+	sl_latch_tail = 1'b0;
+	case(tx_state)
+		STATE_TX_IDLE: begin
+			addr_offset_clear = 1'b1;
+			if(pri_granted) begin
+				next_tx_state = STATE_TX_GETLEN;
+			end
+		end
+
+		STATE_TX_GENLEN: begin
+			addr_offset_incr = 1'b1;
+			if(sl_data[8]) begin
+				save_offset = 1'b1;
+				addr_offset_clear = 1'b1;
+				next_tx_state = STATE_TX_HEADER;
+			end
+		end
+
+		STATE_TX_HEADER: begin
+			addr_offset_incr = tx_char_ready;
+			tx_char_valid = tx_char_ready;
+			if(sl_addr_offset == 2)
+				next_state = STATE_TX_LEN;
+		end
+
+		STATE_TX_LEN: begin
+			addr_offset_incr = tx_char_ready;
+			tx_char_valid = tx_char_ready;
+			tx_len = 1'b1;
+			if(tx_char_ready)
+				next_state = STATE_TX_PAYLOAD;
+		end
+
+		STATE_TX_PAYLOAD: begin
+			addr_offset_incr = tx_char_ready;
+			tx_char_valid = tx_char_ready;
+			if(sl_addr_offset == sl_addr_offset_save) begin
+				sl_latch_tail = 1'b1;
+				next_state = STATE_TX_IDLE;			
+			end
+		end
+	endcase
+end
 
 endmodule

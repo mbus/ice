@@ -83,9 +83,11 @@ global_event_counter gec1(
 wire ma_generate_nak;
 wire [7:0] ma_data, ma_addr;
 wire ma_data_valid, ma_frame_valid;
-wire [7:0] sl_data;
+wire [8:0] sl_data;
+wire [8:0] sl_addr;
+wire [8:0] sl_tail;
 wire [NUM_DEV-1:0] sl_arb_request, sl_arb_grant;
-wire sl_overflow, sl_data_latch;
+wire sl_overflow;
 ice_bus_controller #(NUM_DEV) ice1(
 	.clk(clk),
 	.rst(reset),
@@ -108,10 +110,12 @@ ice_bus_controller #(NUM_DEV) ice1(
 	.sl_overflow(sl_overflow),
 	
 	//Bus controller outputs (data & control)
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request),
-	.sl_arb_grant(sl_arb_grant),
-	.sl_data_latch(sl_data_latch)
+	.sl_arb_grant(sl_arb_grant)
 );
 
 //Basics module responds to basic requests (query info, etc)
@@ -139,10 +143,12 @@ basics_int bi0(
 	.sl_overflow(sl_overflow),
 
 	//Slave output bus
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
-	.sl_data_latch(sl_data_latch),
 	
 	//I2C settings
 	.i2c_speed(i2c_speed),
@@ -196,10 +202,12 @@ mbus_layer_wrapper_ice mb0(
 	.sl_overflow(sl_overflow),
 
 	//Slave output bus
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[2:1]),
 	.sl_arb_grant(sl_arb_grant[2:1]),
-	.sl_data_latch(sl_data_latch),
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
@@ -239,7 +247,6 @@ discrete_int di0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[2:1]),
 	.sl_arb_grant(sl_arb_grant[2:1]),
-	.sl_data_latch(sl_data_latch),
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
@@ -270,8 +277,7 @@ assign sl_arb_request[3] = 1'b0;
 	//Slave output bus
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[3]),
-	.sl_arb_grant(sl_arb_grant[3]),
-	.sl_data_latch(sl_data_latch)
+	.sl_arb_grant(sl_arb_grant[3])
 );*/
 
 //EIN interface provides GOC-like interface but through direct 3-wire connection
@@ -291,10 +297,12 @@ ein_int ei0(
 	.sl_overflow(sl_overflow),
 
 	//Slave output bus
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[6]),
-	.sl_arb_grant(sl_arb_grant[6]),
-	.sl_data_latch(sl_data_latch)
+	.sl_arb_grant(sl_arb_grant[6])
 );
 
 //GPIO interface 
@@ -312,7 +320,6 @@ assign sl_arb_request[4] = 1'b0;
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[4]),
 	.sl_arb_grant(sl_arb_grant[4]),
-	.sl_data_latch(sl_data_latch),
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
@@ -336,10 +343,12 @@ pmu_int pi0(
 	.sl_overflow(sl_overflow),
 
 	//Slave output bus
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[5]),
 	.sl_arb_grant(sl_arb_grant[5]),
-	.sl_data_latch(sl_data_latch),
 	
 	.debug(pmu_debug)
 );

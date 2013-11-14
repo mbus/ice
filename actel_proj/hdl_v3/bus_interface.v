@@ -10,12 +10,11 @@ module bus_interface(
 	inout sl_overflow,
 	
 	//Slave bus
-	inout [7:0] sl_data,
+	inout [8:0] sl_data,
 	input [8:0] sl_addr,
 	inout [8:0] sl_tail,
 	output sl_arb_request,
 	input sl_arb_grant,
-	input sl_data_latch,
 	input sl_latch_tail,
 	
 	//Local input data interface
@@ -27,9 +26,7 @@ module bus_interface(
 	//Local output data interface
 	input [7:0] out_frame_data,
 	input out_frame_valid,
-	input out_frame_data_latch,
-	
-	output [7:0] debug);
+	input out_frame_data_latch);
 parameter ADDR = 0;
 parameter INCLUDE_INPUT_FIFO = 0;
 parameter INCLUDE_OUTPUT_FIFO = 0;
@@ -81,7 +78,6 @@ generate
 			.out_data(local_sl_data),
 			.out_data_addr(sl_addr),
 			.out_frame_valid(sl_arb_request),
-			.out_data_latch(sl_data_latch & sl_arb_grant)
 			.latch_tail(sl_latch_tail & sl_arb_grant)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;

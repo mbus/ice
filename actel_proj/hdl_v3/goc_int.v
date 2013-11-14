@@ -16,10 +16,12 @@ module goc_int(
 	inout sl_overflow,
 
 	//Slave output bus
-	inout [7:0] sl_data,
+	input [8:0] sl_addr,
+	inout [8:0] sl_tail,
+	input sl_latch_tail,
+	inout [8:0] sl_data,
 	output sl_arb_request,
-	input sl_arb_grant,
-	input sl_data_latch
+	input sl_arb_grant
 );
 
 //Bus interface takes care of all buffering, etc for discrete data...
@@ -41,10 +43,12 @@ bus_interface #(8'h66,1,1,0) bi0(
 	.ma_data_valid(ma_data_valid),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request),
 	.sl_arb_grant(sl_arb_grant),
-	.sl_data_latch(sl_data_latch),
 	.in_frame_data(in_char),
 	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),

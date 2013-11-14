@@ -22,10 +22,12 @@ module mbus_layer_wrapper_ice(
 	inout sl_overflow,
 	
 	//Slave output bus
-	inout [7:0] sl_data,
+	input [8:0] sl_addr,
+	inout [8:0] sl_tail,
+	input sl_latch_tail,
+	inout [8:0] sl_data,
 	output [1:0] sl_arb_request,
 	input [1:0] sl_arb_grant,
-	input sl_data_latch,
 	
 	//Global counter for 'time-tagging'
 	input [7:0] global_counter,
@@ -80,10 +82,12 @@ bus_interface #(8'h42,1,1,1) bi0(
 	.ma_data_valid(ma_data_valid),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
-	.sl_data_latch(sl_data_latch),
 	.in_frame_data(tx_char),
 	.in_frame_data_valid(hd_data_valid),//tx_char_valid),
 	.in_frame_valid(hd_frame_valid),//tx_req),
@@ -129,8 +133,10 @@ ack_generator ag0(
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [7:0] mf_sl_data;
+wire [8:0] mf_sl_tail;
 reg [7:0] message_idx;
 assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 8'bzzzzzzzz;
+assign sl_tail = (sl_arb_grant[1]) ? mf_sl_tail : 9'bzzzzzzzzz;
 message_fifo #(8) mf1(
 	.clk(clk),
 	.rst(reset),
@@ -140,9 +146,11 @@ message_fifo #(8) mf1(
 	.in_frame_valid(ack_message_frame_valid),
 	.populate_frame_length(1'b1),
 
+	.tail(mf_sl_tail),
+	.out_data_addr(sl_addr),
 	.out_data(mf_sl_data),
 	.out_frame_valid(sl_arb_request[1]),
-	.out_data_latch(sl_data_latch & sl_arb_grant[1])
+	.latch_tail(sl_latch_tail & sl_arb_grant[1])
 );
 
 
