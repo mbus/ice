@@ -11,9 +11,12 @@ module bus_interface(
 	
 	//Slave bus
 	inout [7:0] sl_data,
+	input [8:0] sl_addr,
+	inout [8:0] sl_tail,
 	output sl_arb_request,
 	input sl_arb_grant,
 	input sl_data_latch,
+	input sl_latch_tail,
 	
 	//Local input data interface
 	output [7:0] in_frame_data,
@@ -36,6 +39,7 @@ parameter SUPPORTS_FRAGMENTATION = 0;
 wire in_mf_overflow;
 wire addr_match = (ma_addr == ADDR);
 wire [7:0] local_sl_data;
+wire [8:0] local_sl_tail;
 
 //Only include an input FIFO if it has been requested
 generate
@@ -66,20 +70,22 @@ endgenerate
 //Output FIFO will always be needed in this case
 generate
 	if(INCLUDE_OUTPUT_FIFO) begin
-		message_fifo #(9,SUPPORTS_FRAGMENTATION) mf1(
+		message_fifo #(9) mf1(
 			.clk(clk),
 			.rst(rst),
 			.in_data(out_frame_data),
 			.in_data_latch(out_frame_data_latch),
 			.in_frame_valid(out_frame_valid),
 			.in_data_overflow(),//TODO: No assignment to this for now (nothing we can really do about it since there's no back-pressure!)
-			.populate_frame_length(1'b1),
+			.tail(local_sl_tail),
 			.out_data(local_sl_data),
+			.out_data_addr(sl_addr),
 			.out_frame_valid(sl_arb_request),
-			.out_data_latch(sl_data_latch & sl_arb_grant),
-			.debug(debug)
+			.out_data_latch(sl_data_latch & sl_arb_grant)
+			.latch_tail(sl_latch_tail & sl_arb_grant)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
+		assign sl_tail = (sl_arb_grant) ? local_sl_tail : 9'bzzzzzzzzz;
 	end else begin
 		//TODO: This should just be able to store 1 ACK/NAK... (right now it doesn't do anything =(
 		assign sl_data = (sl_arb_grant) ? 8'd0 : 8'bzzzzzzzz;

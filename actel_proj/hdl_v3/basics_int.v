@@ -31,7 +31,7 @@ module basics_int(
 	output reg [23:0] gpio_direction,
 
 	//MBus settings
-	output reg mbus_master_node,
+	output reg mbus_master_mode,
 	output reg [19:0] mbus_long_addr,
 	output reg [21:0] mbus_clk_div,
 	
@@ -481,4 +481,3 @@ always @(posedge clk) begin
 end
 
 endmodule
-

@@ -1,5 +1,5 @@
 
-`include "mbus_def_ice.v"
+//`include "mbus_def_ice.v"
 
 module mbus_layer_wrapper_ice(
 	input clk,
@@ -34,7 +34,6 @@ module mbus_layer_wrapper_ice(
 	output [3:0] debug
 );
 
-assign sl_arb_request[1] = 1'b0; //Not using second arb request yet!
 
 /*mbus_clk_gen mbcg1(
 	.sys_clk(clk),
@@ -59,11 +58,12 @@ wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is sen
 
 //MBus clock generation logic
 reg mbus_clk;
+reg [21:0] mbus_clk_counter;
 always @(posedge clk) begin
-	if(reset)
+	if(reset) begin
 		mbus_clk_counter <= 0;
 		mbus_clk <= 1'b0;
-	else begin
+	end else begin
 		mbus_clk_counter <= mbus_clk_counter + 1;
 		if(mbus_clk_counter == mbus_clk_div) begin
 			mbus_clk_counter <= 0;
@@ -317,7 +317,6 @@ always @* begin
 	mbus_txresp_ack = 1'b0;
 	shift_in_txaddr = 1'b0;
 	shift_in_txdata = 1'b0;
-	ack_message_frame_valid = 1'b0;
 	ackgen_generate_nak = 1'b0;
 	ackgen_generate_ack = 1'b0;
 	case(state)
@@ -397,7 +396,7 @@ always @* begin
 		//MBus TX states...
 		STATE_TX_START: begin
 			if(~hd_frame_valid) begin
-				next_state = STATE_TX_END;
+				next_state = STATE_TX_END0;
 			end else if(shift_count == 4'd3) begin
 				next_state = STATE_TX_DATA;
 			end else if(tx_char_valid) begin
