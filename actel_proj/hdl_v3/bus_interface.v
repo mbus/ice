@@ -36,7 +36,7 @@ parameter SUPPORTS_FRAGMENTATION = 0;
 //Local wires/buses
 wire in_mf_overflow;
 wire addr_match = (ma_addr == ADDR);
-wire [7:0] local_sl_data;
+wire [8:0] local_sl_data;
 wire [8:0] local_sl_tail;
 
 //Only include an input FIFO if it has been requested
@@ -82,7 +82,7 @@ generate
 			.out_frame_valid(sl_arb_request),
 			.latch_tail(sl_latch_tail & sl_arb_grant)
 		);
-		assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
+		assign sl_data = (sl_arb_grant) ? local_sl_data : 9'bzzzzzzzzz;
 		assign sl_tail = (sl_arb_grant) ? local_sl_tail : 9'bzzzzzzzzz;
 	end else begin
 		//TODO: This should just be able to store 1 ACK/NAK... (right now it doesn't do anything =(

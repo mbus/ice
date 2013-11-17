@@ -55,6 +55,7 @@ wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
 reg hd_header_done_clear;
+reg shift_in_txaddr, shift_in_txdata;
 wire hd_frame_next = shift_in_txaddr | shift_in_txdata;
 reg send_flag, send_ctr, send_status;
 wire [7:0] rx_frame_data = (send_flag) ? 8'h42 : (send_ctr) ? global_counter : (send_status) ? status_bits : data_sr[63:56];
@@ -115,7 +116,7 @@ header_decoder hd0(
 	.packet_is_empty(hd_is_empty),
 	.header_done_clear(hd_header_done_clear)
 );
-assign tx_char_valid = hd_data_valid & hd_header_done;
+assign tx_char_valid = hd_frame_valid & hd_header_done;
 
 /************************************************************
  *Ack generator is used to easily create ACK & NAK sequences*
@@ -150,7 +151,6 @@ message_fifo #(8) mf1(
 	.in_data(ack_message_data),
 	.in_data_latch(ack_message_data_valid),
 	.in_frame_valid(ack_message_frame_valid),
-	.populate_frame_length(1'b1),
 
 	.tail(mf_sl_tail),
 	.out_data_addr(sl_addr),
@@ -214,7 +214,6 @@ reg [1:0] cur_status_bits;
 reg reset_status, store_status;
 reg store_data;
 reg next_mb_ack;
-reg shift_in_txaddr, shift_in_txdata;
 reg [1:0] rxreq_db, rxfail_db;
 reg [3:0] data_ctr;
 reg [7:0] state_ctr;

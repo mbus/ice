@@ -53,7 +53,7 @@ parameter VERSION_MAJOR = 8'h00;
 parameter VERSION_MINOR = 8'h02;
 	
 reg [7:0] ma_addr;
-wire [7:0] local_sl_data;
+wire [8:0] local_sl_data;
 reg [7:0] local_data;
 reg [15:0] version_in;
 reg local_frame_valid;

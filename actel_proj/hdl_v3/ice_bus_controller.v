@@ -205,7 +205,7 @@ always @* begin
 			addr_offset_incr = tx_char_ready;
 			tx_char_valid = tx_char_ready;
 			if(sl_addr_offset == 2)
-				next_state = STATE_TX_LEN;
+				next_tx_state = STATE_TX_LEN;
 		end
 
 		STATE_TX_LEN: begin
@@ -213,7 +213,7 @@ always @* begin
 			tx_char_valid = tx_char_ready;
 			tx_len = 1'b1;
 			if(tx_char_ready)
-				next_state = STATE_TX_PAYLOAD;
+				next_tx_state = STATE_TX_PAYLOAD;
 		end
 
 		STATE_TX_PAYLOAD: begin
@@ -221,7 +221,7 @@ always @* begin
 			tx_char_valid = tx_char_ready;
 			if(sl_addr_offset == sl_addr_offset_save) begin
 				sl_latch_tail = 1'b1;
-				next_state = STATE_TX_IDLE;			
+				next_tx_state = STATE_TX_IDLE;			
 			end
 		end
 	endcase

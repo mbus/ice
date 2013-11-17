@@ -19,8 +19,7 @@ module ein_int(
 	input sl_latch_tail,
 	inout [8:0] sl_data,
 	output sl_arb_request,
-	input sl_arb_grant,
-	input sl_data_latch
+	input sl_arb_grant
 );
 
 //Bus interface takes care of all buffering, etc for discrete data...
@@ -29,7 +28,7 @@ wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
 
-wire hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment;
+wire hd_frame_valid, hd_header_done, hd_is_fragment;
 wire [7:0] hd_header_eid;
 wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
@@ -50,7 +49,6 @@ bus_interface #(8'h65,1,1,0) bi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request),
 	.sl_arb_grant(sl_arb_grant),
-	.sl_data_latch(sl_data_latch),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
 	.in_frame_tail(hd_frame_tail),
@@ -71,7 +69,6 @@ header_decoder hd0(
 	.in_frame_latch_tail(hd_frame_latch_tail),
 	.header_eid(hd_header_eid),
 	.is_fragment(hd_is_fragment),
-	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
 	.header_done_clear(1'b0)
 );
