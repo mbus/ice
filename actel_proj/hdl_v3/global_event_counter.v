@@ -8,10 +8,10 @@ module global_event_counter(
 
 always @(posedge clk) begin
 	if(rst) begin
-		counter_out <= 0;
+		counter_out <= `SD 0;
 	end else begin
 		if(ctr_incr)
-			counter_out <= counter_out + 8'd1;
+			counter_out <= `SD counter_out + 8'd1;
 	end
 end
 

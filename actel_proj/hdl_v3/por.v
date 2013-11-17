@@ -20,9 +20,9 @@ assign reset = chain[1];
 
 always @(posedge clk or posedge RST_p) begin
 	if(RST_p) begin
-		chain <= 2'b0;
+		chain <= `SD 2'b0;
 	end else begin
-		chain <= {chain[0], 1'b1};
+		chain <= `SD {chain[0], 1'b1};
 	end
 end
 

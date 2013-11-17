@@ -33,10 +33,10 @@ end
 
 always @(posedge clk) begin
 	if(rst) begin
-		grants <= 0;
+		grants <= `SD 0;
 	end else begin
 		if(latch) begin
-			grants <= temp_grants;
+			grants <= `SD temp_grants;
 		end
 	end
 end

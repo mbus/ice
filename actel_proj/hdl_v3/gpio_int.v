@@ -133,19 +133,19 @@ always @(posedge clk) begin
 	//The latch_gpio_levels keeps track of the last-communicated GPIO levels for the analysis of any changes
 	//TODO: Probably needs this debouncing logic, eh?
 	if(latch_gpio_levels) begin
-		last_gpio_levels_db <= GPIO;
-		last_gpio_levels <= last_gpio_levels_db;
+		last_gpio_levels_db <= `SD GPIO;
+		last_gpio_levels <= `SD last_gpio_levels_db;
 	end
 	
 	if(drive_latched_data)
-		drive_ctr <= drive_ctr + 1;
+		drive_ctr <= `SD drive_ctr + 1;
 	else
-		drive_ctr <= 0;
+		drive_ctr <= `SD 0;
 
 	if(reset) begin
-		state <= STATE_IDLE;
+		state <= `SD STATE_IDLE;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 	end
 end
 

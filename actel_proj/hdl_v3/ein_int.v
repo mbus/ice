@@ -134,9 +134,9 @@ end
 
 always @(posedge clk) begin
 	if(reset) begin
-		state <= STATE_IDLE;
+		state <= `SD STATE_IDLE;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 	end
 end
 

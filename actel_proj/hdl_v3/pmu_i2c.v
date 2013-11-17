@@ -43,43 +43,43 @@ parameter STATE_ACK = 6;
 parameter STATE_STOP = 7;
 
 always @(posedge clk) begin
-	scl_pd_latched <= scl_pd;
-	sda_pd_latched <= sda_pd;
+	scl_pd_latched <= `SD scl_pd;
+	sda_pd_latched <= `SD sda_pd;
 
 	if(reset) begin
-		state <= STATE_IDLE;
-		state_counter <= 0;
-		shift_counter <= 0;
-		failed <= 0;
-		rw_latched <= 0;
+		state <= `SD STATE_IDLE;
+		state_counter <= `SD 0;
+		shift_counter <= `SD 0;
+		failed <= `SD 0;
+		rw_latched <= `SD 0;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 		
 		//Counter for keeping track of slow I2C clock
 		if(next_state != state)
-			state_counter <= 0;
+			state_counter <= `SD 0;
 		else
-			state_counter <= state_counter + 1;
+			state_counter <= `SD state_counter + 1;
 			
 		//Latch data locally every time we're ready for it
 		if(data_latch)
-			latched_data <= data;
+			latched_data <= `SD data;
 		if(ready)
-			rw_latched <= rw;
+			rw_latched <= `SD rw;
 		if(shift_latched_data) begin
-			shift_counter <= shift_counter + 1'b1;
-			latched_data <= {latched_data[6:0], 1'b0};
+			shift_counter <= `SD shift_counter + 1'b1;
+			latched_data <= `SD {latched_data[6:0], 1'b0};
 		end
 		
 		//Latch the ack to see if the chip acked or not
 		if(latch_ack)
-			failed <= sda;
+			failed <= `SD sda;
 		if(clear_failed)
-			failed <= 1'b0;
+			failed <= `SD 1'b0;
 			
 		//Shift in data if we're actually reading data back over I2C
 		if(in_data_latch)
-			in_data <= {in_data[6:0], sda};
+			in_data <= `SD {in_data[6:0], sda};
 	end
 end
 

@@ -22,9 +22,9 @@ always @(posedge clk) begin
 		//Not sure if there's really anything to do in the reset state...
 	end else begin
 		if(in_latch) begin
-			ram[in_addr] <= in_data;
+			ram[in_addr] <= `SD in_data;
 		end
-		//out_data <= ram[out_addr];
+		//out_data <= `SD ram[out_addr];
 	end
 end
 

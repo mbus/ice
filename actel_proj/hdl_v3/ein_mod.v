@@ -35,25 +35,25 @@ assign fifo_RE = bit_ctr_incr && (bit_ctr == 3'd7);
 
 always @(posedge clk) begin
 	if(~resetn) begin
-		state <= #1 `STATE_RESET;
-		state_ctr <= #1 0;
-		bit_ctr <= #1 3'd0;
-		EMO_OUT <= #1 1'b0;
-		EDI_OUT <= #1 1'b0;
-		ECI_OUT <= #1 1'b0;
+		state <= `SD `STATE_RESET;
+		state_ctr <= `SD 0;
+		bit_ctr <= `SD 3'd0;
+		EMO_OUT <= `SD 1'b0;
+		EDI_OUT <= `SD 1'b0;
+		ECI_OUT <= `SD 1'b0;
 	end else begin
-		state <= #1 next_state;
-		EMO_OUT <= #1 next_emo_out;
-		EDI_OUT <= #1 next_edi_out;
-		ECI_OUT <= #1 next_eci_out;
+		state <= `SD next_state;
+		EMO_OUT <= `SD next_emo_out;
+		EDI_OUT <= `SD next_edi_out;
+		ECI_OUT <= `SD next_eci_out;
 		if(next_state != state)
-			state_ctr <= #1 0;
+			state_ctr <= `SD 0;
 		else
-			state_ctr <= #1 state_ctr + 1;
+			state_ctr <= `SD state_ctr + 1;
 		if(bit_ctr_reset)
-			bit_ctr <= #1 0;
+			bit_ctr <= `SD 0;
 		if(bit_ctr_incr)
-			bit_ctr <= #1 bit_ctr + 1;
+			bit_ctr <= `SD bit_ctr + 1;
 	end
 end
 

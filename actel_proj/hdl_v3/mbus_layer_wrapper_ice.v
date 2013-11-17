@@ -67,13 +67,13 @@ reg mbus_clk;
 reg [21:0] mbus_clk_counter;
 always @(posedge clk) begin
 	if(reset) begin
-		mbus_clk_counter <= 0;
-		mbus_clk <= 1'b0;
+		mbus_clk_counter <= `SD 0;
+		mbus_clk <= `SD 1'b0;
 	end else begin
-		mbus_clk_counter <= mbus_clk_counter + 1;
+		mbus_clk_counter <= `SD mbus_clk_counter + 1;
 		if(mbus_clk_counter == mbus_clk_div) begin
-			mbus_clk_counter <= 0;
-			mbus_clk <= ~mbus_clk;
+			mbus_clk_counter <= `SD 0;
+			mbus_clk <= `SD ~mbus_clk;
 		end
 	end
 end
@@ -242,73 +242,73 @@ parameter STATE_TX_END1 = 15;
    
 always @(posedge clk) begin
 	if(reset) begin
-		state <= STATE_IDLE;
-		status_bits <= 8'h00;
-		mbus_rxack <= 1'b0;
-		data_ctr <= 3'd0;
-		first_message <= 1'b1;
-		state_ctr <= 8'h00;
-		mbus_reset_pend <= 1'b1;
-		mbus_reset <= 1'b0;
-		shift_count <= 4'd0;
-		mbus_txdata <= 32'd0;
-		mbus_txaddr <= 32'd0;
-		mbus_txpend <= 1'b0;
-		mbus_txreq <= 1'b0;
+		state <= `SD STATE_IDLE;
+		status_bits <= `SD 8'h00;
+		mbus_rxack <= `SD 1'b0;
+		data_ctr <= `SD 3'd0;
+		first_message <= `SD 1'b1;
+		state_ctr <= `SD 8'h00;
+		mbus_reset_pend <= `SD 1'b1;
+		mbus_reset <= `SD 1'b0;
+		shift_count <= `SD 4'd0;
+		mbus_txdata <= `SD 32'd0;
+		mbus_txaddr <= `SD 32'd0;
+		mbus_txpend <= `SD 1'b0;
+		mbus_txreq <= `SD 1'b0;
 	end else begin
 		if(mbus_reset_pend) begin
-			mbus_reset_pend <= 1'b0;
-			mbus_reset <= 1'b1;
+			mbus_reset_pend <= `SD 1'b0;
+			mbus_reset <= `SD 1'b1;
 		end else begin
-			mbus_reset <= 1'b0;
+			mbus_reset <= `SD 1'b0;
 		end
-		state <= next_state;
-		mbus_rxack <= next_mb_ack;
-		rxreq_db <= {rxreq_db[0], mbus_rxreq};
-		rxfail_db <= {rxfail_db[0], mbus_rxfail};
+		state <= `SD next_state;
+		mbus_rxack <= `SD next_mb_ack;
+		rxreq_db <= `SD {rxreq_db[0], mbus_rxreq};
+		rxfail_db <= `SD {rxfail_db[0], mbus_rxfail};
 		
 		if(reset_status) begin
-			status_bits <= 8'h00;
-			first_message <= 1'b1;
-			data_ctr_tot <= 8'h00;
+			status_bits <= `SD 8'h00;
+			first_message <= `SD 1'b1;
+			data_ctr_tot <= `SD 8'h00;
 		end else if(store_status) begin
-			cur_status_bits <= {mbus_rxfail, mbus_rxpend};
-			status_bits <= status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, 2'b00};
+			cur_status_bits <= `SD {mbus_rxfail, mbus_rxpend};
+			status_bits <= `SD status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, 2'b00};
 		end
 			
 		if(next_state != state) begin
-			state_ctr <= 0;
-			shift_count <= 0;
+			state_ctr <= `SD 0;
+			shift_count <= `SD 0;
 		end else begin
-			state_ctr <= state_ctr + 1;
+			state_ctr <= `SD state_ctr + 1;
 			if(shift_in_txaddr | shift_in_txdata)
-				shift_count <= shift_count + 4'd1;
+				shift_count <= `SD shift_count + 4'd1;
 		end
 
 		if(store_data == 1'b1) begin
-			data_ctr_tot <= data_ctr_tot + 1;
-			first_message <= 1'b0;
+			data_ctr_tot <= `SD data_ctr_tot + 1;
+			first_message <= `SD 1'b0;
 			if(first_message) begin
-				data_ctr <= 4'd7;
-				data_sr <= {mbus_rxaddr, mbus_rxdata};
+				data_ctr <= `SD 4'd7;
+				data_sr <= `SD {mbus_rxaddr, mbus_rxdata};
 			end else begin
-				data_ctr <= 4'd3;
-				data_sr <= {mbus_rxdata, 32'd0};
+				data_ctr <= `SD 4'd3;
+				data_sr <= `SD {mbus_rxdata, 32'd0};
 			end
 		end else if(rx_char_latch) begin
-			data_sr <= {data_sr[55:0], 8'h00};
-			data_ctr <= data_ctr - 1;
+			data_sr <= `SD {data_sr[55:0], 8'h00};
+			data_ctr <= `SD data_ctr - 1;
 		end
 
 		//Logic to shift in TXDATA, TXADDR
 		if(shift_in_txdata) begin
-			mbus_txdata <= {mbus_txdata[23:0], tx_char};
+			mbus_txdata <= `SD {mbus_txdata[23:0], tx_char};
 		end
 		if(shift_in_txaddr) begin
-			mbus_txaddr <= {mbus_txaddr[23:0], tx_char};
+			mbus_txaddr <= `SD {mbus_txaddr[23:0], tx_char};
 		end
-		mbus_txpend <= mbus_txpend_next;
-		mbus_txreq <= mbus_txreq_next;
+		mbus_txpend <= `SD mbus_txpend_next;
+		mbus_txreq <= `SD mbus_txreq_next;
 	end
 end
    

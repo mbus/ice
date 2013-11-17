@@ -58,35 +58,35 @@ end
 always @ (posedge clk)
 begin
 	if (~resetn)
-		PWM_OUT <= 0;
+		PWM_OUT <= `SD 0;
 	else
-		PWM_OUT <= PWM_OUT_BUF;
+		PWM_OUT <= `SD PWM_OUT_BUF;
 end
 
 always @ (posedge clk)
 begin
 	if (~resetn)
 	begin
-		state <= 0;
-		output_en <= 0;
-		fifo_RE <= 0;
-		bit_position <= 0;
-		counter <= t_period_reg - 1;
+		state <= `SD 0;
+		output_en <= `SD 0;
+		fifo_RE <= `SD 0;
+		bit_position <= `SD 0;
+		counter <= `SD t_period_reg - 1;
 	end
 	else
 	begin
-		fifo_RE <= next_fifo_RE;
-		bit_position <= next_bit_position;
-		counter <= next_counter;
+		fifo_RE <= `SD next_fifo_RE;
+		bit_position <= `SD next_bit_position;
+		counter <= `SD next_counter;
 
 		if(fifo_empty) begin
-			state <= 0;
-			output_en <= 1'b0;
+			state <= `SD 0;
+			output_en <= `SD 1'b0;
 		end
 		else
 		begin
-			state <= next_state;
-			output_en <= next_output_en;
+			state <= `SD next_state;
+			output_en <= `SD next_output_en;
 		end
 			
 	end

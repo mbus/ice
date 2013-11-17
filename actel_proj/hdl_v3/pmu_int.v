@@ -186,45 +186,45 @@ pmu_i2c pi0(
 
 always @(posedge clk) begin
 	if(reset) begin
-		state <= STATE_IDLE;
-		pmu_en_reg <= 0;
-		first_time <= 1;
+		state <= `SD STATE_IDLE;
+		pmu_en_reg <= `SD 0;
+		first_time <= `SD 1;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 		
 		//Figure out whether we want to set voltage or on/off
 		if(latch_param)
-			pmu_param <= (in_char == 8'h76) ? 1'b1 : 1'b0;
+			pmu_param <= `SD (in_char == 8'h76) ? 1'b1 : 1'b0;
 		if(latch_rd_param)
-			pmu_param <= (in_query_char[7:0] == 8'h76) ? 1'b1 : 1'b0;
+			pmu_param <= `SD (in_query_char[7:0] == 8'h76) ? 1'b1 : 1'b0;
 			
 		//Latch the identifier for whilch power rail we are talking about
 		if(latch_idx)
-			pwr_idx <= in_char[3:0];
+			pwr_idx <= `SD in_char[3:0];
 		if(latch_rd_idx)
-			pwr_idx <= in_query_char[3:0];
+			pwr_idx <= `SD in_query_char[3:0];
 		
 		//Latch the input argument, modifying the default enable register if that's the destination
 		if(latch_val) begin
 			if(pmu_param)
-				pmu_dac_val <= in_char[4:0];
+				pmu_dac_val <= `SD in_char[4:0];
 			else
 				if(pwr_idx == 0)
-					pmu_en_reg <= {pmu_en_reg[2:1],in_char[0]};
+					pmu_en_reg <= `SD {pmu_en_reg[2:1],in_char[0]};
 				else if(pwr_idx == 1)
-					pmu_en_reg <= {pmu_en_reg[2],in_char[0],pmu_en_reg[0]};
+					pmu_en_reg <= `SD {pmu_en_reg[2],in_char[0],pmu_en_reg[0]};
 				else if(pwr_idx == 2)
-					pmu_en_reg <= {in_char[0],pmu_en_reg[1:0]};
+					pmu_en_reg <= `SD {in_char[0],pmu_en_reg[1:0]};
 		end
 		
 		//We need to do two different I2C transactions if slewing
 		if(set_slew) begin
-			slew <= 1'b1;
+			slew <= `SD 1'b1;
 		end else if(latch_param)
-			slew <= 1'b0;
+			slew <= `SD 1'b0;
 		
 		if(incr_first_time)
-			first_time <= ~first_time;
+			first_time <= `SD ~first_time;
 	end
 end
 

@@ -42,20 +42,20 @@ assign out_frame_valid = (num_valid_frames > 0);
 
 always @(posedge clk) begin
 	if(rst) begin
-		last_frame_valid <= 1'b0;
-		out_data_addr_reg <= 9'd0;
+		last_frame_valid <= `SD 1'b0;
+		out_data_addr_reg <= `SD 9'd0;
 	end else begin
-		out_data_addr_reg <= out_data_addr;
-		last_frame_valid <= in_frame_valid;
+		out_data_addr_reg <= `SD out_data_addr;
+		last_frame_valid <= `SD in_frame_valid;
 		if(insert_fvbit)
-			num_valid_frames <= num_valid_frames + 1;
+			num_valid_frames <= `SD num_valid_frames + 1;
 		//TODO: What if both happen at once?
 		if(latch_tail)
-			num_valid_frames <= num_valid_frames - 1;
+			num_valid_frames <= `SD num_valid_frames - 1;
 		if(ram_wr_latch)
-			head <= head + 1;
+			head <= `SD head + 1;
 		if(latch_tail)
-			tail <= out_data_addr;
+			tail <= `SD out_data_addr;
 	end
 end
 

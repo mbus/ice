@@ -28,36 +28,36 @@ reg [3:0] state, next_state;
 reg latch_eid, latch_is_fragment, set_header_done;
 always @(posedge clk) begin
 	if(rst) begin
-		state <= STATE_IDLE;
-		header_done <= 1'b0;
-		is_fragment <= 1'b0;
-		packet_is_empty <= 1'b0;
-		in_frame_addr_offset <= 0;
+		state <= `SD STATE_IDLE;
+		header_done <= `SD 1'b0;
+		is_fragment <= `SD 1'b0;
+		packet_is_empty <= `SD 1'b0;
+		in_frame_addr_offset <= `SD 0;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 
 		if(latch_eid)
-			header_eid <= in_frame_data[7:0];
+			header_eid <= `SD in_frame_data[7:0];
 		if(set_header_done) begin
-			header_done <= 1'b1;
+			header_done <= `SD 1'b1;
 			if(in_frame_data[7:0] == 8'h00)
-				packet_is_empty <= 1'b1;
+				packet_is_empty <= `SD 1'b1;
 			else
-				packet_is_empty <= 1'b0;
+				packet_is_empty <= `SD 1'b0;
 		end
 
 		if(state == STATE_IDLE)
-			in_frame_addr_offset <= 0;
+			in_frame_addr_offset <= `SD 0;
 		if(frame_data_latch | in_frame_next)
-			in_frame_addr_offset <= in_frame_addr_offset + 1;
+			in_frame_addr_offset <= `SD in_frame_addr_offset + 1;
 
 		if(header_done_clear | ~in_frame_valid)
-			header_done <= 1'b0;
+			header_done <= `SD 1'b0;
 		if(latch_is_fragment) begin
 			if(in_frame_data[7:0] == 8'hFF)
-				is_fragment <= 1'b1;
+				is_fragment <= `SD 1'b1;
 			else
-				is_fragment <= 1'b0;
+				is_fragment <= `SD 1'b0;
 		end
 	end
 end

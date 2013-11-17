@@ -119,24 +119,24 @@ end
 
 always @(posedge clk) begin
 	if(shift_in_pyld_len) begin
-		payload_len <= rx_char;
+		payload_len <= `SD rx_char;
 	end
 	if(record_addr)
-		ma_addr <= rx_char;
+		ma_addr <= `SD rx_char;
 	if(record_evt_id)
-		evt_id <= rx_char;
+		evt_id <= `SD rx_char;
 
 	if(rst) begin
-		state <= STATE_RX_IDLE;
-		byte_counter <= 16'd0;
+		state <= `SD STATE_RX_IDLE;
+		byte_counter <= `SD 16'd0;
 	end else begin
-		state <= next_state;
+		state <= `SD next_state;
 			
 		//Byte counter keeps track of packets up to 65535 bytes in size
 		if(byte_counter_reset)
-			byte_counter <= 16'd0;
+			byte_counter <= `SD 16'd0;
 		else if(byte_counter_incr)
-			byte_counter <= byte_counter + 16'd1;
+			byte_counter <= `SD byte_counter + 16'd1;
 	end
 end
 
@@ -163,16 +163,16 @@ assign tx_char = (tx_len) ? sl_data : sl_addr_offset_save[7:0];
 
 always @(posedge clk) begin
 	if(rst) begin
-		tx_state <= STATE_TX_IDLE;
-		sl_addr_offset <= 0;
+		tx_state <= `SD STATE_TX_IDLE;
+		sl_addr_offset <= `SD 0;
 	end else begin
-		tx_state <= next_tx_state;
+		tx_state <= `SD next_tx_state;
 		if(addr_offset_clear)
-			sl_addr_offset <= 0;
+			sl_addr_offset <= `SD 0;
 		else if(addr_offset_incr)
-			sl_addr_offset <= sl_addr_offset + 1;
+			sl_addr_offset <= `SD sl_addr_offset + 1;
 		if(save_offset)
-			sl_addr_offset_save <= sl_addr_offset + 1;
+			sl_addr_offset_save <= `SD sl_addr_offset + 1;
 	end
 end
 
