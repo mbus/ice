@@ -23,14 +23,16 @@ module pmu_int(
 	output [7:0] debug
 );
 
-wire [7:0] in_char;
+wire [8:0] in_char;
 wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
 reg insert_frame_valid, insert_data_valid;
 wire [7:0] insert_data;
 
-wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done;
+wire hd_frame_valid, hd_header_done;
+wire [8:0] hd_frame_tail, hd_frame_addr;
+wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
 bus_interface #(8'h70,0,1,0) bi0(
 	.clk(clk),
@@ -47,9 +49,10 @@ bus_interface #(8'h70,0,1,0) bi0(
 	.sl_arb_request(sl_arb_request),
 	.sl_arb_grant(sl_arb_grant),
 	.in_frame_data(in_char),
-	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_latch(hd_data_latch),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.out_frame_data((insert_data_valid) ? insert_data : ack_message_data),
 	.out_frame_valid(ack_message_frame_valid | insert_frame_valid),
 	.out_frame_data_latch(ack_message_data_valid | insert_data_valid)
@@ -58,17 +61,20 @@ header_decoder hd0(
 	.clk(clk),
 	.rst(reset),
 	.in_frame_data(in_char),
-	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_next(latch_param | latch_idx | latch_val),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.header_eid(hd_header_eid),
-	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
 	.header_done_clear(1'b0)
 );
 
 //This bus interface is used to monitor for query requests
-wire hd2_data_valid, hd2_data_latch, hd2_frame_valid;
-wire [7:0] in_query_char, hd2_header_eid;
+wire hd2_frame_valid, hd2_frame_latch_tail;
+wire [8:0] in_query_char, hd2_frame_tail, hd2_frame_addr;
+wire [7:0] hd2_header_eid;
 bus_interface #(8'h50,0,0,0) bi1(
 	.clk(clk),
 	.rst(reset),
@@ -77,19 +83,22 @@ bus_interface #(8'h50,0,0,0) bi1(
 	.ma_data_valid(ma_data_valid),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
+	.in_frame_tail(hd2_frame_tail),
+	.in_frame_addr(hd2_frame_addr),
+	.in_frame_latch_tail(hd2_frame_latch_tail),
 	.in_frame_data(in_query_char),
-	.in_frame_data_valid(hd2_data_valid),
-	.in_frame_valid(hd2_frame_valid),
-	.in_frame_data_latch(hd2_data_latch)
+	.in_frame_valid(hd2_frame_valid)
 );
 header_decoder hd1(
 	.clk(clk),
 	.rst(reset),
 	.in_frame_data(in_query_char),
-	.in_frame_data_valid(hd2_data_valid),
 	.in_frame_valid(hd2_frame_valid),
+	.in_frame_tail(hd2_frame_tail),
+	.in_frame_next(latch_rd_param | latch_rd_idx),
+	.in_frame_addr(hd2_frame_addr),
+	.in_frame_latch_tail(hd2_frame_latch_tail),
 	.header_eid(hd2_header_eid),
-	.frame_data_latch(hd2_data_latch),
 	.header_done(hd2_header_done),
 	.header_done_clear(1'b0)
 );
@@ -187,7 +196,7 @@ always @(posedge clk) begin
 		if(latch_param)
 			pmu_param <= (in_char == 8'h76) ? 1'b1 : 1'b0;
 		if(latch_rd_param)
-			pmu_param <= (in_query_char == 8'h76) ? 1'b1 : 1'b0;
+			pmu_param <= (in_query_char[7:0] == 8'h76) ? 1'b1 : 1'b0;
 			
 		//Latch the identifier for whilch power rail we are talking about
 		if(latch_idx)
@@ -256,20 +265,17 @@ always @* begin
 		
 		STATE_GET_PARAM: begin
 			latch_param = 1'b1;
-			if(hd_data_valid)
-				next_state = STATE_GET_IDX;
+			next_state = STATE_GET_IDX;
 		end
 		
 		STATE_GET_IDX: begin
 			latch_idx = 1'b1;
-			if(hd_data_valid)
-				next_state = STATE_GET_VAL;
+			next_state = STATE_GET_VAL;
 		end
 		
 		STATE_GET_VAL: begin
 			latch_val = 1'b1;
-			if(hd_data_valid)
-				next_state = STATE_I2C_ADDR;
+			next_state = STATE_I2C_ADDR;
 		end
 		
 		STATE_I2C_ADDR: begin
@@ -317,14 +323,12 @@ always @* begin
 		//instead of dealing with combining the two
 		STATE_RD_GET_PARAM: begin
 			latch_rd_param = 1'b1;
-			if(hd2_data_valid)
-				next_state = STATE_RD_GET_IDX;
+			next_state = STATE_RD_GET_IDX;
 		end
 		
 		STATE_RD_GET_IDX: begin
 			latch_rd_idx = 1'b1;
-			if(hd2_data_valid)
-				next_state = STATE_RD_I2C_ADDR;
+			next_state = STATE_RD_I2C_ADDR;
 		end
 		
 		STATE_RD_I2C_ADDR: begin

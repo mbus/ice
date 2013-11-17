@@ -1,16 +1,23 @@
 module header_decoder(
 	input clk,
 	input rst,
-	input [7:0] in_frame_data,
-	input in_frame_data_valid,
-	input in_frame_valid,
+	input [8:0] in_frame_data,
+	input in_frame_valid,//New
+	input [8:0] in_frame_tail,//New
+	input in_frame_next,//New
+	output [8:0] in_frame_addr,//New
+	output reg in_frame_latch_tail,//New
 	output reg [7:0] header_eid,
-	output reg frame_data_latch,
 	output reg header_done,
 	output reg packet_is_empty,
 	output reg is_fragment,
 	input header_done_clear
 );
+
+reg frame_data_latch;
+reg [8:0] in_frame_addr_offset;
+wire in_frame_data_valid = ~in_frame_data[8];
+assign in_frame_addr = in_frame_tail + in_frame_addr_offset;
 
 parameter STATE_IDLE = 0;
 parameter STATE_RECORD_EID = 1;
@@ -25,21 +32,29 @@ always @(posedge clk) begin
 		header_done <= 1'b0;
 		is_fragment <= 1'b0;
 		packet_is_empty <= 1'b0;
+		in_frame_addr_offset <= 0;
 	end else begin
 		state <= next_state;
+
 		if(latch_eid)
-			header_eid <= in_frame_data;
+			header_eid <= in_frame_data[7:0];
 		if(set_header_done) begin
 			header_done <= 1'b1;
-			if(in_frame_data == 8'h00)
+			if(in_frame_data[7:0] == 8'h00)
 				packet_is_empty <= 1'b1;
 			else
 				packet_is_empty <= 1'b0;
 		end
+
+		if(state == STATE_IDLE)
+			in_frame_addr_offset <= 0;
+		if(frame_data_latch | in_frame_next)
+			in_frame_addr_offset <= in_frame_addr_offset + 1;
+
 		if(header_done_clear | ~in_frame_valid)
 			header_done <= 1'b0;
 		if(latch_is_fragment) begin
-			if(in_frame_data == 8'hFF)
+			if(in_frame_data[7:0] == 8'hFF)
 				is_fragment <= 1'b1;
 			else
 				is_fragment <= 1'b0;
@@ -49,6 +64,7 @@ end
 
 always @* begin
 	next_state = state;
+	in_frame_latch_tail = 1'b0;
 	frame_data_latch = 1'b0;
 	set_header_done = 1'b0;
 	latch_is_fragment = 1'b0;
@@ -81,6 +97,7 @@ always @* begin
 		
 		STATE_WAIT: begin
 			if(~in_frame_valid) begin
+				in_frame_latch_tail = 1'b1;
 				next_state = STATE_IDLE;
 			end
 		end

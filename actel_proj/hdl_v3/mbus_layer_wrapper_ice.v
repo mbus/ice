@@ -50,12 +50,15 @@ reg rx_char_latch;
 reg [7:0] status_bits;
 reg [63:0] data_sr;
 
-wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done, hd_is_fragment, hd_is_empty;
+wire hd_frame_valid, hd_header_done, hd_is_fragment, hd_is_empty;
+wire [8:0] hd_frame_tail, hd_frame_addr;
+wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
 reg hd_header_done_clear;
+wire hd_frame_next = shift_in_txaddr | shift_in_txdata;
 reg send_flag, send_ctr, send_status;
 wire [7:0] rx_frame_data = (send_flag) ? 8'h42 : (send_ctr) ? global_counter : (send_status) ? status_bits : data_sr[63:56];
-wire [7:0] tx_char;
+wire [8:0] tx_char;
 wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is send_flag needed here as well?!
 
 //MBus clock generation logic
@@ -89,9 +92,10 @@ bus_interface #(8'h42,1,1,1) bi0(
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
 	.in_frame_data(tx_char),
-	.in_frame_data_valid(hd_data_valid),//tx_char_valid),
-	.in_frame_valid(hd_frame_valid),//tx_req),
-	.in_frame_data_latch(hd_data_latch),
+	.in_frame_valid(hd_frame_valid),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.out_frame_data(rx_frame_data),
 	.out_frame_valid(rx_frame_valid),
 	.out_frame_data_latch(rx_frame_data_latch)
@@ -100,11 +104,13 @@ header_decoder hd0(
 	.clk(clk),
 	.rst(reset),
 	.in_frame_data(tx_char),
-	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_next(hd_frame_next),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.header_eid(hd_header_eid),
 	.is_fragment(hd_is_fragment),
-	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
 	.packet_is_empty(hd_is_empty),
 	.header_done_clear(hd_header_done_clear)

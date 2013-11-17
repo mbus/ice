@@ -30,11 +30,13 @@ wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
 
-wire hd_data_valid, hd_frame_valid, hd_data_latch, hd_header_done;
+wire hd_frame_valid, hd_data_latch, hd_header_done;
 wire [7:0] hd_header_eid;
+wire [8:0] hd_frame_tail, hd_frame_addr;
+wire hd_frame_latch_tail;
 
-wire [7:0] in_char;
-wire in_char_latch;
+wire [8:0] in_char;
+wire hd_frame_next;
 bus_interface #(8'h66,1,1,0) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -50,9 +52,10 @@ bus_interface #(8'h66,1,1,0) bi0(
 	.sl_arb_request(sl_arb_request),
 	.sl_arb_grant(sl_arb_grant),
 	.in_frame_data(in_char),
-	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_latch(in_char_latch | hd_data_latch),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.out_frame_data(ack_message_data),
 	.out_frame_valid(ack_message_frame_valid),
 	.out_frame_data_latch(ack_message_data_valid)
@@ -61,10 +64,12 @@ header_decoder hd0(
 	.clk(clk),
 	.rst(reset),
 	.in_frame_data(in_char),
-	.in_frame_data_valid(hd_data_valid),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_tail(hd_frame_tail),
+	.in_frame_next(hd_frame_next),
+	.in_frame_addr(hd_frame_addr),
+	.in_frame_latch_tail(hd_frame_latch_tail),
 	.header_eid(hd_header_eid),
-	.frame_data_latch(hd_data_latch),
 	.header_done(hd_header_done),
 	.header_done_clear(1'b0)
 );
@@ -92,7 +97,7 @@ pwm_mod pm0(
 	.clk(clk), 
 	.resetn(~reset), 
 	.fifo_din(in_char), 
-	.fifo_RE(in_char_latch), 
+	.fifo_RE(hd_frame_next), 
 	.fifo_empty(~hd_frame_valid), 
 	.start_tx(hd_header_done), 
 	.PWM_OUT(pwm_out),

@@ -18,10 +18,11 @@ module bus_interface(
 	input sl_latch_tail,
 	
 	//Local input data interface
-	output [7:0] in_frame_data,
-	output in_frame_data_valid,
+	output [8:0] in_frame_data,
+	output [8:0] in_frame_tail,
+	input [8:0] in_frame_addr,
 	output in_frame_valid,
-	input in_frame_data_latch,
+	input in_frame_latch_tail,
 	
 	//Local output data interface
 	input [7:0] out_frame_data,
@@ -48,9 +49,11 @@ generate
 			.in_data_latch(ma_data_valid & addr_match),
 			.in_frame_valid(ma_frame_valid & addr_match),
 			.in_data_overflow(in_mf_overflow),
+			.tail(in_frame_tail),
 			.out_data(in_frame_data),
+			.out_data_addr(in_frame_addr),
 			.out_frame_valid(in_frame_valid),
-			.out_data_latch(in_frame_data_latch)
+			.latch_tail(in_frame_latch_tail)
 		);
 		assign in_frame_data_valid = 1'b1;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
