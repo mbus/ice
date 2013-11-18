@@ -45,13 +45,12 @@ module m3_ice_top(
 assign FPGA_MB_COUT = FPGA_MB_CIN;*/
 
 wire reset, reset_button, por_n;
-assign reset = reset_button | (~por_n);
 
 //Stupid Actel-specific global clock buffer assignment...
 wire SYS_CLK_BUF;
 `ifdef SIM_FLAG
 	assign SYS_CLK_BUF = SYS_CLK;
-	assign reset = reset_button;
+	assign reset = ~PB[1];
 `else
 	CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
 	assign reset = reset_button | (~por_n);

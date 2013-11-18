@@ -7,7 +7,7 @@
 
 module tb_ice();
 
-integer file, n, i;
+integer file, n, i, j;
 reg [7:0] mem[0:`MEM_SIZE];
 reg [80*8:1] file_name;
 
@@ -53,22 +53,27 @@ begin
 	`SD reset = 0;
 	@ (posedge clk);
 	@ (posedge clk);
+	@ (posedge clk);
 
 	file_name = "data.bin";
-	file = $fopen(file_name,"r");
-	n = $fread(file, mem[0]);
-	for(i = 0; i < n; i=i+1) begin
-		`SD uart_latch = 1'b1;
+	for(j = 0; j < 2; j=j+1) begin
+		file = $fopen(file_name,"r");
+		@ (posedge clk);
+		n = $fread(mem, file);
 		@(posedge clk);
-		`SD uart_latch = 1'b0;
-		@(posedge clk);
-		@(posedge uart_empty);
-	end
-	$fclose(file);
-
-	//Wait for stuff to happen...
-	for(i = 0; i < 1000; i=i+1) begin
-		@(posedge clk);
+		for(i = 0; i < n; i=i+1) begin
+			`SD uart_latch = 1'b1;
+			@(posedge clk);
+			`SD uart_latch = 1'b0;
+			@(posedge clk);
+			@(posedge uart_empty);
+		end
+		$fclose(file);
+	
+		//Wait for stuff to happen...
+		for(i = 0; i < 20000; i=i+1) begin
+			@(posedge clk);
+		end
 	end
 
 	$stop;

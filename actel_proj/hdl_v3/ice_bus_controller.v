@@ -152,16 +152,18 @@ assign sl_addr = sl_tail + sl_addr_offset;
 
 parameter STATE_TX_IDLE = 0;
 parameter STATE_TX_GETLEN = 1;
-parameter STATE_TX_HEADER = 2;
-parameter STATE_TX_LEN = 3;
-parameter STATE_TX_PAYLOAD = 4;
+parameter STATE_TX_HEADER_PRE = 2;
+parameter STATE_TX_HEADER = 3;
+parameter STATE_TX_LEN = 4;
+parameter STATE_TX_PAYLOAD = 5;
+parameter STATE_TX_LATCH_TAIL = 6;
 
 reg [3:0] tx_state, next_tx_state;
 reg save_offset;
 reg tx_len;
 reg addr_offset_clear, addr_offset_incr;
 
-assign tx_char = (tx_len) ? sl_data : sl_addr_offset_save[7:0];
+assign tx_char = (tx_len) ? sl_addr_offset_save[7:0] : sl_data;
 
 always @(posedge clk) begin
 	if(rst) begin
@@ -174,7 +176,7 @@ always @(posedge clk) begin
 		else if(addr_offset_incr)
 			sl_addr_offset <= `SD sl_addr_offset + 1;
 		if(save_offset)
-			sl_addr_offset_save <= `SD sl_addr_offset + 1;
+			sl_addr_offset_save <= `SD sl_addr_offset - 4;
 	end
 end
 
@@ -199,8 +201,14 @@ always @* begin
 			if(sl_data[8]) begin
 				save_offset = 1'b1;
 				addr_offset_clear = 1'b1;
-				next_tx_state = STATE_TX_HEADER;
+				next_tx_state = STATE_TX_HEADER_PRE;
 			end
+		end
+
+		STATE_TX_HEADER_PRE: begin
+			//Have to wait one cycle before txing anything to
+			//allow RAM to sync
+			next_tx_state = STATE_TX_HEADER;
 		end
 
 		STATE_TX_HEADER: begin
@@ -221,10 +229,15 @@ always @* begin
 		STATE_TX_PAYLOAD: begin
 			addr_offset_incr = tx_char_ready;
 			tx_char_valid = tx_char_ready;
-			if(sl_addr_offset == sl_addr_offset_save) begin
-				sl_latch_tail = 1'b1;
-				next_tx_state = STATE_TX_IDLE;			
+			if(sl_data[8]) begin
+				addr_offset_incr = 1'b1;
+				next_tx_state = STATE_TX_LATCH_TAIL;
 			end
+		end
+
+		STATE_TX_LATCH_TAIL: begin
+			sl_latch_tail = 1'b1;
+			next_tx_state = STATE_TX_IDLE;
 		end
 	endcase
 end

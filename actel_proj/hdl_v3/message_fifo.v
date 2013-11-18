@@ -22,7 +22,7 @@ reg last_frame_valid;
 wire insert_fvbit = (last_frame_valid & ~in_frame_valid);
 
 //Inferred ram block
-reg [DEPTH_LOG2-1:0] head, num_valid_frames;
+reg [DEPTH_LOG2-3:0] head, num_valid_frames;
 wire [8:0] ram_wr_data;
 reg [8:0] out_data_addr_reg;
 wire ram_wr_latch;
@@ -46,6 +46,9 @@ always @(posedge clk) begin
 	if(rst) begin
 		last_frame_valid <= `SD 1'b0;
 		out_data_addr_reg <= `SD 9'd0;
+		num_valid_frames <= `SD 0;
+		tail <= `SD 0;
+		head <= `SD 0;
 	end else begin
 		out_data_addr_reg <= `SD out_data_addr;
 		last_frame_valid <= `SD in_frame_valid;

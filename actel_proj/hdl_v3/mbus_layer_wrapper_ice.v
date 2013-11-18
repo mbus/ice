@@ -141,12 +141,12 @@ ack_generator ag0(
 );
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
-wire [7:0] mf_sl_data;
+wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
 reg [7:0] message_idx;
-assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 8'bzzzzzzzz;
+assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant[1]) ? mf_sl_tail : 9'bzzzzzzzzz;
-message_fifo #(8) mf1(
+message_fifo mf1(
 	.clk(clk),
 	.rst(reset),
 	
