@@ -33,7 +33,6 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		ein_mod.v \
 		global_event_counter.v \
 		goc_int.v \
-		gpio_int.v \
 		header_decoder.v \
 		ice_bus.v \
 		ice_bus_controller.v \
@@ -45,7 +44,6 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		priority_select.v \
 		pwm_mod.v \
 		ram.v \
-		testbench.v \
 		toplevel.v \
 		uart.v
 

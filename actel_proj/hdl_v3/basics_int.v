@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module basics_int(
 	input clk,
 	input rst,

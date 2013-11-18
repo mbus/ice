@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module ein_int(
 	input clk,
 	input reset,

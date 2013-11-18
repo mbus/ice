@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module ack_generator(
 	input clk,
 	input reset,

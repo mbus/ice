@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module ice_bus (
 	input reset,
 	input clk,

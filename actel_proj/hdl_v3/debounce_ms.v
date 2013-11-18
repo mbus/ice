@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module debounce_ms(
   input wire clk_in,
   input wire db_in,

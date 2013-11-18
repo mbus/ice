@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module gpio_int(clk, reset, GPIO, gpio_level, gpio_direction, sl_data, sl_arb_request, sl_arb_grant, sl_data_latch, global_counter, incr_ctr);
 parameter GPIO_WIDTH=24;
 

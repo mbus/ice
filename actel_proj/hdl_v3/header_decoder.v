@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module header_decoder(
 	input clk,
 	input rst,

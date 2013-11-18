@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 `define STATE_RESET 0
 `define STATE_START_TX 1
 `define STATE_TX_ECI_NEG1 2

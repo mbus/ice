@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module pmu_int(
 	input clk,
 	input reset,
@@ -29,6 +31,8 @@ wire ack_message_data_valid;
 wire ack_message_frame_valid;
 reg insert_frame_valid, insert_data_valid;
 wire [7:0] insert_data;
+
+reg latch_param, latch_rd_param, latch_idx, latch_rd_idx, latch_val;
 
 wire hd_frame_valid, hd_header_done;
 wire [8:0] hd_frame_tail, hd_frame_addr;
@@ -70,6 +74,7 @@ header_decoder hd0(
 	.header_done(hd_header_done),
 	.header_done_clear(1'b0)
 );
+
 
 //This bus interface is used to monitor for query requests
 wire hd2_frame_valid, hd2_frame_latch_tail;
@@ -120,7 +125,6 @@ ack_generator ag0(
 	.message_frame_valid(ack_message_frame_valid)
 );
 
-reg latch_param, latch_rd_param, latch_idx, latch_rd_idx, latch_val;
 reg pmu_start, pmu_done, pmu_clear_failed, pmu_param;
 reg drive_pmu_addr, drive_pmu_subaddr, drive_pmu_val, drive_pmu_addr_rd;
 reg first_time, incr_first_time;

@@ -1,6 +1,11 @@
-`define MEM_SIZE 200_000
+`timescale 1ns/1ps
 
-module testbench;
+`include "include/ice_def.v"
+
+`define MEM_SIZE 200_000
+`define SIM_FLAG
+
+module tb_ice();
 
 integer file, n, i;
 reg [7:0] mem[0:`MEM_SIZE];
@@ -25,12 +30,11 @@ uart u0(
 	.tx_empty(uart_empty)
 );
 
-toplevel t0(
+m3_ice_top t0(
 	.SYS_CLK(clk),
-	.PB(4'b1111),
+	.PB({3'b111,~reset}),
 
-	.USB_UART_TXD(uart_line),
-	.POR_PAD(~reset)
+	.USB_UART_TXD(uart_line)
 );
 
 initial
@@ -51,7 +55,7 @@ begin
 	@ (posedge clk);
 
 	file_name = "data.bin";
-	file = $fopenr(file_name);
+	file = $fopen(file_name,"r");
 	n = $fread(file, mem[0]);
 	for(i = 0; i < n; i=i+1) begin
 		`SD uart_latch = 1'b1;
@@ -60,7 +64,7 @@ begin
 		@(posedge clk);
 		@(posedge uart_empty);
 	end
-	n = $fcloser(file);
+	$fclose(file);
 
 	//Wait for stuff to happen...
 	for(i = 0; i < 1000; i=i+1) begin

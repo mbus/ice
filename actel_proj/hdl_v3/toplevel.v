@@ -49,7 +49,13 @@ assign reset = reset_button | (~por_n);
 
 //Stupid Actel-specific global clock buffer assignment...
 wire SYS_CLK_BUF;
-CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
+`ifdef SIM_FLAG
+	assign SYS_CLK_BUF = SYS_CLK;
+	assign reset = reset_button;
+`else
+	CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
+	assign reset = reset_button | (~por_n);
+`endif
 
 debounce_ms db0(
 	.clk_in(SYS_CLK_BUF),

@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_addr, sl_tail, sl_latch_tail, sl_data, sl_arb_request, sl_arb_grant);
 parameter NUM_DEV=2;
 

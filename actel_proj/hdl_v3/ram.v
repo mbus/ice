@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module ram(clk,reset,in_data,in_addr,in_latch,out_data,out_addr);
 //User-defined parameters
 parameter DATA_WIDTH = 8;

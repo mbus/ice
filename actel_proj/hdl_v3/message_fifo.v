@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module message_fifo(
 	input clk,
 	input rst,

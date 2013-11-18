@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module priority_select(clk, rst, enable, latch, requests, grants, granted);
 parameter WIDTH=8;	
 

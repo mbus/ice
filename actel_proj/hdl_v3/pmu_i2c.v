@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module pmu_i2c(
 	input clk,
 	input reset,

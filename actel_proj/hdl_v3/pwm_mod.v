@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module pwm_mod (clk, resetn, fifo_din, fifo_RE, fifo_empty, 
 				start_tx, PWM_OUT, base_counter);
 

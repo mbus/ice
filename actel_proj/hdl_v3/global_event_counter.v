@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module global_event_counter(
 	input clk,
 	input rst,
