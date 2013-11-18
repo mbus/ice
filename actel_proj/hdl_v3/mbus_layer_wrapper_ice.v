@@ -108,6 +108,7 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(tx_char),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_data_valid(~tx_char[8]),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(hd_frame_next),
 	.in_frame_addr(hd_frame_addr),

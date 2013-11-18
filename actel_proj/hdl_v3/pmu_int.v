@@ -66,6 +66,7 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_data_valid(ma_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(latch_param | latch_idx | latch_val),
 	.in_frame_addr(hd_frame_addr),
@@ -99,6 +100,7 @@ header_decoder hd1(
 	.rst(reset),
 	.in_frame_data(in_query_char),
 	.in_frame_valid(hd2_frame_valid),
+	.in_frame_data_valid(ma_data_valid),
 	.in_frame_tail(hd2_frame_tail),
 	.in_frame_next(latch_rd_param | latch_rd_idx),
 	.in_frame_addr(hd2_frame_addr),
@@ -268,18 +270,24 @@ always @* begin
 		end
 		
 		STATE_GET_PARAM: begin
-			latch_param = 1'b1;
-			next_state = STATE_GET_IDX;
+			if(ma_data_valid) begin
+				latch_param = 1'b1;
+				next_state = STATE_GET_IDX;
+			end
 		end
 		
 		STATE_GET_IDX: begin
-			latch_idx = 1'b1;
-			next_state = STATE_GET_VAL;
+			if(ma_data_valid) begin
+				latch_idx = 1'b1;
+				next_state = STATE_GET_VAL;
+			end
 		end
 		
 		STATE_GET_VAL: begin
-			latch_val = 1'b1;
-			next_state = STATE_I2C_ADDR;
+			if(ma_data_valid) begin
+				latch_val = 1'b1;
+				next_state = STATE_I2C_ADDR;
+			end
 		end
 		
 		STATE_I2C_ADDR: begin

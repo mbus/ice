@@ -84,7 +84,7 @@ global_event_counter gec1(
 //Main bus connections
 wire ma_generate_nak;
 wire [7:0] ma_data, ma_addr;
-wire ma_data_valid, ma_frame_valid;
+wire ma_data_valid2, ma_frame_valid;
 wire [8:0] sl_data;
 wire [8:0] sl_addr;
 wire [8:0] sl_tail;
@@ -107,7 +107,7 @@ ice_bus_controller #(NUM_DEV) ice1(
 	//Master-driven bus (data & control)
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 	
@@ -140,7 +140,7 @@ basics_int bi0(
 
 	//Master input bus
 	.ma_data(ma_data),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -199,7 +199,7 @@ mbus_layer_wrapper_ice mb0(
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -241,7 +241,7 @@ discrete_int di0(
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -272,7 +272,7 @@ assign sl_arb_request[3] = 1'b0;
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -294,7 +294,7 @@ ein_int ei0(
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -340,7 +340,7 @@ pmu_int pi0(
 	//Master input bus
 	.ma_data(ma_data),
 	.ma_addr(ma_addr),
-	.ma_data_valid(ma_data_valid),
+	.ma_data_valid(ma_data_valid2),
 	.ma_frame_valid(ma_frame_valid),
 	.sl_overflow(sl_overflow),
 
@@ -440,7 +440,7 @@ discrete_int di01(
 assign debug = (~PB[4]) ? 4'b0000 : 
                (~PB[3]) ? mb_debug : 
 			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
-			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid, ma_frame_valid};
+			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid2, ma_frame_valid};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 

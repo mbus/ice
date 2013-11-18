@@ -56,7 +56,7 @@ begin
 	@ (posedge clk);
 
 	file_name = "data.bin";
-	for(j = 0; j < 25; j=j+1) begin
+	for(j = 0; j < 2; j=j+1) begin
 		file = $fopen(file_name,"r");
 		@ (posedge clk);
 		n = $fread(mem, file);

@@ -5,6 +5,7 @@ module header_decoder(
 	input rst,
 	input [8:0] in_frame_data,
 	input in_frame_valid,//New
+	input in_frame_data_valid,
 	input [8:0] in_frame_tail,//New
 	input in_frame_next,//New
 	output [8:0] in_frame_addr,//New
@@ -18,7 +19,6 @@ module header_decoder(
 
 reg frame_data_latch;
 reg [8:0] in_frame_addr_offset;
-wire in_frame_data_valid = ~in_frame_data[8];
 assign in_frame_addr = in_frame_tail + in_frame_addr_offset;
 
 parameter STATE_IDLE = 0;
