@@ -22,7 +22,8 @@ reg last_frame_valid;
 wire insert_fvbit = (last_frame_valid & ~in_frame_valid);
 
 //Inferred ram block
-reg [DEPTH_LOG2-3:0] head, num_valid_frames;
+reg [DEPTH_LOG2-1:0] head;
+reg [DEPTH_LOG2-3:0] num_valid_frames;
 wire [8:0] ram_wr_data;
 reg [8:0] out_data_addr_reg;
 wire ram_wr_latch;
