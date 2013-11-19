@@ -12,7 +12,7 @@ module uart (
 	input reset             ,//Reset signal for entire UART module (active high)
 
 	input clk               ,//Clock corresponding to TX baudrate
-	input [15:0] baud_div   ,
+	input [7:0] baud_div   ,
 
 	input rx_in             ,//UART RX line
 	output reg tx_out       ,//UART TX line
