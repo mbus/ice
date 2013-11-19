@@ -25,6 +25,7 @@ parameter STATE_IDLE = 0;
 parameter STATE_RECORD_EID = 1;
 parameter STATE_SKIP_LEN = 2;
 parameter STATE_WAIT = 3;
+parameter STATE_WAIT_TAIL_LATCH = 4;
 
 reg [3:0] state, next_state;
 reg latch_eid, latch_is_fragment, set_header_done;
@@ -53,7 +54,7 @@ always @(posedge clk) begin
 		if(frame_data_latch | in_frame_next)
 			in_frame_addr_offset <= `SD in_frame_addr_offset + 1;
 
-		if(header_done_clear | ~in_frame_valid)
+		if(header_done_clear | (state == STATE_IDLE))
 			header_done <= `SD 1'b0;
 		if(latch_is_fragment) begin
 			if(in_frame_data[7:0] == 8'hFF)
@@ -98,10 +99,15 @@ always @* begin
 		end
 		
 		STATE_WAIT: begin
-			if(~in_frame_valid) begin
-				in_frame_latch_tail = 1'b1;
-				next_state = STATE_IDLE;
+			if(in_frame_data[8] & in_frame_data_valid) begin
+				frame_data_latch = 1'b1;
+				next_state = STATE_WAIT_TAIL_LATCH;
 			end
+		end
+
+		STATE_WAIT_TAIL_LATCH: begin
+			in_frame_latch_tail = 1'b1;
+			next_state = STATE_IDLE;
 		end
 	endcase
 end

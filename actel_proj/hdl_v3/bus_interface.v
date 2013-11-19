@@ -42,7 +42,7 @@ wire [8:0] local_sl_tail;
 //Only include an input FIFO if it has been requested
 generate
 	if(INCLUDE_INPUT_FIFO) begin
-		message_fifo #(9,0) mf0(
+		message_fifo #(9) mf0(
 			.clk(clk),
 			.rst(rst),
 			.in_data(ma_data),
