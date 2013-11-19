@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module bus_interface(
 	input clk,
 	input rst,
@@ -22,6 +24,7 @@ module bus_interface(
 	output [8:0] in_frame_tail,
 	input [8:0] in_frame_addr,
 	output in_frame_valid,
+	output in_frame_data_valid,
 	input in_frame_latch_tail,
 	
 	//Local output data interface
@@ -38,6 +41,8 @@ wire in_mf_overflow;
 wire addr_match = (ma_addr == ADDR);
 wire [8:0] local_sl_data;
 wire [8:0] local_sl_tail;
+reg last_frame_valid;
+wire insert_fvbit = last_frame_valid & ~(ma_frame_valid & addr_match);
 
 //Only include an input FIFO if it has been requested
 generate
@@ -58,10 +63,13 @@ generate
 		assign in_frame_data_valid = 1'b1;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end else begin
+		always @(posedge clk) begin
+			last_frame_valid <= `SD ma_frame_valid & addr_match;
+		end
 		assign in_mf_overflow = 1'b0;
-		assign in_frame_data = ma_data;
+		assign in_frame_data = {insert_fvbit,ma_data};
 		assign in_frame_valid = addr_match & ma_frame_valid;
-		assign in_frame_data_valid = addr_match & ma_data_valid;
+		assign in_frame_data_valid = (addr_match & ma_data_valid) | insert_fvbit;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end
 endgenerate

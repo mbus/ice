@@ -41,6 +41,9 @@ always @(posedge clk) begin
 
 		if(latch_eid)
 			header_eid <= `SD in_frame_data[7:0];
+
+		if(header_done_clear | (state == STATE_IDLE))
+			header_done <= `SD 1'b0;
 		if(set_header_done) begin
 			header_done <= `SD 1'b1;
 			if(in_frame_data[7:0] == 8'h00)
@@ -54,8 +57,6 @@ always @(posedge clk) begin
 		if(frame_data_latch | in_frame_next)
 			in_frame_addr_offset <= `SD in_frame_addr_offset + 1;
 
-		if(header_done_clear | (state == STATE_IDLE))
-			header_done <= `SD 1'b0;
 		if(latch_is_fragment) begin
 			if(in_frame_data[7:0] == 8'hFF)
 				is_fragment <= `SD 1'b1;

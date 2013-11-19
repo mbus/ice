@@ -33,8 +33,9 @@ reg insert_frame_valid, insert_data_valid;
 wire [7:0] insert_data;
 
 reg latch_param, latch_rd_param, latch_idx, latch_rd_idx, latch_val;
+reg hd_header_done_clear;
 
-wire hd_frame_valid, hd_header_done;
+wire hd_frame_valid, hd_frame_data_valid, hd_header_done;
 wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
@@ -57,6 +58,7 @@ bus_interface #(8'h70,0,1,0) bi0(
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_addr(hd_frame_addr),
 	.in_frame_latch_tail(hd_frame_latch_tail),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.out_frame_data((insert_data_valid) ? insert_data : ack_message_data),
 	.out_frame_valid(ack_message_frame_valid | insert_frame_valid),
 	.out_frame_data_latch(ack_message_data_valid | insert_data_valid)
@@ -66,19 +68,19 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_valid(ma_data_valid),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(latch_param | latch_idx | latch_val),
 	.in_frame_addr(hd_frame_addr),
 	.in_frame_latch_tail(hd_frame_latch_tail),
 	.header_eid(hd_header_eid),
 	.header_done(hd_header_done),
-	.header_done_clear(1'b0)
+	.header_done_clear(hd_header_done_clear)
 );
 
 
 //This bus interface is used to monitor for query requests
-wire hd2_frame_valid, hd2_frame_latch_tail;
+wire hd2_frame_valid, hd2_frame_latch_tail, hd2_frame_data_valid;
 wire [8:0] in_query_char, hd2_frame_tail, hd2_frame_addr;
 wire [7:0] hd2_header_eid;
 bus_interface #(8'h50,0,0,0) bi1(
@@ -93,6 +95,7 @@ bus_interface #(8'h50,0,0,0) bi1(
 	.in_frame_addr(hd2_frame_addr),
 	.in_frame_latch_tail(hd2_frame_latch_tail),
 	.in_frame_data(in_query_char),
+	.in_frame_data_valid(hd2_frame_data_valid),
 	.in_frame_valid(hd2_frame_valid)
 );
 header_decoder hd1(
@@ -100,14 +103,14 @@ header_decoder hd1(
 	.rst(reset),
 	.in_frame_data(in_query_char),
 	.in_frame_valid(hd2_frame_valid),
-	.in_frame_data_valid(ma_data_valid),
+	.in_frame_data_valid(hd2_frame_data_valid),
 	.in_frame_tail(hd2_frame_tail),
 	.in_frame_next(latch_rd_param | latch_rd_idx),
 	.in_frame_addr(hd2_frame_addr),
 	.in_frame_latch_tail(hd2_frame_latch_tail),
 	.header_eid(hd2_header_eid),
 	.header_done(hd2_header_done),
-	.header_done_clear(1'b0)
+	.header_done_clear(hd_header_done_clear)
 );
 
 /************************************************************
@@ -260,9 +263,11 @@ always @* begin
 	insert_frame_valid = 1'b0;
 	insert_data_valid = 1'b0;
 	set_slew = 1'b0;
+	hd_header_done_clear = 1'b0;
 	
 	case(state)
 		STATE_IDLE: begin
+			hd_header_done_clear = 1'b1;
 			if(hd_header_done)
 				next_state = STATE_GET_PARAM;
 			else if(hd2_header_done)
