@@ -7,6 +7,9 @@ module ein_int(
 	output EMO_PAD,
 	output EDI_PAD,
 	output ECI_PAD,
+
+	input goc_mode,
+	input [21:0] CLK_DIV,
 	
 	//Master input bus
 	input [7:0] ma_data,
@@ -102,7 +105,9 @@ ein_mod #(4000,12) pm0(
 `endif
 	.clk(clk), 
 	.resetn(~reset), 
+	.CLK_DIV(CLK_DIV),
 	.fifo_din(in_char), 
+	.goc_mode(goc_mode),
 	.fragment(hd_is_fragment),
 	.fifo_RE(hd_frame_next), 
 	.fifo_empty(~hd_frame_valid), 

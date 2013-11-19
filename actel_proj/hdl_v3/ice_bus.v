@@ -125,12 +125,13 @@ wire [7:0] basics_debug;
 wire [7:0] i2c_speed;
 wire [15:0] i2c_addr;
 wire [21:0] goc_speed;
-wire goc_polairty;
+wire goc_polairty, goc_mode;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
 wire mbus_master_mode;
 wire [19:0] mbus_long_addr;
 wire [21:0] mbus_clk_div;
+assign goc_mode = 1'b1;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -159,6 +160,7 @@ basics_int bi0(
 	//GOC settings
 	.goc_speed(goc_speed),
 	.goc_polarity(goc_polarity),
+	//.goc_mode(goc_mode),
 	
 	//GPIO settings
 	.gpio_read(GPIO),
@@ -259,7 +261,8 @@ discrete_int di0(
 
 //GOC interface flashes pretty lights
 //TODO: Put GOC back in...
-goc_int gi0(
+assign sl_arb_request[3] = 1'b0;
+/*goc_int gi0(
 	.clk(clk),
 	.reset(reset),
 	
@@ -282,16 +285,25 @@ goc_int gi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[3]),
 	.sl_arb_grant(sl_arb_grant[3])
-);
+);*/
+
+wire ein_emo, ein_edi, ein_eci;
+assign GOC_PAD = (goc_mode) ? (ein_edi ^ goc_polarity) : goc_polarity;
+assign FPGA_MB_EMO = (goc_mode) ? 1'b0 : ein_emo;
+assign FPGA_MB_EDI = (goc_mode) ? 1'b0 : ein_edi;
+assign FPGA_MB_ECI = (goc_mode) ? 1'b0 : ein_eci;
 
 //EIN interface provides GOC-like interface but through direct 3-wire connection
 ein_int ei0(
 	.clk(clk),
 	.reset(reset),
 	
-	.EMO_PAD(FPGA_MB_EMO),
-	.EDI_PAD(FPGA_MB_EDI),
-	.ECI_PAD(FPGA_MB_ECI),
+	.EMO_PAD(ein_emo),
+	.EDI_PAD(ein_edi),
+	.ECI_PAD(ein_eci),
+
+	.goc_mode(goc_mode),
+	.CLK_DIV(goc_speed),
 	
 	//Master input bus
 	.ma_data(ma_data),

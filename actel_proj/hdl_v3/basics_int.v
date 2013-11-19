@@ -28,6 +28,7 @@ module basics_int(
 	//GOC settings
 	output reg [21:0] goc_speed,
 	output reg goc_polarity,
+	output reg goc_mode,
 	
 	//GPIO interface
 	input [23:0] gpio_read,
@@ -332,6 +333,8 @@ always @(posedge clk) begin
 			if(ma_data == 8'h6f) begin
 				parameter_staging <= `SD {goc_polarity, 16'h0000};
 				parameter_shift_countdown <= `SD 1;
+			end else if(ma_data == 8'h70) begin
+				parameter_staging <= `SD {goc_mode, 16'h0000};
 			end else begin
 				parameter_staging <= `SD goc_speed;
 				parameter_shift_countdown <= `SD 3;
@@ -379,6 +382,9 @@ always @(posedge clk) begin
 		end else if(latched_command[6]) begin //GOC parameter setting
 			if(ma_data == 8'h6f) begin
 				to_parameter <= `SD 6;
+				parameter_shift_countdown <= `SD 1;
+			end else if(ma_data == 8'h70) begin
+				to_parameter <= `SD 11;
 				parameter_shift_countdown <= `SD 1;
 			end else begin
 				to_parameter <= `SD 2;
@@ -432,6 +438,8 @@ always @(posedge clk) begin
 			mbus_long_addr <= `SD {mbus_long_addr[11:0], ma_data};
 		else if(to_parameter == 10)
 			mbus_clk_div <= `SD {mbus_clk_div[13:0], ma_data};
+		else if(to_parameter == 11)
+			goc_mode <= `SD ma_data[0];
 			
 		parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 	end

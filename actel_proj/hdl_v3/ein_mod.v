@@ -13,6 +13,8 @@ module ein_mod(
 	input clk,
 	input resetn,
 	input [7:0] fifo_din,
+	input [21:0] CLK_DIV,
+	input goc_mode,
 	input fragment,
 	output fifo_RE,
 	input fifo_empty,
@@ -22,8 +24,7 @@ module ein_mod(
 	output reg ECI_OUT
 );
 
-parameter CLK_DIV = 4000;
-parameter CLK_DIV_LOG2 = 12;
+parameter CLK_DIV_LOG2 = 22;
 
 reg [3:0] state, next_state;
 reg [CLK_DIV_LOG2-1:0] state_ctr;
@@ -81,7 +82,7 @@ always @* begin
 		end
 
 		`STATE_TX_ECI_NEG1: begin
-			if(goc_en) begin
+			if(goc_mode) begin
 				next_edi_out = 1'b1;
 			end else begin
 				next_edi_out = EDI_OUT;
@@ -100,7 +101,7 @@ always @* begin
 			next_eci_out = 1'b1;
 			next_edi_out = fifo_din[bit_ctr];
 			if(state_ctr == CLK_DIV-1) begin
-				if(goc_en) begin
+				if(goc_mode)
 					next_state = `STATE_TX_ECI_POS1_2;
 				else
 					next_state = `STATE_TX_ECI_POS2;
