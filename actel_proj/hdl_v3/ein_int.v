@@ -37,6 +37,7 @@ wire hd_frame_latch_tail;
 wire hd_frame_next;
 
 wire [8:0] in_char;
+wire hd_frame_data_valid;
 bus_interface #(8'h65,1,1,0) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -53,6 +54,7 @@ bus_interface #(8'h65,1,1,0) bi0(
 	.sl_arb_grant(sl_arb_grant),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_addr(hd_frame_addr),
 	.in_frame_latch_tail(hd_frame_latch_tail),
@@ -65,7 +67,7 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_valid(hd_frame_valid),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(hd_frame_next),
 	.in_frame_addr(hd_frame_addr),
@@ -93,7 +95,11 @@ ack_generator ag0(
 );
 
 //Change one of EMO, EDI, ECI every 200 us
+`ifdef SIM_FLAG
+ein_mod #(16,12) pm0(
+`else
 ein_mod #(4000,12) pm0(
+`endif
 	.clk(clk), 
 	.resetn(~reset), 
 	.fifo_din(in_char), 

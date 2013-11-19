@@ -71,7 +71,7 @@ begin
 		$fclose(file);
 	
 		//Wait for stuff to happen...
-		for(i = 0; i < 2000000; i=i+1) begin
+		for(i = 0; i < 200000; i=i+1) begin
 			@(posedge clk);
 		end
 	end

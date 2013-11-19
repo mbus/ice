@@ -258,9 +258,10 @@ discrete_int di0(
 );*/
 
 //GOC interface flashes pretty lights
-//TODO: Put GOC back in....
+//TODO: Put GOC back in...
 assign sl_arb_request[3] = 1'b0;
-/*goc_int gi0(
+/*
+goc_int gi0(
 	.clk(clk),
 	.reset(reset),
 	
@@ -277,6 +278,9 @@ assign sl_arb_request[3] = 1'b0;
 	.sl_overflow(sl_overflow),
 
 	//Slave output bus
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[3]),
 	.sl_arb_grant(sl_arb_grant[3])

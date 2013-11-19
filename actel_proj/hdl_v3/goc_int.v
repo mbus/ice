@@ -39,6 +39,7 @@ wire hd_frame_latch_tail;
 
 wire [8:0] in_char;
 wire hd_frame_next;
+wire hd_frame_data_valid;
 bus_interface #(8'h66,1,1,0) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -55,6 +56,7 @@ bus_interface #(8'h66,1,1,0) bi0(
 	.sl_arb_grant(sl_arb_grant),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_addr(hd_frame_addr),
 	.in_frame_latch_tail(hd_frame_latch_tail),
@@ -67,7 +69,7 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(in_char),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_valid(~in_char[8]),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(hd_frame_next),
 	.in_frame_addr(hd_frame_addr),
@@ -124,7 +126,7 @@ always @* begin
 		end
 		
 		STATE_TRANSMITTING: begin
-			if(~hd_frame_valid) begin
+			if(~hd_header_done) begin
 				next_state = STATE_ACK;
 			end
 		end

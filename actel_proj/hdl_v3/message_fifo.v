@@ -13,6 +13,7 @@ module message_fifo(
 	input [8:0] out_data_addr,
 	output [8:0] out_data,
 	output out_frame_valid,
+	output out_frame_data_valid,
 	input latch_tail
 );
 parameter DEPTH_LOG2=9;
@@ -20,6 +21,7 @@ parameter DEPTH = (1 << DEPTH_LOG2);
 
 reg last_frame_valid;
 wire insert_fvbit = (last_frame_valid & ~in_frame_valid);
+wire insert_start = (~last_frame_valid & in_frame_valid);
 
 //Inferred ram block
 reg [DEPTH_LOG2-1:0] head;
@@ -38,10 +40,12 @@ ram #(9,DEPTH_LOG2) fr1(
 );
 
 assign ram_wr_data = {insert_fvbit,in_data};
-assign ram_wr_latch = (in_data_latch | insert_fvbit); 
+assign ram_wr_latch = (in_data_latch | insert_fvbit | insert_start); 
 
 assign in_data_overflow = (head == tail-1);
 assign out_frame_valid = (num_valid_frames > 0);
+
+assign out_frame_data_valid = (out_data_addr == out_data_addr_reg);
 
 always @(posedge clk) begin
 	if(rst) begin
@@ -52,6 +56,7 @@ always @(posedge clk) begin
 		head <= `SD 0;
 	end else begin
 		out_data_addr_reg <= `SD out_data_addr;
+
 		last_frame_valid <= `SD in_frame_valid;
 		if(insert_fvbit)
 			num_valid_frames <= `SD num_valid_frames + 1;

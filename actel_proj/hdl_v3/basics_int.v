@@ -471,7 +471,11 @@ always @(posedge clk) begin
 		counter <= `SD 8'd0;
 		i2c_speed <= `SD 8'd99;
 		i2c_addr <= `SD 16'hFFFF;
-		goc_speed <= `SD 22'h30D400;
+		`ifdef SIM_FLAG
+			goc_speed <= `SD 22'h000010;
+		`else
+			goc_speed <= `SD 22'h30D400;
+		`endif
 		gpio_direction <= `SD 24'h000000;
 		gpio_level <= `SD 24'h000000;
 		uart_baud_div <= `SD 16'd174;

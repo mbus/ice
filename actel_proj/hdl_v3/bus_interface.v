@@ -58,9 +58,9 @@ generate
 			.out_data(in_frame_data),
 			.out_data_addr(in_frame_addr),
 			.out_frame_valid(in_frame_valid),
+			.out_frame_data_valid(in_frame_data_valid),
 			.latch_tail(in_frame_latch_tail)
 		);
-		assign in_frame_data_valid = 1'b1;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end else begin
 		always @(posedge clk) begin
