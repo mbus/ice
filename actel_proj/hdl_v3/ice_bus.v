@@ -259,8 +259,6 @@ discrete_int di0(
 
 //GOC interface flashes pretty lights
 //TODO: Put GOC back in...
-assign sl_arb_request[3] = 1'b0;
-/*
 goc_int gi0(
 	.clk(clk),
 	.reset(reset),
@@ -284,7 +282,7 @@ goc_int gi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[3]),
 	.sl_arb_grant(sl_arb_grant[3])
-);*/
+);
 
 //EIN interface provides GOC-like interface but through direct 3-wire connection
 ein_int ei0(
@@ -441,7 +439,7 @@ discrete_int di01(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? 4'b0000 : 
+assign debug = (~PB[4]) ? {USB_UART_TXD,USB_UART_RXD} :  
                (~PB[3]) ? mb_debug : 
 			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
 			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, 1'b0, ma_data_valid2, ma_frame_valid};

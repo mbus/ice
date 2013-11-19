@@ -5,8 +5,9 @@
 `define STATE_TX_ECI_NEG1 2
 `define STATE_TX_ECI_NEG2 3
 `define STATE_TX_ECI_POS1 4
-`define STATE_TX_ECI_POS2 5
-`define STATE_FRAGMENT_WAIT 6
+`define STATE_TX_ECI_POS1_2 5
+`define STATE_TX_ECI_POS2 6
+`define STATE_FRAGMENT_WAIT 7
 
 module ein_mod(
 	input clk,
@@ -80,9 +81,13 @@ always @* begin
 		end
 
 		`STATE_TX_ECI_NEG1: begin
-			next_edi_out = EDI_OUT;
+			if(goc_en) begin
+				next_edi_out = 1'b1;
+			end else begin
+				next_edi_out = EDI_OUT;
+			end
 			if(state_ctr == CLK_DIV-1)
-				next_state = `STATE_TX_ECI_NEG2;
+					next_state = `STATE_TX_ECI_NEG2;
 		end
 		
 		`STATE_TX_ECI_NEG2: begin
@@ -94,8 +99,19 @@ always @* begin
 		`STATE_TX_ECI_POS1: begin
 			next_eci_out = 1'b1;
 			next_edi_out = fifo_din[bit_ctr];
-			if(state_ctr == CLK_DIV-1)
+			if(state_ctr == CLK_DIV-1) begin
+				if(goc_en) begin
+					next_state = `STATE_TX_ECI_POS1_2;
+				else
+					next_state = `STATE_TX_ECI_POS2;
+			end
+		end
+		
+		`STATE_TX_ECI_POS1_2: begin
+			next_edi_out = fifo_din[bit_ctr];
+			if(state_ctr == CLK_DIV-1) begin
 				next_state = `STATE_TX_ECI_POS2;
+			end
 		end
 		
 		`STATE_TX_ECI_POS2: begin
