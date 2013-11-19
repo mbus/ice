@@ -335,6 +335,7 @@ always @(posedge clk) begin
 				parameter_shift_countdown <= `SD 1;
 			end else if(ma_data == 8'h70) begin
 				parameter_staging <= `SD {goc_mode, 16'h0000};
+				parameter_shift_countdown <= `SD 1;
 			end else begin
 				parameter_staging <= `SD goc_speed;
 				parameter_shift_countdown <= `SD 3;
@@ -484,6 +485,7 @@ always @(posedge clk) begin
 		`else
 			goc_speed <= `SD 22'h30D400;
 		`endif
+		goc_mode <= `SD 1'b1;
 		gpio_direction <= `SD 24'h000000;
 		gpio_level <= `SD 24'h000000;
 		uart_baud_div <= `SD 16'd174;

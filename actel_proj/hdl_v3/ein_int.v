@@ -98,11 +98,7 @@ ack_generator ag0(
 );
 
 //Change one of EMO, EDI, ECI every 200 us
-`ifdef SIM_FLAG
-ein_mod #(16,12) pm0(
-`else
-ein_mod #(4000,12) pm0(
-`endif
+ein_mod pm0(
 	.clk(clk), 
 	.resetn(~reset), 
 	.CLK_DIV(CLK_DIV),

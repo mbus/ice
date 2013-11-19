@@ -131,7 +131,6 @@ wire [23:0] gpio_direction;
 wire mbus_master_mode;
 wire [19:0] mbus_long_addr;
 wire [21:0] mbus_clk_div;
-assign goc_mode = 1'b1;
 basics_int bi0(
 	.clk(clk),
 	.rst(reset),
@@ -160,7 +159,7 @@ basics_int bi0(
 	//GOC settings
 	.goc_speed(goc_speed),
 	.goc_polarity(goc_polarity),
-	//.goc_mode(goc_mode),
+	.goc_mode(goc_mode),
 	
 	//GPIO settings
 	.gpio_read(GPIO),
