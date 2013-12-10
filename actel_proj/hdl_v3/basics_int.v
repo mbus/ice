@@ -147,7 +147,7 @@ reg [3:0] parameter_shift_countdown;
 reg store_parameter, send_parameter, shift_parameter;
 reg store_to_parameter, shift_to_parameter;
 reg [15:0] uart_baud_temp;
-reg capability_query, send_capability;
+reg capability_query, send_capability, capability_incr;
 reg [7:0] capability_counter;
 
 assign local_data_latch = send_major_ver | send_minor_ver | send_parameter | send_capability;
