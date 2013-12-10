@@ -128,10 +128,11 @@ parameter STATE_RESP_VER4 = 9;
 parameter STATE_QUERY_PARAM0 = 10;
 parameter STATE_QUERY_PARAM1 = 11;
 parameter STATE_QUERY_PARAM2 = 12;
-parameter STATE_SET_PARAM0 = 13;
-parameter STATE_SET_PARAM1 = 14;
-parameter STATE_SET_PARAM2 = 15;
-parameter STATE_SET_PARAM3 = 16;
+parameter STATE_QUERY_CAPABILITY = 13;
+parameter STATE_SET_PARAM0 = 14;
+parameter STATE_SET_PARAM1 = 15;
+parameter STATE_SET_PARAM2 = 16;
+parameter STATE_SET_PARAM3 = 17;
 
 reg [4:0] state, next_state;
 reg [7:0] counter;
@@ -146,8 +147,10 @@ reg [3:0] parameter_shift_countdown;
 reg store_parameter, send_parameter, shift_parameter;
 reg store_to_parameter, shift_to_parameter;
 reg [15:0] uart_baud_temp;
+reg capability_query, send_capability;
+reg [7:0] capability_counter;
 
-assign local_data_latch = send_major_ver | send_minor_ver | send_parameter;
+assign local_data_latch = send_major_ver | send_minor_ver | send_parameter | send_capability;
 assign debug = state;//{store_parameter,ma_data[6:0]};//{version_in[11:8],version_in[3:0]};//{latch_eid,ma_data_valid,latched_eid[5:0]};//{mf_frame_valid, sl_data_latch, sl_arb_request, sl_arb_grant, mf_debug[3:0]};//{local_frame_valid, local_data_latch, send_addr, send_eid, send_nak_code, send_ack_code, send_major_ver, send_minor_ver};
 wire query_capability_match = new_command && (ma_addr == 8'h3F);
 wire set_capability_match = new_command && (ma_addr == 8'h5F);
@@ -163,6 +166,18 @@ wire query_m3sw_match = new_command && (ma_addr == 8'h53);
 wire set_m3sw_match = new_command && (ma_addr == 8'h73);
 wire query_mbus_match = new_command && (ma_addr == 8'h4d);
 wire set_mbus_match = new_command && (ma_addr == 8'h6d);
+wire capability_match = //Each time the feature set changes, it must be reflected here...
+	(capability_counter == 8'h3F) || 
+	(capability_counter == 8'h5F) || 
+	(capability_counter == 8'h66) || 
+	(capability_counter == 8'h4F) || 
+	(capability_counter == 8'h6F) || 
+	(capability_counter == 8'h42) || 
+	(capability_counter == 8'h62) || 
+	(capability_counter == 8'h4D) || 
+	(capability_counter == 8'h6D) || 
+	(capability_counter == 8'h50) || 
+	(capability_counter == 8'h70);
 always @* begin
 	next_state = state;
 	latch_eid = 1'b0;
@@ -180,6 +195,7 @@ always @* begin
 	store_to_parameter = 1'b0;
 	shift_to_parameter = 1'b0;
 	latch_temps = 1'b0;
+	capability_incr = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -269,7 +285,11 @@ always @* begin
 		STATE_QUERY_PARAM1: begin
 			local_frame_valid = 1'b1;
 			if(ack_message_frame_valid == 1'b0)
-				next_state = STATE_QUERY_PARAM2;
+				//Special case for querying capability
+				if(capability_query == 1'b1)
+					next_state = STATE_QUERY_CAPABILITY;
+				else
+					next_state = STATE_QUERY_PARAM2;
 		end
 		
 		STATE_QUERY_PARAM2: begin
@@ -277,6 +297,14 @@ always @* begin
 			send_parameter = 1'b1;
 			shift_parameter = 1'b1;
 			if(parameter_shift_countdown == 1)
+				next_state = STATE_IDLE;
+		end
+
+		STATE_QUERY_CAPABILITY: begin
+			local_frame_valid = 1'b1;
+			capability_incr = 1'b1;
+			send_capability = capability_match;
+			if(capability_counter == 8'hFF)
 				next_state = STATE_IDLE;
 		end
 		
@@ -314,13 +342,21 @@ always @* begin
 	local_data = VERSION_MAJOR;
 	if(send_minor_ver) local_data = VERSION_MINOR;
 	else if(send_parameter) local_data = parameter_staging[23:16];
+	else if(send_capability) local_data = capability_counter;
 end
 
 reg last_ma_frame_valid;
 reg [3:0] to_parameter;
 always @(posedge clk) begin
+	if(capability_incr) begin
+		capability_counter <= `SD capability_counter + 1;
+	end else begin
+		capability_counter <= `SD 0;
+	end
+
 	//Parameter setting/querying logic
 	if(store_parameter) begin
+		capability_query <= 1'b0;
 		if(latched_command[3]) begin //I2C parameter query
 			if(ma_data == 8'h63) begin
 				parameter_staging <= `SD {i2c_speed,16'h0000};
@@ -352,8 +388,12 @@ always @(posedge clk) begin
 			parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
 			parameter_shift_countdown <= `SD 1;
 		end else if(latched_command[11]) begin
-			parameter_staging <= `SD {uart_baud_div,8'h00};
-			parameter_shift_countdown <= `SD 2;
+			if(ma_data == 8'h42) begin
+				parameter_staging <= `SD {uart_baud_div,8'h00};
+				parameter_shift_countdown <= `SD 2;
+			end else if(ma_data == 8'h3F) begin
+				capability_query <= `SD 1'b1;
+			end
 		end else if(latched_command[13]) begin
 			if(ma_data == 8'h6d) begin
 				parameter_staging <= `SD {mbus_master_mode, 16'h0000};
