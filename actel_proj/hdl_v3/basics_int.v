@@ -474,9 +474,9 @@ always @(posedge clk) begin
 		else if(to_parameter == 7)
 			uart_baud_temp <= `SD {uart_baud_temp[7:0], ma_data};
 		else if(to_parameter == 8)
-			mbus_master_mode <= `SD ma_data[0];
-		else if(to_parameter == 9)
 			mbus_long_addr <= `SD {mbus_long_addr[11:0], ma_data};
+		else if(to_parameter == 9)
+			mbus_master_mode <= `SD ma_data[0];
 		else if(to_parameter == 10)
 			mbus_clk_div <= `SD {mbus_clk_div[13:0], ma_data};
 		else if(to_parameter == 11)
@@ -532,7 +532,7 @@ always @(posedge clk) begin
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
 		mbus_master_mode <= `SD 1'b0;
 		mbus_long_addr <= `SD 20'h00000;
-		mbus_clk_div <= `SD 22'h000001;
+		mbus_clk_div <= `SD 22'h000020;
 	end else begin
 		state <= `SD next_state;
 	end

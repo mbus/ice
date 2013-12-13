@@ -30,11 +30,30 @@ uart u0(
 	.tx_empty(uart_empty)
 );
 
+wire ice_dout, ice_cout, ice_din, ice_cin;
+wire uart_line_2;
+m3_ice_top t1(
+	.SYS_CLK(clk),
+	.PB({3'b111,~reset}),
+
+	.USB_UART_RXD(uart_line_2),
+
+	.FPGA_MB_DOUT(ice_din),
+	.FPGA_MB_COUT(ice_cin),
+	.FPGA_MB_DIN(ice_dout),
+	.FPGA_MB_CIN(ice_cout)
+);
+
 m3_ice_top t0(
 	.SYS_CLK(clk),
 	.PB({3'b111,~reset}),
 
-	.USB_UART_TXD(uart_line)
+	.USB_UART_TXD(uart_line),
+
+	.FPGA_MB_DOUT(ice_dout),
+	.FPGA_MB_COUT(ice_cout),
+	.FPGA_MB_DIN(ice_din),
+	.FPGA_MB_CIN(ice_cin)
 );
 
 initial

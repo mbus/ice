@@ -52,7 +52,7 @@ reg rx_char_latch;
 reg [7:0] status_bits;
 reg [63:0] data_sr;
 
-wire hd_frame_valid, hd_header_done, hd_is_fragment, hd_is_empty;
+wire hd_frame_valid, hd_frame_data_valid, hd_header_done, hd_is_fragment, hd_is_empty;
 wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
@@ -80,7 +80,7 @@ always @(posedge clk) begin
 	end
 end
 
-bus_interface #(8'h42,1,1,1) bi0(
+bus_interface #(8'h62,1,1,1) bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),
@@ -96,6 +96,7 @@ bus_interface #(8'h42,1,1,1) bi0(
 	.sl_arb_grant(sl_arb_grant[0]),
 	.in_frame_data(tx_char),
 	.in_frame_valid(hd_frame_valid),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_addr(hd_frame_addr),
 	.in_frame_latch_tail(hd_frame_latch_tail),
@@ -108,7 +109,7 @@ header_decoder hd0(
 	.rst(reset),
 	.in_frame_data(tx_char),
 	.in_frame_valid(hd_frame_valid),
-	.in_frame_data_valid(~tx_char[8]),
+	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
 	.in_frame_next(hd_frame_next),
 	.in_frame_addr(hd_frame_addr),
@@ -119,7 +120,7 @@ header_decoder hd0(
 	.packet_is_empty(hd_is_empty),
 	.header_done_clear(hd_header_done_clear)
 );
-assign tx_char_valid = hd_frame_valid & hd_header_done;
+assign tx_char_valid = hd_frame_data_valid & hd_header_done & ~tx_char[8];
 
 /************************************************************
  *Ack generator is used to easily create ACK & NAK sequences*
@@ -211,7 +212,7 @@ mbus_general_layer_wrapper mclw1(
 );
 //TODO: Implement logic for mbus_txpend, mbus_txreq, mbus_txack, mbus_txfail, mbus_txresp_ack, mbus_txsucc, mbus_txdata, mbus_txaddr
    
-reg [3:0] state, next_state;
+reg [4:0] state, next_state;
 reg [1:0] cur_status_bits;
 
 reg reset_status, store_status;
@@ -237,11 +238,12 @@ parameter STATE_RX_END = 7;
 parameter STATE_FAIL_ACK = 8;
 parameter STATE_TX_START = 9;
 parameter STATE_TX_DATA = 10;
-parameter STATE_TX_WORD0 = 11;
-parameter STATE_TX_WORD1 = 12;
-parameter STATE_TX_FRAGMENT = 13;
-parameter STATE_TX_END0 = 14;
-parameter STATE_TX_END1 = 15;
+parameter STATE_TX_WAIT_PEND = 11;
+parameter STATE_TX_WORD0 = 12;
+parameter STATE_TX_WORD1 = 13;
+parameter STATE_TX_FRAGMENT = 14;
+parameter STATE_TX_END0 = 15;
+parameter STATE_TX_END1 = 16;
    
 always @(posedge clk) begin
 	if(reset) begin
@@ -258,6 +260,7 @@ always @(posedge clk) begin
 		mbus_txaddr <= `SD 32'd0;
 		mbus_txpend <= `SD 1'b0;
 		mbus_txreq <= `SD 1'b0;
+		mbus_txresp_ack <= `SD 1'b0;
 	end else begin
 		if(mbus_reset_pend) begin
 			mbus_reset_pend <= `SD 1'b0;
@@ -305,13 +308,14 @@ always @(posedge clk) begin
 
 		//Logic to shift in TXDATA, TXADDR
 		if(shift_in_txdata) begin
-			mbus_txdata <= `SD {mbus_txdata[23:0], tx_char};
+			mbus_txdata <= `SD {mbus_txdata[23:0], tx_char[7:0]};
 		end
 		if(shift_in_txaddr) begin
-			mbus_txaddr <= `SD {mbus_txaddr[23:0], tx_char};
+			mbus_txaddr <= `SD {mbus_txaddr[23:0], tx_char[7:0]};
 		end
 		mbus_txpend <= `SD mbus_txpend_next;
 		mbus_txreq <= `SD mbus_txreq_next;
+		mbus_txresp_ack <= `SD mbus_txsucc | mbus_txfail;
 	end
 end
    
@@ -330,7 +334,6 @@ always @* begin
 	hd_header_done_clear = 1'b0;
 	mbus_txpend_next = 1'b0;
 	mbus_txreq_next = 1'b0;
-	mbus_txresp_ack = 1'b0;
 	shift_in_txaddr = 1'b0;
 	shift_in_txdata = 1'b0;
 	ackgen_generate_nak = 1'b0;
@@ -413,7 +416,7 @@ always @* begin
 		STATE_TX_START: begin
 			if(~hd_frame_valid) begin
 				next_state = STATE_TX_END0;
-			end else if(shift_count == 4'd3) begin
+			end else if(shift_count == 4'd4) begin
 				next_state = STATE_TX_DATA;
 			end else if(tx_char_valid) begin
 				shift_in_txaddr = 1'b1;
@@ -421,27 +424,36 @@ always @* begin
 		end
 
 		STATE_TX_DATA: begin
-			if(~hd_frame_valid && hd_is_fragment) begin
-				hd_header_done_clear = 1'b1;
-				ackgen_generate_ack = 1'b1;
-				next_state = STATE_TX_FRAGMENT;
-			end else if(~hd_frame_valid) begin
+			shift_in_txdata = tx_char_valid;
+			if(tx_char_valid) begin
+				if(tx_char[8] && hd_is_fragment) begin
+					hd_header_done_clear = 1'b1;
+					ackgen_generate_ack = 1'b1;
+					next_state = STATE_TX_FRAGMENT;
+				end else begin
+					if(shift_count == 4'd3)
+						next_state = STATE_TX_WAIT_PEND;
+				end
+			end
+			if(~hd_frame_valid)
 				next_state = STATE_TX_END0;
-			end else if(shift_count == 4'd4) begin
+		end
+
+		STATE_TX_WAIT_PEND: begin
+			if(~hd_frame_valid | tx_char_valid) begin
+				mbus_txpend_next = hd_frame_valid;
 				next_state = STATE_TX_WORD0;
-			end else if(tx_char_valid) begin
-				shift_in_txdata = 1'b1;
 			end
 		end
 
 		STATE_TX_WORD0: begin
-			mbus_txpend_next = hd_frame_valid;
+			mbus_txpend_next = mbus_txpend;
 			next_state = STATE_TX_WORD1;
 		end
 
 		STATE_TX_WORD1: begin
 			mbus_txreq_next = 1'b1;
-			mbus_txpend_next = hd_frame_valid;
+			mbus_txpend_next = mbus_txpend;
 			if(mbus_txack)
 				next_state = STATE_TX_DATA;
 		end
@@ -456,10 +468,11 @@ always @* begin
 			hd_header_done_clear = 1'b1;
 			if(mbus_txfail) begin
 				ackgen_generate_nak = 1'b1;
+				next_state = STATE_TX_END1;
 			end else if(mbus_txsucc) begin
 				ackgen_generate_ack = 1'b1;
+				next_state = STATE_TX_END1;
 			end
-			next_state = STATE_TX_END1;
 		end
 		
 		STATE_TX_END1: begin
