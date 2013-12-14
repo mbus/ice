@@ -358,7 +358,7 @@ always @* begin
 		STATE_HDR1: begin
 			rx_frame_valid = 1'b1;
 			send_ctr = 1'b1;
-			if(state_ctr[1]) begin
+			if(state_ctr[0]) begin
 				incr_ctr = 1'b1;
 				next_state = STATE_RX;
 			end
