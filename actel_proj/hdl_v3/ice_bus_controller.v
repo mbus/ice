@@ -119,21 +119,22 @@ always @* begin
 	endcase
 end
 
-always @(posedge clk) begin
-	if(shift_in_pyld_len) begin
-		payload_len <= `SD rx_char;
-	end
-	if(record_addr)
-		ma_addr <= `SD rx_char;
-	if(record_evt_id)
-		evt_id <= `SD rx_char;
-
+always @(posedge rst or posedge clk) begin
+	
 	if(rst) begin
 		state <= `SD STATE_RX_IDLE;
 		byte_counter <= `SD 16'd0;
 	end else begin
 		state <= `SD next_state;
 			
+		if(shift_in_pyld_len) begin
+			payload_len <= `SD rx_char;
+		end
+		if(record_addr)
+			ma_addr <= `SD rx_char;
+		if(record_evt_id)
+			evt_id <= `SD rx_char;
+
 		//Byte counter keeps track of packets up to 65535 bytes in size
 		if(byte_counter_reset)
 			byte_counter <= `SD 16'd0;

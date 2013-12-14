@@ -196,6 +196,7 @@ always @* begin
 	shift_to_parameter = 1'b0;
 	latch_temps = 1'b0;
 	capability_incr = 1'b0;
+	send_capability = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -347,174 +348,7 @@ end
 
 reg last_ma_frame_valid;
 reg [3:0] to_parameter;
-always @(posedge clk) begin
-	if(capability_incr) begin
-		capability_counter <= `SD capability_counter + 1;
-	end else begin
-		capability_counter <= `SD 0;
-	end
-
-	//Parameter setting/querying logic
-	if(store_parameter) begin
-		capability_query <= 1'b0;
-		if(latched_command[3]) begin //I2C parameter query
-			if(ma_data == 8'h63) begin
-				parameter_staging <= `SD {i2c_speed,16'h0000};
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h61) begin
-				parameter_staging <= `SD {i2c_addr,8'h00};
-				parameter_shift_countdown <= `SD 2;
-			end
-		end else if(latched_command[5]) begin //GOC parameter query
-			if(ma_data == 8'h6f) begin
-				parameter_staging <= `SD {goc_polarity, 16'h0000};
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h70) begin
-				parameter_staging <= `SD {goc_mode, 16'h0000};
-				parameter_shift_countdown <= `SD 1;
-			end else begin
-				parameter_staging <= `SD goc_speed;
-				parameter_shift_countdown <= `SD 3;
-			end
-		end else if(latched_command[7]) begin
-			if(ma_data == 8'h6c) begin
-				parameter_staging <= `SD gpio_read;
-				parameter_shift_countdown <= `SD 3;
-			end else if(ma_data == 8'h64) begin
-				parameter_staging <= `SD gpio_direction;
-				parameter_shift_countdown <= `SD 3;
-			end
-		end else if(latched_command[9]) begin
-			parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
-			parameter_shift_countdown <= `SD 1;
-		end else if(latched_command[11]) begin
-			if(ma_data == 8'h42) begin
-				parameter_staging <= `SD {uart_baud_div,8'h00};
-				parameter_shift_countdown <= `SD 2;
-			end else if(ma_data == 8'h3F) begin
-				capability_query <= `SD 1'b1;
-			end
-		end else if(latched_command[13]) begin
-			if(ma_data == 8'h6d) begin
-				parameter_staging <= `SD {mbus_master_mode, 16'h0000};
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h6c) begin
-				parameter_staging <= `SD mbus_long_addr;
-				parameter_shift_countdown <= `SD 3;
-			end else if(ma_data == 8'h63) begin
-				parameter_staging <= `SD mbus_clk_div;
-				parameter_shift_countdown <= `SD 3;
-			end
-		end
-	end
-	if(shift_parameter) begin
-		parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
-		parameter_staging <= `SD {parameter_staging[15:0], 8'h00};
-	end
-	if(store_to_parameter) begin
-		if(latched_command[4]) begin //I2C parameter setting
-			if(ma_data == 8'h63) begin
-				to_parameter <= `SD 0;
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h61) begin
-				to_parameter <= `SD 1;
-				parameter_shift_countdown <= `SD 2;
-			end
-		end else if(latched_command[6]) begin //GOC parameter setting
-			if(ma_data == 8'h6f) begin
-				to_parameter <= `SD 6;
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h70) begin
-				to_parameter <= `SD 11;
-				parameter_shift_countdown <= `SD 1;
-			end else begin
-				to_parameter <= `SD 2;
-				parameter_shift_countdown <= `SD 3;
-			end
-		end else if(latched_command[8]) begin //GPIO parameter setting
-			if(ma_data == 8'h6c) 
-				to_parameter <= `SD 3;
-			else if(ma_data== 8'h64)
-				to_parameter <= `SD 4;
-			parameter_shift_countdown <= `SD 3;
-		end else if(latched_command[10]) begin
-			to_parameter <= `SD 5;
-			parameter_shift_countdown <= `SD 1;
-		end else if(latched_command[12]) begin
-			to_parameter <= `SD 7;
-			parameter_shift_countdown <= `SD 2;
-		end else if(latched_command[14]) begin
-			if(ma_data == 8'h6c) begin
-				to_parameter <= `SD 8;
-				parameter_shift_countdown <= `SD 3;
-			end else if(ma_data == 8'h6d) begin
-				to_parameter <= `SD 9;
-				parameter_shift_countdown <= `SD 1;
-			end else if(ma_data == 8'h63) begin
-				to_parameter <= `SD 10;
-				parameter_shift_countdown <= `SD 3;
-			end
-		end
-	end
-	if(shift_to_parameter) begin
-		if(to_parameter == 0)
-			i2c_speed <= `SD ma_data;
-		else if(to_parameter == 1)
-			i2c_addr <= `SD {i2c_addr[7:0], ma_data};
-		else if(to_parameter == 2)
-			goc_speed <= `SD {goc_speed[13:0], ma_data};
-		else if(to_parameter == 3)
-			gpio_level_temp <= `SD {gpio_level_temp[15:0], ma_data};
-		else if(to_parameter == 4)
-			gpio_direction_temp <= `SD {gpio_direction_temp[15:0], ma_data};
-		else if(to_parameter == 5)
-			{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD ma_data[2:0];
-		else if(to_parameter == 6)
-			goc_polarity <= `SD ma_data[0];
-		else if(to_parameter == 7)
-			uart_baud_temp <= `SD {uart_baud_temp[7:0], ma_data};
-		else if(to_parameter == 8)
-			mbus_long_addr <= `SD {mbus_long_addr[11:0], ma_data};
-		else if(to_parameter == 9)
-			mbus_master_mode <= `SD ma_data[0];
-		else if(to_parameter == 10)
-			mbus_clk_div <= `SD {mbus_clk_div[13:0], ma_data};
-		else if(to_parameter == 11)
-			goc_mode <= `SD ma_data[0];
-			
-		parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
-	end
-	if(latch_temps) begin
-		if(to_parameter == 3)
-			gpio_level <= `SD gpio_level_temp;
-		else if(to_parameter == 4)
-			gpio_direction <= `SD gpio_direction_temp;
-		else if(to_parameter == 7)
-			uart_baud_div <= `SD uart_baud_temp;
-	end
-
-	last_ma_frame_valid <= `SD ma_frame_valid;
-	if(ma_frame_valid && ~last_ma_frame_valid) begin
-		ma_addr <= `SD ma_data;
-		new_command <= `SD 1'b1;
-	end else if(ma_data_valid) begin
-		new_command <= `SD 1'b0;
-	end
-
-	if(latch_eid)
-		latched_eid <= `SD ma_data;
-	
-	if(next_state != state)
-		counter <= `SD 0;
-	else if(data_counter_incr)
-		counter <= `SD counter + 1;
-
-	if(shift_ver_in)
-		version_in <= `SD {version_in[7:0], ma_data};
-
-	if(latch_command) 
-		latched_command <= `SD {set_mbus_match, query_mbus_match, set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
-
+always @(posedge rst or posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
 		counter <= `SD 8'd0;
@@ -535,6 +369,173 @@ always @(posedge clk) begin
 		mbus_clk_div <= `SD 22'h000020;
 	end else begin
 		state <= `SD next_state;
+		if(capability_incr) begin
+			capability_counter <= `SD capability_counter + 1;
+		end else begin
+			capability_counter <= `SD 0;
+		end
+
+		//Parameter setting/querying logic
+		if(store_parameter) begin
+			capability_query <= 1'b0;
+			if(latched_command[3]) begin //I2C parameter query
+				if(ma_data == 8'h63) begin
+					parameter_staging <= `SD {i2c_speed,16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h61) begin
+					parameter_staging <= `SD {i2c_addr,8'h00};
+					parameter_shift_countdown <= `SD 2;
+				end
+			end else if(latched_command[5]) begin //GOC parameter query
+				if(ma_data == 8'h6f) begin
+					parameter_staging <= `SD {goc_polarity, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h70) begin
+					parameter_staging <= `SD {goc_mode, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else begin
+					parameter_staging <= `SD goc_speed;
+					parameter_shift_countdown <= `SD 3;
+				end
+			end else if(latched_command[7]) begin
+				if(ma_data == 8'h6c) begin
+					parameter_staging <= `SD gpio_read;
+					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == 8'h64) begin
+					parameter_staging <= `SD gpio_direction;
+					parameter_shift_countdown <= `SD 3;
+				end
+			end else if(latched_command[9]) begin
+				parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
+				parameter_shift_countdown <= `SD 1;
+			end else if(latched_command[11]) begin
+				if(ma_data == 8'h62) begin
+					parameter_staging <= `SD {uart_baud_div,8'h00};
+					parameter_shift_countdown <= `SD 2;
+				end else if(ma_data == 8'h3F) begin
+					capability_query <= `SD 1'b1;
+				end
+			end else if(latched_command[13]) begin
+				if(ma_data == 8'h6d) begin
+					parameter_staging <= `SD {mbus_master_mode, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h6c) begin
+					parameter_staging <= `SD mbus_long_addr;
+					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == 8'h63) begin
+					parameter_staging <= `SD mbus_clk_div;
+					parameter_shift_countdown <= `SD 3;
+				end
+			end
+		end
+		if(shift_parameter) begin
+			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
+			parameter_staging <= `SD {parameter_staging[15:0], 8'h00};
+		end
+		if(store_to_parameter) begin
+			if(latched_command[4]) begin //I2C parameter setting
+				if(ma_data == 8'h63) begin
+					to_parameter <= `SD 0;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h61) begin
+					to_parameter <= `SD 1;
+					parameter_shift_countdown <= `SD 2;
+				end
+			end else if(latched_command[6]) begin //GOC parameter setting
+				if(ma_data == 8'h6f) begin
+					to_parameter <= `SD 6;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h70) begin
+					to_parameter <= `SD 11;
+					parameter_shift_countdown <= `SD 1;
+				end else begin
+					to_parameter <= `SD 2;
+					parameter_shift_countdown <= `SD 3;
+				end
+			end else if(latched_command[8]) begin //GPIO parameter setting
+				if(ma_data == 8'h6c) 
+					to_parameter <= `SD 3;
+				else if(ma_data== 8'h64)
+					to_parameter <= `SD 4;
+				parameter_shift_countdown <= `SD 3;
+			end else if(latched_command[10]) begin
+				to_parameter <= `SD 5;
+				parameter_shift_countdown <= `SD 1;
+			end else if(latched_command[12]) begin
+				to_parameter <= `SD 7;
+				parameter_shift_countdown <= `SD 2;
+			end else if(latched_command[14]) begin
+				if(ma_data == 8'h6c) begin
+					to_parameter <= `SD 8;
+					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == 8'h6d) begin
+					to_parameter <= `SD 9;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h63) begin
+					to_parameter <= `SD 10;
+					parameter_shift_countdown <= `SD 3;
+				end
+			end
+		end
+		if(shift_to_parameter) begin
+			if(to_parameter == 0)
+				i2c_speed <= `SD ma_data;
+			else if(to_parameter == 1)
+				i2c_addr <= `SD {i2c_addr[7:0], ma_data};
+			else if(to_parameter == 2)
+				goc_speed <= `SD {goc_speed[13:0], ma_data};
+			else if(to_parameter == 3)
+				gpio_level_temp <= `SD {gpio_level_temp[15:0], ma_data};
+			else if(to_parameter == 4)
+				gpio_direction_temp <= `SD {gpio_direction_temp[15:0], ma_data};
+			else if(to_parameter == 5)
+				{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD ma_data[2:0];
+			else if(to_parameter == 6)
+				goc_polarity <= `SD ma_data[0];
+			else if(to_parameter == 7)
+				uart_baud_temp <= `SD {uart_baud_temp[7:0], ma_data};
+			else if(to_parameter == 8)
+				mbus_long_addr <= `SD {mbus_long_addr[11:0], ma_data};
+			else if(to_parameter == 9)
+				mbus_master_mode <= `SD ma_data[0];
+			else if(to_parameter == 10)
+				mbus_clk_div <= `SD {mbus_clk_div[13:0], ma_data};
+			else if(to_parameter == 11)
+				goc_mode <= `SD ma_data[0];
+				
+			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
+		end
+		if(latch_temps) begin
+			if(to_parameter == 3)
+				gpio_level <= `SD gpio_level_temp;
+			else if(to_parameter == 4)
+				gpio_direction <= `SD gpio_direction_temp;
+			else if(to_parameter == 7)
+				uart_baud_div <= `SD uart_baud_temp;
+		end
+
+		last_ma_frame_valid <= `SD ma_frame_valid;
+		if(ma_frame_valid && ~last_ma_frame_valid) begin
+			ma_addr <= `SD ma_data;
+			new_command <= `SD 1'b1;
+		end else if(ma_data_valid) begin
+			new_command <= `SD 1'b0;
+		end
+
+		if(latch_eid)
+			latched_eid <= `SD ma_data;
+		
+		if(next_state != state)
+			counter <= `SD 0;
+		else if(data_counter_incr)
+			counter <= `SD counter + 1;
+
+		if(shift_ver_in)
+			version_in <= `SD {version_in[7:0], ma_data};
+
+		if(latch_command) 
+			latched_command <= `SD {set_mbus_match, query_mbus_match, set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+
 	end
 end
 

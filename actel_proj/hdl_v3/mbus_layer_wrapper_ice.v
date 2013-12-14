@@ -245,7 +245,7 @@ parameter STATE_TX_FRAGMENT = 14;
 parameter STATE_TX_END0 = 15;
 parameter STATE_TX_END1 = 16;
    
-always @(posedge clk) begin
+always @(posedge reset or posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		status_bits <= `SD 8'h00;

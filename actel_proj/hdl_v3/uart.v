@@ -36,7 +36,7 @@ reg rx_d2;
 reg rx_busy;
 
 // UART RX Logic 
-always @ (posedge clk) begin
+always @ (posedge reset or posedge clk) begin
 	if (reset) begin
 		rx_data       <= `SD 0; 
 		rx_sample_cnt <= `SD 0;

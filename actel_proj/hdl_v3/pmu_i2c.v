@@ -44,10 +44,7 @@ parameter STATE_SHIFT_DATA = 5;
 parameter STATE_ACK = 6;
 parameter STATE_STOP = 7;
 
-always @(posedge clk) begin
-	scl_pd_latched <= `SD scl_pd;
-	sda_pd_latched <= `SD sda_pd;
-
+always @(posedge reset or posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		state_counter <= `SD 0;
@@ -56,6 +53,9 @@ always @(posedge clk) begin
 		rw_latched <= `SD 0;
 	end else begin
 		state <= `SD next_state;
+		
+		scl_pd_latched <= `SD scl_pd;
+		sda_pd_latched <= `SD sda_pd;
 		
 		//Counter for keeping track of slow I2C clock
 		if(next_state != state)

@@ -57,7 +57,7 @@ begin
 	end
 end
 
-always @ (posedge clk)
+always @ (negedge resetn or posedge clk)
 begin
 	if (~resetn)
 		PWM_OUT <= `SD 0;
@@ -65,7 +65,7 @@ begin
 		PWM_OUT <= `SD PWM_OUT_BUF;
 end
 
-always @ (posedge clk)
+always @ (negedge resetn or posedge clk)
 begin
 	if (~resetn)
 	begin

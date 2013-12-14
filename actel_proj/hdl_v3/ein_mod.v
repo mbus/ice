@@ -37,7 +37,7 @@ reg bit_ctr_reset;
 
 assign fifo_RE = bit_ctr_incr && (bit_ctr == 3'd7);
 
-always @(posedge clk) begin
+always @(negedge resetn or posedge clk) begin
 	if(~resetn) begin
 		state <= `SD `STATE_RESET;
 		state_ctr <= `SD 0;
