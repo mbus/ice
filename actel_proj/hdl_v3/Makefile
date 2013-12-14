@@ -27,6 +27,7 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		$(MB_PATH)/mbus_general_layer_wrapper.v \
 		ack_generator.v \
 		basics_int.v \
+		gpio_int.v \
 		bus_interface.v \
 		debounce_ms.v \
 		ein_int.v \

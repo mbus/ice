@@ -1,6 +1,6 @@
 `include "include/ice_def.v"
 
-module gpio_int(clk, reset, GPIO, gpio_level, gpio_direction, sl_data, sl_arb_request, sl_arb_grant, sl_data_latch, global_counter, incr_ctr);
+module gpio_int(clk, reset, GPIO, gpio_level, gpio_direction, sl_data, sl_addr, sl_tail, sl_latch_tail, sl_arb_request, sl_arb_grant, global_counter, incr_ctr);
 parameter GPIO_WIDTH=24;
 
 input clk;
@@ -11,10 +11,12 @@ input [GPIO_WIDTH-1:0] gpio_level;
 input [GPIO_WIDTH-1:0] gpio_direction;
 
 //Slave output bus
-inout [7:0] sl_data;
+inout [8:0] sl_data;
+input [8:0] sl_addr;
+input [8:0] sl_tail;
+input sl_latch_tail;
 output sl_arb_request;
 input sl_arb_grant;
-input sl_data_latch;
 
 //Global counter for 'time-tagging'
 input [7:0] global_counter;
@@ -23,20 +25,24 @@ output reg incr_ctr;
 reg frame_req;
 reg [7:0] frame_data;
 wire data_latch;
-wire [7:0] local_sl_data;
+wire [8:0] mf_sl_data;
+wire [8:0] mf_sl_tail;
+assign sl_data = (sl_arb_grant) ? mf_sl_data : 8'bzzzzzzzz;
+assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
 message_fifo #(9,0) mf1(
 	.clk(clk),
 	.rst(reset),
+
 	.in_data(frame_data),
 	.in_data_latch(data_latch),
 	.in_frame_valid(frame_req),
-	.in_data_overflow(),//TODO: No assignment to this for now (nothing we can really do about it since there's no back-pressure!)
-	.populate_frame_length(1'b1),
-	.out_data(local_sl_data),
+	
+	.tail(mf_sl_tail),
+	.out_data_addr(sl_addr),
+	.out_data(mf_sl_data),
 	.out_frame_valid(sl_arb_request),
-	.out_data_latch(sl_data_latch & sl_arb_grant)
+	.latch_tail(sl_latch_tail & sl_arb_grant)
 );
-assign sl_data = (sl_arb_grant) ? local_sl_data : 8'bzzzzzzzz;
 
 //Logic to drive GPIOs using user-selected values (only if requested)
 genvar ii;

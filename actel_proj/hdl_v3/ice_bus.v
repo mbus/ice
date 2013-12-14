@@ -320,9 +320,9 @@ ein_int ei0(
 	.sl_arb_grant(sl_arb_grant[6])
 );
 
-//GPIO interface 
-assign sl_arb_request[4] = 1'b0;
-/*gpio_int gi1(
+//GPIO interface
+//assign sl_arb_request[4] = 1'b0;
+gpio_int gi1(
 	.clk(clk),
 	.reset(reset),
 	
@@ -333,13 +333,16 @@ assign sl_arb_request[4] = 1'b0;
 
 	//Slave output bus
 	.sl_data(sl_data),
+	.sl_addr(sl_addr),
+	.sl_tail(sl_tail),
+	.sl_latch_tail(sl_latch_tail),
 	.sl_arb_request(sl_arb_request[4]),
 	.sl_arb_grant(sl_arb_grant[4]),
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
 	.incr_ctr(gpio_ctr_incr)
-);*/
+);
 
 //PMU interface
 wire [7:0] pmu_debug;
