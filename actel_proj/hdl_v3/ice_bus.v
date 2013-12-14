@@ -128,6 +128,7 @@ wire [21:0] goc_speed;
 wire goc_polairty, goc_mode;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
+wire [23:0] gpio_int_enable;
 wire mbus_master_mode;
 wire [19:0] mbus_long_addr;
 wire [21:0] mbus_clk_div;
@@ -165,6 +166,7 @@ basics_int bi0(
 	.gpio_read(GPIO),
 	.gpio_level(gpio_level),
 	.gpio_direction(gpio_direction),
+	.gpio_int_enable(gpio_int_enable),
 
 	//MBus settings
 	.mbus_master_mode(mbus_master_mode),
@@ -330,6 +332,7 @@ gpio_int gi1(
 	
 	.gpio_level(gpio_level),
 	.gpio_direction(gpio_direction),
+	.gpio_int_enable(gpio_int_enable),
 
 	//Slave output bus
 	.sl_data(sl_data),

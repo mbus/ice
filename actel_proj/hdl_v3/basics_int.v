@@ -34,6 +34,7 @@ module basics_int(
 	input [23:0] gpio_read,
 	output reg [23:0] gpio_level,
 	output reg [23:0] gpio_direction,
+	output reg [23:0] gpio_int_enable,
 
 	//MBus settings
 	output reg mbus_master_mode,
@@ -63,7 +64,7 @@ reg local_frame_valid;
 wire local_data_latch;
 
 //Local copies of gpio settings to avoid shift-register complications
-reg [23:0] gpio_level_temp, gpio_direction_temp;
+reg [23:0] gpio_level_temp, gpio_direction_temp, gpio_int_enable_temp;
 
 //State machine locals
 reg [7:0] latched_eid;
@@ -361,6 +362,7 @@ always @(posedge rst or posedge clk) begin
 		`endif
 		goc_mode <= `SD 1'b1;
 		gpio_direction <= `SD 24'h000000;
+		gpio_int_enable <= `SD 24'h000000;
 		gpio_level <= `SD 24'h000000;
 		uart_baud_div <= `SD 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
@@ -403,6 +405,9 @@ always @(posedge rst or posedge clk) begin
 					parameter_shift_countdown <= `SD 3;
 				end else if(ma_data == 8'h64) begin
 					parameter_staging <= `SD gpio_direction;
+					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == 8'h69) begin
+					parameter_staging <= `SD gpio_int_enable;
 					parameter_shift_countdown <= `SD 3;
 				end
 			end else if(latched_command[9]) begin
@@ -457,6 +462,8 @@ always @(posedge rst or posedge clk) begin
 					to_parameter <= `SD 3;
 				else if(ma_data== 8'h64)
 					to_parameter <= `SD 4;
+				else if(ma_data == 8'h69)
+					to_parameter <= `SD 12;
 				parameter_shift_countdown <= `SD 3;
 			end else if(latched_command[10]) begin
 				to_parameter <= `SD 5;
@@ -502,6 +509,8 @@ always @(posedge rst or posedge clk) begin
 				mbus_clk_div <= `SD {mbus_clk_div[13:0], ma_data};
 			else if(to_parameter == 11)
 				goc_mode <= `SD ma_data[0];
+			else if(to_parameter == 12)
+				gpio_int_enable_temp <= `SD {gpio_int_enable_temp[15:0], ma_data};
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end
@@ -512,6 +521,8 @@ always @(posedge rst or posedge clk) begin
 				gpio_direction <= `SD gpio_direction_temp;
 			else if(to_parameter == 7)
 				uart_baud_div <= `SD uart_baud_temp;
+			else if(to_parameter == 12)
+				gpio_int_enable <= `SD gpio_int_enable_temp;
 		end
 
 		last_ma_frame_valid <= `SD ma_frame_valid;

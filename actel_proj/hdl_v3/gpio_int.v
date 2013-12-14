@@ -1,6 +1,6 @@
 `include "include/ice_def.v"
 
-module gpio_int(clk, reset, GPIO, gpio_level, gpio_direction, sl_data, sl_addr, sl_tail, sl_latch_tail, sl_arb_request, sl_arb_grant, global_counter, incr_ctr);
+module gpio_int(clk, reset, GPIO, gpio_level, gpio_direction, gpio_int_enable, sl_data, sl_addr, sl_tail, sl_latch_tail, sl_arb_request, sl_arb_grant, global_counter, incr_ctr);
 parameter GPIO_WIDTH=24;
 
 input clk;
@@ -9,11 +9,12 @@ input reset;
 inout [GPIO_WIDTH-1:0] GPIO;
 input [GPIO_WIDTH-1:0] gpio_level;
 input [GPIO_WIDTH-1:0] gpio_direction;
+input [GPIO_WIDTH-1:0] gpio_int_enable;
 
 //Slave output bus
 inout [8:0] sl_data;
 input [8:0] sl_addr;
-input [8:0] sl_tail;
+inout [8:0] sl_tail;
 input sl_latch_tail;
 output sl_arb_request;
 input sl_arb_grant;
@@ -27,7 +28,7 @@ reg [7:0] frame_data;
 wire data_latch;
 wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
-assign sl_data = (sl_arb_grant) ? mf_sl_data : 8'bzzzzzzzz;
+assign sl_data = (sl_arb_grant) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
 message_fifo #(9,0) mf1(
 	.clk(clk),
@@ -119,7 +120,7 @@ always @* begin
 	gpio_has_changed = 1'b0;
 	for(jj = 0; jj < GPIO_WIDTH; jj = jj + 1) begin
 		if(~gpio_direction[jj]) begin
-			if(last_gpio_levels[jj] ^ last_gpio_levels_db[jj])
+			if((last_gpio_levels[jj] ^ last_gpio_levels_db[jj]) & gpio_int_enable[jj])
 				gpio_has_changed = 1'b1;
 		end
 	end
