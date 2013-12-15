@@ -40,6 +40,7 @@ module basics_int(
 	output reg mbus_master_mode,
 	output reg [19:0] mbus_long_addr,
 	output reg [21:0] mbus_clk_div,
+	output reg mbus_tx_prio,
 	
 	//M3 Switch settings
 	output reg M3_0P6_SW,
@@ -367,6 +368,7 @@ always @(posedge rst or posedge clk) begin
 		uart_baud_div <= `SD 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
 		mbus_master_mode <= `SD 1'b0;
+		mbus_tx_prio <= `SD 1'b0;
 		mbus_long_addr <= `SD 20'h00000;
 		mbus_clk_div <= `SD 22'h000020;
 	end else begin
@@ -424,6 +426,9 @@ always @(posedge rst or posedge clk) begin
 				if(ma_data == 8'h6d) begin
 					parameter_staging <= `SD {mbus_master_mode, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == 8'h70) begin
+					parameter_staging <= `SD {mbus_tx_prio, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == 8'h6c) begin
 					parameter_staging <= `SD mbus_long_addr;
 					parameter_shift_countdown <= `SD 3;
@@ -475,6 +480,9 @@ always @(posedge rst or posedge clk) begin
 				if(ma_data == 8'h6c) begin
 					to_parameter <= `SD 8;
 					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == 8'h70) begin
+					to_parameter <= `SD 13;
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == 8'h6d) begin
 					to_parameter <= `SD 9;
 					parameter_shift_countdown <= `SD 1;
@@ -511,6 +519,8 @@ always @(posedge rst or posedge clk) begin
 				goc_mode <= `SD ma_data[0];
 			else if(to_parameter == 12)
 				gpio_int_enable_temp <= `SD {gpio_int_enable_temp[15:0], ma_data};
+			else if(to_parameter == 13)
+				mbus_tx_prio <= `SD ma_data[0];
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end

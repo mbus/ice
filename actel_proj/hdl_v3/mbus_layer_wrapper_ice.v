@@ -10,6 +10,7 @@ module mbus_layer_wrapper_ice(
 	input [19:0] mbus_long_addr,
 	input MASTER_NODE,
 	input [21:0] mbus_clk_div,
+	input mbus_tx_prio,
 
 	input 	CLKIN, 
 	output 	CLKOUT,
@@ -204,7 +205,7 @@ mbus_general_layer_wrapper mclw1(
     .TX_DATA(mbus_txdata),
     .TX_PEND(mbus_txpend),
     .TX_REQ(mbus_txreq),
-    .TX_PRIORITY(1'b0),
+    .TX_PRIORITY(mbus_tx_prio),
     .TX_ACK(mbus_txack),
     .TX_FAIL(mbus_txfail),
     .TX_SUCC(mbus_txsucc),
