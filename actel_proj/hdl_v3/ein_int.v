@@ -9,7 +9,7 @@ module ein_int(
 	output ECI_PAD,
 
 	input goc_mode,
-	input [21:0] CLK_DIV,
+	input [23:0] CLK_DIV,
 	
 	//Master input bus
 	input [7:0] ma_data,
@@ -41,7 +41,7 @@ wire hd_frame_next;
 
 wire [8:0] in_char;
 wire hd_frame_data_valid;
-bus_interface #(8'h65,1,1,0) bi0(
+bus_interface #(8'h66,1,1,0) bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),

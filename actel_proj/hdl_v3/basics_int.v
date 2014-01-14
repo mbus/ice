@@ -26,7 +26,7 @@ module basics_int(
 	output reg [15:0] i2c_addr,
 	
 	//GOC settings
-	output reg [21:0] goc_speed,
+	output reg [23:0] goc_speed,
 	output reg goc_polarity,
 	output reg goc_mode,
 	
@@ -357,9 +357,9 @@ always @(posedge rst or posedge clk) begin
 		i2c_speed <= `SD 8'd99;
 		i2c_addr <= `SD 16'hFFFF;
 		`ifdef SIM_FLAG
-			goc_speed <= `SD 22'h000010;
+			goc_speed <= `SD 24'h000010;
 		`else
-			goc_speed <= `SD 22'h30D400;
+			goc_speed <= `SD 24'h61A800;
 		`endif
 		goc_mode <= `SD 1'b1;
 		gpio_direction <= `SD 24'h000000;
@@ -498,7 +498,7 @@ always @(posedge rst or posedge clk) begin
 			else if(to_parameter == 1)
 				i2c_addr <= `SD {i2c_addr[7:0], ma_data};
 			else if(to_parameter == 2)
-				goc_speed <= `SD {goc_speed[13:0], ma_data};
+				goc_speed <= `SD {goc_speed[15:0], ma_data};
 			else if(to_parameter == 3)
 				gpio_level_temp <= `SD {gpio_level_temp[15:0], ma_data};
 			else if(to_parameter == 4)

@@ -124,7 +124,7 @@ ice_bus_controller #(NUM_DEV) ice1(
 wire [7:0] basics_debug;
 wire [7:0] i2c_speed;
 wire [15:0] i2c_addr;
-wire [21:0] goc_speed;
+wire [23:0] goc_speed;
 wire goc_polairty, goc_mode;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
