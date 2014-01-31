@@ -44,7 +44,7 @@ module m3_ice_top(
 /*assign FPGA_MB_DOUT = FPGA_MB_DIN;
 assign FPGA_MB_COUT = FPGA_MB_CIN;*/
 
-wire reset, reset_button, por_n;
+wire reset, reset_button, por;
 
 //Stupid Actel-specific global clock buffer assignment...
 wire SYS_CLK_BUF;
@@ -53,7 +53,7 @@ wire SYS_CLK_BUF;
 	assign reset = ~PB[1];
 `else
 	CLKINT cb1(SYS_CLK_BUF, SYS_CLK);
-	assign reset = reset_button | (~por_n);
+	assign reset = reset_button | por;
 `endif
 
 debounce_ms db0(
@@ -65,7 +65,8 @@ debounce_ms db0(
 por r1(
 	.clk(SYS_CLK_BUF),
 	.PAD(POR_PAD),
-	.reset(por_n)
+    .PB_RESET(PB[1]),
+	.reset(por)
 );
 
 ice_bus ic1(

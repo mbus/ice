@@ -3,7 +3,8 @@
 module por(
 	input clk,
 	inout PAD,
-	output reset
+    input PB_RESET,
+	output reg reset
 );
 	
 //This circuit follows the design guidelines from http://www.actel.com/documents/LPF_AC380_AN.pdf
@@ -17,19 +18,24 @@ wire RST_p;
 		.PAD(PAD),
 		.Y(RST_p),
 		.D(1'b0),
-		.E(1'b1)
+		.E(PB_RESET)
 	);
 `endif
 
-reg [1:0] chain;
-assign reset = chain[1];
-
+reg [7:0] counter;
 always @(posedge clk or posedge RST_p) begin
 	if(RST_p) begin
-		chain <= `SD 2'b0;
+        counter <= `SD 8'd0;
+    	reset <= `SD 1'b0;
 	end else begin
-		chain <= `SD {chain[0], 1'b1};
-	end
+        if(counter < 8'hff) begin
+            counter <= `SD counter + 8'd1;
+            if(counter > 8'h7F)
+                reset <= `SD 1'b1;
+        end else begin
+            reset <= `SD 1'b0;
+        end
+    end
 end
 
 endmodule

@@ -122,7 +122,7 @@ always @* begin
 			end else begin
 				next_edi_out = EDI_OUT;
 			end
-			if(state_ctr == CLK_DIV-3) begin
+			if(state_ctr == CLK_DIV>>1) begin
 				bit_ctr_incr = 1'b1;
 			end else if(state_ctr == CLK_DIV-1) begin
 				if(fifo_empty && fragment)
