@@ -22,15 +22,15 @@ wire RST_p;
 	);
 `endif
 
-reg [7:0] counter;
+reg [15:0] counter;
 always @(posedge clk or posedge RST_p) begin
 	if(RST_p) begin
-        counter <= `SD 8'd0;
+        counter <= `SD 16'd0;
     	reset <= `SD 1'b0;
 	end else begin
-        if(counter < 8'hff) begin
-            counter <= `SD counter + 8'd1;
-            if(counter > 8'h7F)
+        if(counter < 16'hffff) begin
+            counter <= `SD counter + 16'd1;
+            if(counter > 16'h7FFF)
                 reset <= `SD 1'b1;
         end else begin
             reset <= `SD 1'b0;
