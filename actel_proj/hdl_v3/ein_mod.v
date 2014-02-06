@@ -13,7 +13,7 @@ module ein_mod(
 	input clk,
 	input resetn,
 	input [7:0] fifo_din,
-	input [23:0] CLK_DIV,
+	input [31:0] CLK_DIV,
 	input goc_mode,
 	input fragment,
 	output fifo_RE,
@@ -24,7 +24,7 @@ module ein_mod(
 	output reg ECI_OUT
 );
 
-parameter CLK_DIV_LOG2 = 24;
+parameter CLK_DIV_LOG2 = 32;
 
 reg [3:0] state, next_state;
 reg [CLK_DIV_LOG2-1:0] state_ctr;

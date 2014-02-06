@@ -9,7 +9,7 @@ module ein_int(
 	output ECI_PAD,
 
 	input goc_mode,
-	input [23:0] CLK_DIV,
+	input [31:0] CLK_DIV,
 	
 	//Master input bus
 	input [7:0] ma_data,
