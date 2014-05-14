@@ -135,16 +135,17 @@ reg drive_pmu_addr, drive_pmu_subaddr, drive_pmu_val, drive_pmu_addr_rd;
 reg first_time, incr_first_time;
 reg set_slew, slew;
 reg [3:0] pwr_idx;
-reg [2:0] pmu_en_reg;
+reg [3:0] pmu_en_reg;
 reg [4:0] pmu_dac_val;
 
 wire pmu_data_latch, pmu_ready, pmu_failed;
 wire [7:0] pmu_subaddr = (slew) ? 8'h20 : 
                          (pmu_param == 1'b0) ? 8'h10 :
                          (pwr_idx == 0) ? 8'h32 :
-						 (pwr_idx == 1) ? 8'h26 : 8'h29;
+						 (pwr_idx == 1) ? 8'h26 : 
+						 (pwr_idx == 2) ? 8'h29 : 8'h23;
 wire [7:0] pmu_val =     (slew) ? 8'h55 :
-                         (pmu_param == 1'b0) ? {3'b100,pmu_en_reg[0],1'b1,pmu_en_reg[2:1],1'b1} : {3'd0, pmu_dac_val};
+                         (pmu_param == 1'b0) ? {3'b100,pmu_en_reg[0],1'b1,pmu_en_reg[2:1],pmu_en_reg[3]} : {3'd0, pmu_dac_val};
 
 reg i2c_rw;
 wire [7:0] in_i2c_data;
@@ -219,11 +220,13 @@ always @(posedge reset or posedge clk) begin
 				pmu_dac_val <= `SD in_char[4:0];
 			else
 				if(pwr_idx == 0)
-					pmu_en_reg <= `SD {pmu_en_reg[2:1],in_char[0]};
+					pmu_en_reg <= `SD {pmu_en_reg[3:1],in_char[0]};
 				else if(pwr_idx == 1)
-					pmu_en_reg <= `SD {pmu_en_reg[2],in_char[0],pmu_en_reg[0]};
+					pmu_en_reg <= `SD {pmu_en_reg[3:2],in_char[0],pmu_en_reg[0]};
 				else if(pwr_idx == 2)
-					pmu_en_reg <= `SD {in_char[0],pmu_en_reg[1:0]};
+					pmu_en_reg <= `SD {pmu_en_reg[3],in_char[0],pmu_en_reg[1:0]};
+				else if(pwr_idx == 3)
+					pmu_en_reg <= `SD {in_char[0],pmu_en_reg[2:0]};
 		end
 		
 		//We need to do two different I2C transactions if slewing
@@ -239,7 +242,8 @@ end
 
 assign insert_data = (pmu_param) ? in_i2c_data :
                      (pwr_idx == 0) ? in_i2c_data[4] :
-					 (pwr_idx == 1) ? in_i2c_data[1] : in_i2c_data[2];
+					 (pwr_idx == 1) ? in_i2c_data[1] : 
+					 (pwr_idx == 2) ? in_i2c_data[2] : in_i2c_data[0];
 
 always @* begin
 	next_state = state;

@@ -48,7 +48,9 @@ module ice_bus (
 parameter NUM_DEV = 7;
 
 //User lines are current not used as there are no daughterboards which have been made
-assign USER = 6'd0;
+assign USER[5:1] = 5'd0;
+//Direct assignment of GOC signal to debug header
+assign USER[0] = debug[3];
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
