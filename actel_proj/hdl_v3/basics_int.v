@@ -169,17 +169,17 @@ wire set_m3sw_match = new_command && (ma_addr == 8'h73);
 wire query_mbus_match = new_command && (ma_addr == 8'h4d);
 wire set_mbus_match = new_command && (ma_addr == 8'h6d);
 wire capability_match = //Each time the feature set changes, it must be reflected here...
-	(capability_counter == 8'h3F) || 
-	(capability_counter == 8'h5F) || 
-	(capability_counter == 8'h66) || 
-	(capability_counter == 8'h4F) || 
-	(capability_counter == 8'h6F) || 
-	(capability_counter == 8'h42) || 
-	(capability_counter == 8'h62) || 
-	(capability_counter == 8'h4D) || 
-	(capability_counter == 8'h6D) || 
-	(capability_counter == 8'h50) || 
-	(capability_counter == 8'h70);
+	(capability_counter == "?") || 
+	(capability_counter == "_") || 
+	(capability_counter == "f") || 
+	(capability_counter == "O") || 
+	(capability_counter == "o") || 
+	(capability_counter == "B") || 
+	(capability_counter == "b") || 
+	(capability_counter == "M") || 
+	(capability_counter == "m") || 
+	(capability_counter == "P") || 
+	(capability_counter == "p");
 always @* begin
 	next_state = state;
 	latch_eid = 1'b0;
