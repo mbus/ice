@@ -64,19 +64,34 @@ parameter FLASH_CMD_RES = 8'hAB;
 parameter STATE_IDLE = 0;
 reg [3:0] state, next_state;
 reg [31:0] timer;
+reg wait_flag;
 
 always @(posedge rst or posedge clk) begin
 
 	if(rst) begin
 		timer <= `SD 32'd0;
+		wait_flag <= `SD 1'b0;
 		state <= `SD STATE_IDLE;
 	end else begin
+		timer <= `SD timer + 1;
 		if(flash_continue) begin
 			if(flash_latch)
 				flash_byte_counter <= `SD flash_byte_counter + 1;
 		end else begin
 			flash_byte_counter <= `SD 9'h00;
 		end
+
+		if(wait_ctr_clear)
+			wait_ctr <= `SD 0;
+		else if(wait_ctr_incr) begin
+			wait_ctr <= `SD wait_ctr + 1;
+			wait_timer <= `SD {wait_timer[23:0], flash_out_data};
+		end
+
+		if(clear_wait_flag)
+			wait_flag <= `SD 1'b0;
+		else if(set_wait_flag)
+			wait_flag <= `SD 1'b1;
 	end
 end
 
@@ -86,6 +101,10 @@ always @* begin
 	flash_latch = 1'b0;
 	flash_continue = 1'b0;
 	out_data_strobe = 1'b0;
+	wait_ctr_clear = 1'b1;
+	wait_ctr_incr = 1'b0;
+	clear_wait_flag = 1'b0;
+	set_wait_flag = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -142,7 +161,7 @@ always @* begin
 		end
 
 		STATE_REC_WAIT: begin
-			flash_data = fifo_out_uart_data;
+			flash_data = rec_timer ? timer_latched : fifo_out_uart_data;
 			flash_latch = flash_done & fifo_out_valid;
 			flash_continue = (flash_byte_ctr < 260);
 			if(flash_done && flash_byte_ctr == 260)
@@ -164,10 +183,26 @@ always @* begin
 				next_state = STATE_PB_DATA;
 		end
 
+		STATE_PB_WAIT_READ: begin
+			wait_ctr_clear = 1'b0;
+			wait_ctr_incr = flash_done;
+			if(flash_done && wait_ctr == 4)
+				next_state = STATE_PB_WAIT;
+		end
+
+		STATE_PB_WAIT: begin
+			set_wait_flag = 1'b1;
+			if(timer > wait_timer)
+				next_state = STATE_PB_DATA;
+		end
+
 		STATE_PB_DATA: begin
+			clear_wait_flag = flash_done;
 			out_data_strobe = flash_done;
 			flash_continue = 1'b1;
 			flash_latch = flash_done;
+			if(ice_bus_idle && ~wait_flag)
+				next_state = STATE_PB_WAIT_READ;
 		end
 end
 
