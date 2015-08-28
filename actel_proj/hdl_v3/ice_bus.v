@@ -189,10 +189,32 @@ basics_int bi0(
 	.debug()
 );
 
+/* Need to reset the whole MBus node when starts/stops acting as the master
+ * node, otherwise if nothing was plugged in, the input pins were floating
+ * and it could be in a weird state. */
+
+reg was_mbus_master_mode;
+reg force_mbus_reset;
+
+always @(posedge reset or posedge clk) begin
+	if(reset) begin
+		was_mbus_master_mode <= `SD mbus_master_mode;
+		force_mbus_reset <= `SD 1'b0;
+	end else begin
+		was_mbus_master_mode <= `SD mbus_master_mode;
+
+		if(was_mbus_master_mode != mbus_master_mode) begin
+			force_mbus_reset <= `SD 1'b1;
+		end else begin
+			force_mbus_reset <= `SD 1'b0;
+		end
+	end
+end
+
 wire [3:0] mb_debug;
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
-	.reset(reset),
+	.reset(reset | force_mbus_reset),
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
