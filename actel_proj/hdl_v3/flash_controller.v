@@ -27,10 +27,6 @@ module flash_controller(
 	input playback_enable
 );
 
-//Both write protect and hold are not needed in this implementation
-assign FLASH_WPn = 1'b1;
-assign FLASH_HOLDn = 1'b1;
-
 assign out_data = flash_out_data;
 
 //FIFO used to buffer incoming data from 
@@ -40,25 +36,29 @@ fifo #(9,9) ff(
 	.clk(clk),
 	.reset(rst),
 	.in_data({ice_bus_idle,uart_data}),
-	.in_latch(uart_data_strobe),
+	.in_data_latch(uart_data_strobe),
 	.out_data({fifo_out_bus_idle,fifo_out_uart_data}),
 	.out_data_latch(fifo_out_latch),
 	.out_data_valid(fifo_out_valid)
 );
 
-//Enumerated flash commands
-parameter FLASH_CMD_WREN = 8'h06;
-parameter FLASH_CMD_WRDI = 8'h04;
-parameter FLASH_CMD_RDID = 8'h9F;
-parameter FLASH_CMD_RDSR = 8'h05;
-parameter FLASH_CMD_WRSR = 8'h01;
-parameter FLASH_CMD_READ = 8'h03;
-parameter FLASH_CMD_FAST_READ = 8'h0B;
-parameter FLASH_CMD_PP = 8'h02;
-parameter FLASH_CMD_SE = 8'hD8;
-parameter FLASH_CMD_BE = 8'hC7;
-parameter FLASH_CMD_DP = 8'hB9;
-parameter FLASH_CMD_RES = 8'hAB;
+micron_flash_impl mfi(
+	.clk(clk),
+	.reset(rst),
+	.FLASH_D(FLASH_D),
+	.FLASH_C(FLASH_C),
+	.FLASH_CSn(FLASH_CSn),
+	.FLASH_WPn(FLASH_WPn),
+	.FLASH_HOLDn(FLASH_HOLDn),
+	.FLASH_Q(FLASH_Q),
+	.in_data(flash_data),
+	.in_data_latch(flash_latch),
+	.in_data_continue(flash_continue),
+	.out_data(flash_out_data),
+	.wren(record_enable),
+	.rden(playback_enable),
+	.ready_out(flash_ready)
+);
 
 //Flash controller state machine
 parameter STATE_IDLE = 0;
@@ -73,6 +73,8 @@ always @(posedge rst or posedge clk) begin
 		wait_flag <= `SD 1'b0;
 		state <= `SD STATE_IDLE;
 	end else begin
+		state <= `SD next_state;
+
 		timer <= `SD timer + 1;
 		if(flash_continue) begin
 			if(flash_latch)
@@ -92,6 +94,13 @@ always @(posedge rst or posedge clk) begin
 			wait_flag <= `SD 1'b0;
 		else if(set_wait_flag)
 			wait_flag <= `SD 1'b1;
+
+		if(save_timer) begin
+			just_recorded_timer <= `SD 1'b1;
+			timer_shift <= `SD timer;
+		end else if(clear_timer_flag) begin
+			just_recorded_timer <= `SD 1'b0;
+		end
 	end
 end
 
@@ -105,82 +114,38 @@ always @* begin
 	wait_ctr_incr = 1'b0;
 	clear_wait_flag = 1'b0;
 	set_wait_flag = 1'b0;
+	save_timer = 1'b0;
+	clear_timer_flag = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
 			if(record_enable)
-				next_state = STATE_REC_INIT;
+				next_state = STATE_REC_PROGRAM;
 			else if(playback_enable)
 				next_state = STATE_PB_IDLE;
 		end
 
-		STATE_REC_INIT: begin
-			//Need to start off by erasing the chip
-			// (requires a WREN command first)
-			flash_data = FLASH_CMD_WREN;
-			flash_latch = 1'b1;
-			next_state = STATE_REC_INIT2;
-		end
-
-		STATE_REC_INIT2: begin
-			flash_data = FLASH_CMD_BE;
-			flash_latch = flash_done;
-			if(flash_done)
-				next_state = STATE_REC_INIT3;
-		end
-
-		STATE_REC_INIT3: begin
-			flash_data = FLASH_CMD_RDSR;
-			flash_latch = flash_done;
-			flash_continue = (flash_byte_ctr < 3);
-			if(flash_done && ~flash_continue) begin
+		STATE_REC_PROGRAM: begin
+			flash_data = fifo_out_uart_data;
+			flash_latch = flash_ready & fifo_out_valid;
+			if(flash_latch)
+				clear_timer_flag = 1'b1;
+			if(fifo_out_valid && fifo_out_bus_idle && ~just_recorded_timer) begin
 				flash_latch = 1'b0;
-				if(flash_rd_data[0] == 1'b0) begin
-					next_state = STATE_REC_PROGRAM;
+				next_state = STATE_REC_TIMER_INIT;
 			end
 		end
 
-		STATE_REC_PROGRAM: begin
-			flash_data = FLASH_CMD_PP;
-			flash_latch = 1'b1;
-			flash_continue = 1'b1;
-			next_state = STATE_REC_PROGRAM_ADDR;
+		STATE_REC_TIMER_INIT: begin
+			save_timer = 1'b1;
+			next_state = STATE_REC_TIMER;
 		end
 
-		STATE_REC_PROGRAM_ADDR: begin
-			if(flash_byte_ctr == 1)
-				flash_data = cur_flash_addr[2];
-			else if(flash_byte_ctr == 2)
-				flash_data = cur_flash_addr[1];
-			else if(flash_byte_ctr == 3)
-				flash_data = cur_flash_addr[0];
-			flash_latch = flash_done;
-			flash_continue = 1'b1;
-			if(flash_done && flash_byte_ctr == 3)
-				next_state = STATE_REC_WAIT;
-		end
-
-		STATE_REC_WAIT: begin
-			flash_data = rec_timer ? timer_latched : fifo_out_uart_data;
-			flash_latch = flash_done & fifo_out_valid;
-			flash_continue = (flash_byte_ctr < 260);
-			if(flash_done && flash_byte_ctr == 260)
-				next_state = STATE_REC_INIT3;
-		end
-
-		STATE_PB_IDLE: begin
-			flash_data = FLASH_CMD_FAST_READ;
-			flash_latch = 1'b1;
-			flash_continue = 1'b1;
-			next_state = STATE_PB_ADDR;
-		end
-
-		STATE_PB_ADDR: begin
-			//3 bytes addr, 1 byte dummy
-			flash_latch = flash_done;
-			flash_continue = 1'b1;
-			if(flash_done && flash_byte_ctr = 4)
-				next_state = STATE_PB_DATA;
+		STATE_REC_TIMER: begin
+			flash_data = timer_shift[7:0];
+			flash_latch = flash_ready;
+			if(flash_done && wait_ctr == 4)
+				next_state = STATE_REC_TIMER;
 		end
 
 		STATE_PB_WAIT_READ: begin
@@ -197,13 +162,13 @@ always @* begin
 		end
 
 		STATE_PB_DATA: begin
-			clear_wait_flag = flash_done;
-			out_data_strobe = flash_done;
-			flash_continue = 1'b1;
-			flash_latch = flash_done;
+			clear_wait_flag = flash_ready;
+			out_data_strobe = flash_ready;
+			flash_latch = flash_ready;
 			if(ice_bus_idle && ~wait_flag)
 				next_state = STATE_PB_WAIT_READ;
 		end
+	endcase
 end
 
 endmodule
