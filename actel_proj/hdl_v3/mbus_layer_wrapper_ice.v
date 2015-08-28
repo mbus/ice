@@ -255,7 +255,7 @@ always @(posedge reset or posedge clk) begin
 		first_message <= `SD 1'b1;
 		state_ctr <= `SD 8'h00;
 		mbus_reset_pend <= `SD 1'b1;
-		mbus_reset <= `SD 1'b0;
+		mbus_reset <= `SD 1'b1;
 		shift_count <= `SD 4'd0;
 		mbus_txdata <= `SD 32'd0;
 		mbus_txaddr <= `SD 32'd0;
