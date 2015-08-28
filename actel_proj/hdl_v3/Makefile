@@ -11,7 +11,7 @@ SYNVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +
 APRVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +lint=all,noVCDE +warn=all -timescale=1ns/1ps +vcs+lic+wait +multisource_int_delays +plusarg_save +overlap -full64 -Mupdate -line -debug -cc gcc +libext+.v+.vlib+.vh +prof +neg_tchk +memopt -negdelay +define+APR
 VCSFLAGS = 
 INTFLAGS = -I +memcbk
-MB_PATH = /afs/umich.edu/user/b/p/bpkempke/shed/projects/low-power-bus/verilog_hdl/mbus/verilog/no_pwr_gating_yesheng
+MB_PATH = ../../../mbus/mbus/verilog/no_pwr_gating_yesheng
 
 ##### 
 # Modify starting here
@@ -61,20 +61,20 @@ APRFILES = 	$(MB_PATH)/../apr/mbus_node32_ab/mbus_node32_ab.apr.v \
 # Do Not Modify
 #####
 simv:		$(SIMFILES) $(TESTBENCH)
-		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl -R | tee program.out
+		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl +incdir+$(MB_PATH) -R | tee program.out
 		urg -dir simv.vdb -report ./REPORTS
 
 syn_simv:	$(SIMFILES) $(TESTBENCH)
-		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) -o syn_simv -cm line+cond+fsm+tgl -R | tee syn_program.out
+		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(MB_PATH) -R | tee syn_program.out
 		urg -dir syn_simv.vdb -report ./REPORTS
 
 apr_simv:	$(APRFILES) $(TESTBENCH)
-		$(APRVCS) $(VCSFLAGS) $(TESTBENCH) $(APRFILES) -o apr_simv -cm line+cond+fsm+tgl -R | tee apr_program.out
+		$(APRVCS) $(VCSFLAGS) $(TESTBENCH) $(APRFILES) -o apr_simv -cm line+cond+fsm+tgl +incdir+$(MB_PATH) -R | tee apr_program.out
 		urg -dir apr_simv.vdb -report ./REPORTS
 
 # updated interactive debugger "DVE", using the latest version of VCS
 dve:	$(SIMFILES) $(TESTBENCH) 
-	$(VCS) $(VCSFLAGS) +memcbk $(TESTBENCH) $(SIMFILES) -o dve -R -gui
+	$(VCS) $(VCSFLAGS) +memcbk $(TESTBENCH) $(SIMFILES) -o dve +incdir+$(MB_PATH) -R -gui
 
 .PHONY: simv syn_simv apr_simv dve
 
