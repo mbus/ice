@@ -100,7 +100,7 @@ task send_command_0;
 	end
 	$fclose(file);
 
-	while (1'b1) begin
+	do begin
 		resp_hack = 0;
 		for (k=0; k<2000; k=k+1) begin
 			if (uart_0_rx_latch) begin
@@ -109,10 +109,7 @@ task send_command_0;
 			@(posedge clk);
 		end
 
-		if (resp_hack == 0) begin
-			break;
-		end
-	end
+	end while(resp_hack != 0);
 
 	$display("End   %s", file_name);
 endtask
@@ -137,7 +134,7 @@ task send_command_1;
 	end
 	$fclose(file);
 
-	while (1'b1) begin
+	do begin
 		resp_hack = 0;
 		for (k=0; k<2000; k=k+1) begin
 			if (uart_1_rx_latch) begin
@@ -145,11 +142,7 @@ task send_command_1;
 			end
 			@(posedge clk);
 		end
-
-		if (resp_hack == 0) begin
-			break;
-		end
-	end
+	end while(resp_hack != 0);
 
 	$display("End   %s", file_name);
 endtask

@@ -6,6 +6,8 @@
 #
 # Execute Example: make simv VCSFLAGS="+define+TASK0"  <- This executes task0 testbenching
 
+IVERILOG = iverilog
+IVERILOGFLAGS = -g2009 -I../../../mbus/mbus/verilog/no_pwr_gating_yesheng
 VCS = SW_VCS=2011.03 vcs +v2k +vc -sverilog +lint=all,noVCDE +warn=all -Mupdate -line -full64 -cm line+cond+fsm+tgl -debug_all
 SYNVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +lint=all,noVCDE +warn=all -timescale=1ns/1ps +vcs+lic+wait +multisource_int_delays +plusarg_save +overlap -full64 -Mupdate -line -debug -cc gcc +libext+.v+.vlib+.vh +prof +neg_tchk +memopt -negdelay +define+SYN
 APRVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +lint=all,noVCDE +warn=all -timescale=1ns/1ps +vcs+lic+wait +multisource_int_delays +plusarg_save +overlap -full64 -Mupdate -line -debug -cc gcc +libext+.v+.vlib+.vh +prof +neg_tchk +memopt -negdelay +define+APR
@@ -63,6 +65,9 @@ APRFILES = 	$(MB_PATH)/../apr/mbus_node32_ab/mbus_node32_ab.apr.v \
 simv:		$(SIMFILES) $(TESTBENCH)
 		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl +incdir+$(MB_PATH) -R | tee program.out
 		urg -dir simv.vdb -report ./REPORTS
+
+simv_iverilog:	$(SIMFILES) $(TESTBENCH)
+		$(IVERILOG) $(IVERILOGFLAGS) $(TESTBENCH) $(SIMFILES) -s tb_ice -o simv
 
 syn_simv:	$(SIMFILES) $(TESTBENCH)
 		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(MB_PATH) -R | tee syn_program.out
