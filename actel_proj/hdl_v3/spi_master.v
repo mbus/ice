@@ -1,6 +1,6 @@
 `include "include/ice_def.v"
 
-module micron_flash_impl(
+module spi_master(
 	input clk,
 	input rst,
 
@@ -20,8 +20,18 @@ module micron_flash_impl(
 parameter CLK_DIV_BIT = 2;
 
 parameter STATE_IDLE = 0;
+parameter STATE_TRANS1 = 1;
+parameter STATE_TRANS2 = 2;
 
 reg [3:0] state, next_state;
+
+reg in_continue_latched;
+reg latch_in_data;
+reg clk_counter_en, clk_counter_clear;
+reg shift_mosi_out, shift_miso_in;
+reg next_csn;
+reg [10:0] clk_counter;
+reg [7:0] data_sr;
 
 always @(posedge rst or posedge clk) begin
 	if(rst) begin
@@ -29,8 +39,10 @@ always @(posedge rst or posedge clk) begin
 		in_continue_latched <= `SD 1'b0;
 		clk_counter <= `SD 0;
 		out_data <= `SD 0;
+		spi_csn <= `SD 1'b1;
 	end else begin
 		state <= `SD next_state;
+		spi_csn <= `SD next_csn;
 		
 		spi_clk <= `SD clk_counter[CLK_DIV_BIT];
 		if(clk_counter_en) begin
@@ -62,6 +74,7 @@ always @* begin
 	clk_counter_clear = 1'b0;
 	out_ready = 1'b0;
 	out_done_latch = 1'b0;
+	clk_counter_en = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -69,7 +82,7 @@ always @* begin
 			next_csn = in_continue_latched;
 			latch_in_data = in_latch;
 			clk_counter_clear = 1'b1;
-			if(latch_in_data)
+			if(in_latch)
 				next_state = STATE_TRANS1;
 		end
 
@@ -77,7 +90,7 @@ always @* begin
 			next_csn = 1'b0;
 			clk_counter_en = 1'b1;
 			shift_mosi_out = (clk_counter[CLK_DIV_BIT:0] == {{CLK_DIV_BIT}{1'b0}});
-			shift_miso_in = (clk_counter[CLK_DIV_BIT:0] == {1'b0, {{CLK_DIV_BIT-1}{1'b1}});
+			shift_miso_in = (clk_counter[CLK_DIV_BIT:0] == {1'b0, {{CLK_DIV_BIT-1'd1}{1'b1}}});
 			if(clk_counter[CLK_DIV_BIT+3])
 				next_state = STATE_TRANS2;
 		end

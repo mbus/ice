@@ -27,6 +27,13 @@ module flash_controller(
 	input playback_enable
 );
 
+
+reg [7:0] flash_data;
+wire [7:0] flash_out_data;
+reg flash_latch;
+reg flash_continue;
+wire flash_ready;
+
 assign out_data = flash_out_data;
 
 //FIFO used to buffer incoming data from 
@@ -34,7 +41,7 @@ wire fifo_out_bus_idle, fifo_out_latch, fifo_out_valid;
 wire [7:0] fifo_out_uart_data;
 fifo #(9,9) ff(
 	.clk(clk),
-	.reset(rst),
+	.rst(rst),
 	.in_data({ice_bus_idle,uart_data}),
 	.in_data_latch(uart_data_strobe),
 	.out_data({fifo_out_bus_idle,fifo_out_uart_data}),
@@ -44,7 +51,7 @@ fifo #(9,9) ff(
 
 micron_flash_impl mfi(
 	.clk(clk),
-	.reset(rst),
+	.rst(rst),
 	.FLASH_D(FLASH_D),
 	.FLASH_C(FLASH_C),
 	.FLASH_CSn(FLASH_CSn),
@@ -62,9 +69,20 @@ micron_flash_impl mfi(
 
 //Flash controller state machine
 parameter STATE_IDLE = 0;
+parameter STATE_REC_PROGRAM = 1;
+parameter STATE_REC_TIMER_INIT = 2;
+parameter STATE_REC_TIMER = 3;
+parameter STATE_PB_WAIT_READ = 4;
+parameter STATE_PB_WAIT = 5;
+parameter STATE_PB_DATA = 6;
+
 reg [3:0] state, next_state;
-reg [31:0] timer;
-reg wait_flag;
+reg [31:0] timer, wait_timer, timer_shift;
+reg save_timer, just_recorded_timer;
+reg wait_flag, clear_wait_flag, set_wait_flag;
+reg wait_ctr_clear, wait_ctr_incr;
+reg clear_timer_flag;
+reg [8:0] wait_ctr;
 
 always @(posedge rst or posedge clk) begin
 
@@ -76,12 +94,6 @@ always @(posedge rst or posedge clk) begin
 		state <= `SD next_state;
 
 		timer <= `SD timer + 1;
-		if(flash_continue) begin
-			if(flash_latch)
-				flash_byte_counter <= `SD flash_byte_counter + 1;
-		end else begin
-			flash_byte_counter <= `SD 9'h00;
-		end
 
 		if(wait_ctr_clear)
 			wait_ctr <= `SD 0;
@@ -122,7 +134,7 @@ always @* begin
 			if(record_enable)
 				next_state = STATE_REC_PROGRAM;
 			else if(playback_enable)
-				next_state = STATE_PB_IDLE;
+				next_state = STATE_PB_WAIT_READ;
 		end
 
 		STATE_REC_PROGRAM: begin
@@ -144,14 +156,15 @@ always @* begin
 		STATE_REC_TIMER: begin
 			flash_data = timer_shift[7:0];
 			flash_latch = flash_ready;
-			if(flash_done && wait_ctr == 4)
+			wait_ctr_incr = flash_ready;
+			if(flash_ready && wait_ctr == 4)
 				next_state = STATE_REC_TIMER;
 		end
 
 		STATE_PB_WAIT_READ: begin
 			wait_ctr_clear = 1'b0;
-			wait_ctr_incr = flash_done;
-			if(flash_done && wait_ctr == 4)
+			wait_ctr_incr = flash_ready;
+			if(flash_ready && wait_ctr == 4)
 				next_state = STATE_PB_WAIT;
 		end
 

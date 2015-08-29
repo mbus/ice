@@ -1,6 +1,6 @@
 `include "include/ice_def.v"
 
-module _fifo(
+module fifo(
 	input clk,
 	input rst,
 

@@ -42,6 +42,10 @@ parameter FLASH_CMD_BE = 8'hC7;
 parameter FLASH_CMD_DP = 8'hB9;
 parameter FLASH_CMD_RES = 8'hAB;
 
+reg [7:0] flash_data;
+reg flash_latch;
+reg flash_continue;
+
 spi_master sm1(
 	.clk(clk),
 	.rst(rst),
@@ -59,13 +63,38 @@ spi_master sm1(
 	.out_ready(flash_ready)
 );
 
+//State machine states
+parameter STATE_IDLE = 0;
+parameter STATE_WR_INIT = 1;
+parameter STATE_WR_INIT2 = 2;
+parameter STATE_WR_INIT3 = 3;
+parameter STATE_WR_PROGRAM = 4;
+parameter STATE_WR_WAIT = 5;
+parameter STATE_RD_INIT = 6;
+parameter STATE_RD_ADDR = 7;
+parameter STATE_RD_DATA = 8;
+
 reg [3:0] state, next_state;
+reg [8:0] flash_byte_ctr;
+reg [23:0] cur_flash_addr;
+reg flash_incr_addr;
 
 always @(posedge rst or posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
+		flash_byte_ctr <= `SD 0;
+		cur_flash_addr <= `SD 0;
 	end else begin
 		state <= `SD next_state;
+
+		if(flash_continue & flash_latch) begin
+				flash_byte_ctr <= `SD flash_byte_ctr + 1;
+		end else begin
+				flash_byte_ctr <= `SD 0;
+		end
+
+		if(flash_incr_addr)
+			cur_flash_addr <= `SD cur_flash_addr + 9'h100;
 	end
 end
 
@@ -75,6 +104,7 @@ always @* begin
 	flash_data = 8'h00;
 	flash_latch = 1'b0;
 	flash_continue = 1'b0;
+	flash_incr_addr = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -105,25 +135,26 @@ always @* begin
 			flash_continue = (flash_byte_ctr < 3);
 			if(flash_out_latch && ~flash_continue) begin
 				flash_latch = 1'b0;
-				if(flash_rd_data[0] == 1'b0) begin
+				flash_incr_addr = 1'b1;
+				if(out_data[0] == 1'b0)
 					next_state = STATE_WR_PROGRAM;
 			end
 		end
 
 		STATE_WR_PROGRAM: begin
 			if(flash_byte_ctr == 1)
-				flash_data = cur_flash_addr[2];
+				flash_data = cur_flash_addr[23:16];
 			else if(flash_byte_ctr == 2)
-				flash_data = cur_flash_addr[1];
+				flash_data = cur_flash_addr[15:8];
 			else if(flash_byte_ctr == 3)
-				flash_data = cur_flash_addr[0];
+				flash_data = cur_flash_addr[7:0];
 			flash_latch = flash_out_latch;
 			flash_continue = 1'b1;
 			if(flash_out_latch && flash_byte_ctr == 3)
 				next_state = STATE_WR_WAIT;
 		end
 
-		STATE_WR_WAIT: being
+		STATE_WR_WAIT: begin
 			ready_out = flash_out_latch && (flash_byte_ctr < 260);
 			flash_data = in_data;
 			flash_latch = flash_out_latch & in_data_latch;
