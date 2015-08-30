@@ -82,8 +82,8 @@ m3_ice_top t1(
 
 task send_command_0;
 	input reg [80*8:1] file_name;
-
 	integer resp_hack;
+	begin
 
 	$display("Start %s", file_name);
 
@@ -115,12 +115,13 @@ task send_command_0;
 	end
 
 	$display("End   %s", file_name);
+	end
 endtask
 
 task send_command_1;
 	input reg [80*8:1] file_name;
-
 	integer resp_hack;
+	begin
 
 	$display("Start %s", file_name);
 
@@ -152,6 +153,7 @@ task send_command_1;
 	end
 
 	$display("End   %s", file_name);
+	end
 endtask
 
 initial
