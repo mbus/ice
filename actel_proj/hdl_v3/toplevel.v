@@ -1,9 +1,14 @@
 module m3_ice_top(
 	input SYS_CLK,
 	input [4:1] PB, //These are active-low!
-	//input [4:1] DIP_SW,
+	input [2:1] DIP_SW,
 	output [4:1] LED,
-	inout [5:0] USER,
+	
+	output FLASH_D,
+	output FLASH_C,
+	output FLASH_CSn,
+	output FLASH_WPn,
+	input FLASH_Q,
 	
 	output M3_0P6_SW,
 	output M3_1P2_SW,
@@ -74,6 +79,7 @@ ice_bus ic1(
 	.clk(SYS_CLK_BUF),
 	
 	.PB(PB[4:1]),
+    .DIP_SW(DIP_SW[2:1]),
 	
 	.PMU_SCL(PMU_SCL),
 	.PMU_SDA(PMU_SDA),
@@ -90,7 +96,11 @@ ice_bus ic1(
 	.FPGA_MB_EMO(FPGA_MB_EMO),
 	.FPGA_MB_ECI(FPGA_MB_ECI),
 
-	.USER(USER),
+	.FLASH_D(FLASH_D),
+	.FLASH_C(FLASH_C),
+	.FLASH_CSn(FLASH_CSn),
+	.FLASH_WPn(FLASH_WPn),
+	.FLASH_Q(FLASH_Q),
 	.GPIO(GPIO),
 	
 	.M3_VBATT_SW(M3_VBATT_SW),

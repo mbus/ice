@@ -5,7 +5,13 @@ module ice_bus (
 	input clk,
 	
 	input [4:1] PB,
-	inout [5:0] USER,
+    input [2:1] DIP_SW,
+	
+	output FLASH_D,
+	output FLASH_C,
+	output FLASH_CSn,
+	output FLASH_WPn,
+	input FLASH_Q,
 
 	//USB to UART signals
 	input USB_UART_TXD,
@@ -48,9 +54,9 @@ module ice_bus (
 parameter NUM_DEV = 7;
 
 //User lines are current not used as there are no daughterboards which have been made
-assign USER[5:1] = 5'd0;
+//assign USER[5:1] = 5'd0;
 //Direct assignment of GOC signal to debug header
-assign USER[0] = debug[3];
+//assign USER[0] = debug[3];
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -70,6 +76,39 @@ uart u1(
 	.tx_empty(uart_tx_empty),
 	.rx_data(uart_rx_data),
 	.rx_latch(uart_rx_latch)
+);
+
+wire [7:0] fc_data;
+wire fc_data_strobe;
+wire ice_bus_idle;
+flash_controller fc0(
+	.clk(clk),
+	.rst(reset),
+
+	//Interface to flash chip
+	/* .FLASH_D(USER[3]),
+	.FLASH_C(USER[2]),
+	.FLASH_CSn(USER[1]),
+	.FLASH_WPn(USER[0]),
+	.FLASH_Q(USER[4]), */
+	.FLASH_D(FLASH_D),
+	.FLASH_C(FLASH_C),
+	.FLASH_CSn(FLASH_CSn),
+	.FLASH_WPn(FLASH_WPn),
+	.FLASH_Q(FLASH_Q),
+	
+	//Interject signals to/from UART controller
+	.uart_data(uart_rx_data),
+	.uart_data_strobe(uart_rx_latch),
+	.out_data(fc_data),
+	.out_data_strobe(fc_data_strobe),
+
+	//Also listen to state of ICE bus controller
+	.ice_bus_idle(ice_bus_idle),
+
+	//Last inputs select the desired functionality of this block
+	.record_enable(DIP_SW[2]),
+	.playback_enable(DIP_SW[1])
 );
 
 //Global event counter is used for tagging messages in time
@@ -119,7 +158,8 @@ ice_bus_controller #(NUM_DEV) ice1(
 	.sl_latch_tail(sl_latch_tail),
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request),
-	.sl_arb_grant(sl_arb_grant)
+	.sl_arb_grant(sl_arb_grant),
+    .ice_bus_idle(ice_bus_idle)
 );
 
 //Basics module responds to basic requests (query info, etc)

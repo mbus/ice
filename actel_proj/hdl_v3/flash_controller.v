@@ -37,7 +37,8 @@ wire flash_ready;
 assign out_data = flash_out_data;
 
 //FIFO used to buffer incoming data from 
-wire fifo_out_bus_idle, fifo_out_latch, fifo_out_valid;
+wire fifo_out_bus_idle, fifo_out_valid;
+reg fifo_out_latch;
 wire [7:0] fifo_out_uart_data;
 fifo #(9,9) ff(
 	.clk(clk),
@@ -77,7 +78,7 @@ parameter STATE_PB_WAIT = 5;
 parameter STATE_PB_DATA = 6;
 
 reg [3:0] state, next_state;
-reg [31:0] timer, wait_timer, timer_shift;
+reg [31:0] timer, timer_shift;
 reg save_timer, just_recorded_timer;
 reg wait_flag, clear_wait_flag, set_wait_flag;
 reg wait_ctr_clear, wait_ctr_incr;
@@ -99,7 +100,7 @@ always @(posedge rst or posedge clk) begin
 			wait_ctr <= `SD 0;
 		else if(wait_ctr_incr) begin
 			wait_ctr <= `SD wait_ctr + 1;
-			wait_timer <= `SD {wait_timer[23:0], flash_out_data};
+			timer_shift <= `SD {timer_shift[23:0], flash_out_data};
 		end
 
 		if(clear_wait_flag)
@@ -128,6 +129,7 @@ always @* begin
 	set_wait_flag = 1'b0;
 	save_timer = 1'b0;
 	clear_timer_flag = 1'b0;
+	fifo_out_latch = 1'b0;
 
 	case(state)
 		STATE_IDLE: begin
@@ -140,6 +142,7 @@ always @* begin
 		STATE_REC_PROGRAM: begin
 			flash_data = fifo_out_uart_data;
 			flash_latch = flash_ready & fifo_out_valid;
+			fifo_out_latch = flash_ready & fifo_out_valid;
 			if(flash_latch)
 				clear_timer_flag = 1'b1;
 			if(fifo_out_valid && fifo_out_bus_idle && ~just_recorded_timer) begin
@@ -154,11 +157,12 @@ always @* begin
 		end
 
 		STATE_REC_TIMER: begin
-			flash_data = timer_shift[7:0];
+			flash_data = timer_shift[31:24];
 			flash_latch = flash_ready;
+			wait_ctr_clear = 1'b0;
 			wait_ctr_incr = flash_ready;
-			if(flash_ready && wait_ctr == 4)
-				next_state = STATE_REC_TIMER;
+			if(flash_ready && wait_ctr == 3)
+				next_state = STATE_REC_PROGRAM;
 		end
 
 		STATE_PB_WAIT_READ: begin
@@ -170,7 +174,7 @@ always @* begin
 
 		STATE_PB_WAIT: begin
 			set_wait_flag = 1'b1;
-			if(timer > wait_timer)
+			if(timer > timer_shift)
 				next_state = STATE_PB_DATA;
 		end
 

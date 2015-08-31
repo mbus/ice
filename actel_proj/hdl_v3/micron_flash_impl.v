@@ -68,11 +68,13 @@ parameter STATE_IDLE = 0;
 parameter STATE_WR_INIT = 1;
 parameter STATE_WR_INIT2 = 2;
 parameter STATE_WR_INIT3 = 3;
-parameter STATE_WR_PROGRAM = 4;
-parameter STATE_WR_WAIT = 5;
-parameter STATE_RD_INIT = 6;
-parameter STATE_RD_ADDR = 7;
-parameter STATE_RD_DATA = 8;
+parameter STATE_WR_INIT4 = 4;
+parameter STATE_WR_PROGRAM = 5;
+parameter STATE_WR_PROGRAM2 = 6;
+parameter STATE_WR_WAIT = 7;
+parameter STATE_RD_INIT = 8;
+parameter STATE_RD_ADDR = 9;
+parameter STATE_RD_DATA = 10;
 
 reg [3:0] state, next_state;
 reg [8:0] flash_byte_ctr;
@@ -88,8 +90,9 @@ always @(posedge rst or posedge clk) begin
 		state <= `SD next_state;
 
 		if(flash_continue & flash_latch) begin
-				flash_byte_ctr <= `SD flash_byte_ctr + 1;
-		end else begin
+				if(flash_byte_ctr < 9'h1ff)
+					flash_byte_ctr <= `SD flash_byte_ctr + 1;
+		end else if(flash_latch) begin
 				flash_byte_ctr <= `SD 0;
 		end
 
@@ -121,46 +124,62 @@ always @* begin
 			flash_latch = 1'b1;
 			next_state = STATE_WR_INIT2;
 		end
-
+		
+ 
 		STATE_WR_INIT2: begin
 			flash_data = FLASH_CMD_BE;
-			flash_latch = flash_out_latch;
-			if(flash_out_latch)
+			flash_latch = flash_ready;
+			if(flash_ready)
 				next_state = STATE_WR_INIT3;
 		end
 
 		STATE_WR_INIT3: begin
 			flash_data = FLASH_CMD_RDSR;
-			flash_latch = flash_out_latch;
-			flash_continue = (flash_byte_ctr < 3);
-			if(flash_out_latch && ~flash_continue) begin
-				flash_latch = 1'b0;
-				flash_incr_addr = 1'b1;
-				if(out_data[0] == 1'b0)
-					next_state = STATE_WR_PROGRAM;
+			flash_latch = flash_ready;
+			flash_continue = (flash_byte_ctr < 3) || out_data[0];
+			if(flash_ready && ~flash_continue) begin
+				next_state = STATE_WR_INIT4;
 			end
 		end
-
+		
+		STATE_WR_INIT4: begin
+			flash_data = FLASH_CMD_WREN;
+			flash_latch = flash_ready;
+			if(flash_ready)
+				next_state = STATE_WR_PROGRAM;
+		end
+		
 		STATE_WR_PROGRAM: begin
+			//Must wait for last extra byte to go through
+			flash_data = FLASH_CMD_PP;
+			flash_latch = flash_ready;
+			flash_continue = 1'b1;
+			if(flash_ready) 
+				next_state = STATE_WR_PROGRAM2;
+		end
+
+		STATE_WR_PROGRAM2: begin
 			if(flash_byte_ctr == 1)
 				flash_data = cur_flash_addr[23:16];
 			else if(flash_byte_ctr == 2)
 				flash_data = cur_flash_addr[15:8];
 			else if(flash_byte_ctr == 3)
 				flash_data = cur_flash_addr[7:0];
-			flash_latch = flash_out_latch;
+			flash_latch = flash_ready;
 			flash_continue = 1'b1;
-			if(flash_out_latch && flash_byte_ctr == 3)
+			if(flash_ready && flash_byte_ctr == 3)
 				next_state = STATE_WR_WAIT;
 		end
 
 		STATE_WR_WAIT: begin
-			ready_out = flash_out_latch && (flash_byte_ctr < 260);
+			ready_out = flash_ready;
 			flash_data = in_data;
-			flash_latch = flash_out_latch & in_data_latch;
-			flash_continue = (flash_byte_ctr < 260);
-			if(flash_out_latch && flash_byte_ctr == 260)
+			flash_latch = in_data_latch;
+			flash_continue = (flash_byte_ctr < 259);
+			if(flash_latch && flash_byte_ctr == 259) begin
+				flash_incr_addr = 1'b1;
 				next_state = STATE_WR_INIT3;
+			end
 		end
 
 		STATE_RD_INIT: begin

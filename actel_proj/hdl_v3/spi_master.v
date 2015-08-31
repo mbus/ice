@@ -4,7 +4,7 @@ module spi_master(
 	input clk,
 	input rst,
 
-	output reg spi_mosi,
+	output spi_mosi,
 	input spi_miso,
 	output reg spi_clk,
 	output reg spi_csn,
@@ -32,6 +32,8 @@ reg shift_mosi_out, shift_miso_in;
 reg next_csn;
 reg [10:0] clk_counter;
 reg [7:0] data_sr;
+
+assign spi_mosi = data_sr[7];
 
 always @(posedge rst or posedge clk) begin
 	if(rst) begin
@@ -79,7 +81,7 @@ always @* begin
 	case(state)
 		STATE_IDLE: begin
 			out_ready = 1'b1;
-			next_csn = in_continue_latched;
+			next_csn = ~in_continue_latched;
 			latch_in_data = in_latch;
 			clk_counter_clear = 1'b1;
 			if(in_latch)
@@ -89,9 +91,9 @@ always @* begin
 		STATE_TRANS1: begin
 			next_csn = 1'b0;
 			clk_counter_en = 1'b1;
-			shift_mosi_out = (clk_counter[CLK_DIV_BIT:0] == {{CLK_DIV_BIT}{1'b0}});
+			shift_mosi_out = (clk_counter[CLK_DIV_BIT:0] == {{CLK_DIV_BIT}{1'b0}}) && (clk_counter != 0);
 			shift_miso_in = (clk_counter[CLK_DIV_BIT:0] == {1'b0, {{CLK_DIV_BIT-1'd1}{1'b1}}});
-			if(clk_counter[CLK_DIV_BIT+3])
+			if(clk_counter[CLK_DIV_BIT+4])
 				next_state = STATE_TRANS2;
 		end
 

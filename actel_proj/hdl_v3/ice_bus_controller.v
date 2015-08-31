@@ -1,6 +1,6 @@
 `include "include/ice_def.v"
 
-module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_addr, sl_tail, sl_latch_tail, sl_data, sl_arb_request, sl_arb_grant);
+module ice_bus_controller(clk, rst, rx_char, rx_char_valid, tx_char, tx_char_valid, tx_char_ready, generate_nak, evt_id, ma_data, ma_addr, ma_data_valid, ma_frame_valid, sl_overflow, sl_addr, sl_tail, sl_latch_tail, sl_data, sl_arb_request, sl_arb_grant, ice_bus_idle);
 parameter NUM_DEV=2;
 
 input clk;
@@ -31,6 +31,7 @@ output reg sl_latch_tail;
 input [8:0] sl_data;
 input [NUM_DEV-1:0] sl_arb_request;
 output [NUM_DEV-1:0] sl_arb_grant;
+output reg ice_bus_idle;
 
 //For now the master bus is just a direct connection to the UART rx character bus.  May always be this way??
 assign ma_data = rx_char;
@@ -74,9 +75,11 @@ always @* begin
 	ma_frame_valid = 1'b0;
 	set_byte_counter = 1'b0;
 	generate_nak = 1'b0;
+    ice_bus_idle = 1'b0;
 	
 	case(state)
 		STATE_RX_IDLE: begin
+            ice_bus_idle = 1'b1;
 			record_addr = 1'b1;
 			ma_frame_valid = rx_char_valid;
 			byte_counter_reset = 1'b1;
