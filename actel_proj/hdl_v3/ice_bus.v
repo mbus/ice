@@ -81,8 +81,8 @@ uart u1(
 wire [7:0] fc_data;
 wire fc_data_strobe;
 wire ice_bus_idle;
-wire record_enable = DIP_SW[2];
-wire playback_enable = DIP_SW[1];
+wire record_enable = ~DIP_SW[1];
+wire playback_enable = ~DIP_SW[2];
 wire [7:0] ice_rx_data = (playback_enable) ? fc_data : uart_rx_data;
 wire ice_rx_latch = (playback_enable) ? fc_data_strobe : uart_rx_latch;
 flash_controller fc0(
