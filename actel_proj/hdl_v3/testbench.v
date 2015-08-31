@@ -17,7 +17,7 @@ reg clk;
 reg reset;
 
 
-wire ice_dout, ice_cout, ice_din, ice_cin;
+wire ice_0_dout, ice_0_cout, ice_1_dout, ice_1_cout;
 
 wire uart_0_rxd;
 wire uart_0_rx_latch;
@@ -43,10 +43,10 @@ m3_ice_top t0(
 	.USB_UART_RXD(uart_0_rxd),
 	.USB_UART_TXD(uart_0_txd),
 
-	.FPGA_MB_DOUT(ice_dout),
-	.FPGA_MB_COUT(ice_cout),
-	.FPGA_MB_DIN(ice_din),
-	.FPGA_MB_CIN(ice_cin)
+	.FPGA_MB_DOUT(ice_0_dout),
+	.FPGA_MB_COUT(ice_0_cout),
+	.FPGA_MB_DIN(ice_1_dout),
+	.FPGA_MB_CIN(ice_1_cout)
 );
 
 wire uart_1_rxd;
@@ -74,10 +74,10 @@ m3_ice_top t1(
 	.USB_UART_RXD(uart_1_rxd),
 	.USB_UART_TXD(uart_1_txd),
 
-	.FPGA_MB_DOUT(ice_din),
-	.FPGA_MB_COUT(ice_cin),
-	.FPGA_MB_DIN(ice_dout),
-	.FPGA_MB_CIN(ice_cout)
+	.FPGA_MB_DOUT(ice_1_dout),
+	.FPGA_MB_COUT(ice_1_cout),
+	.FPGA_MB_DIN(ice_0_dout),
+	.FPGA_MB_CIN(ice_0_cout)
 );
 
 task send_command_0;
