@@ -180,11 +180,14 @@ begin
 
 	send_command_1("../test_sequences/mbus_set_master_on");
 	send_command_1("../test_sequences/mbus_set_master_off");
-	send_command_1("../test_sequences/mbus_set_snoop_match_all_short");
-	send_command_1("../test_sequences/mbus_set_snoop_match_all_long");
+	send_command_1("../test_sequences/mbus_set_short_prefix_to_4");
+	send_command_1("../test_sequences/mbus_set_long_prefix_to_12345");
+	//send_command_1("../test_sequences/mbus_set_snoop_match_all_short");
+	//send_command_1("../test_sequences/mbus_set_snoop_match_all_long");
 
 	send_command_0("../test_sequences/mbus_set_master_on");
 	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
+	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
 
 	//Wait for stuff to happen...
 	for(i = 0; i < 50000; i=i+1) begin

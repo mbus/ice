@@ -39,6 +39,7 @@ module basics_int(
 	//MBus settings
 	output reg mbus_master_mode,
 	output reg [19:0] mbus_long_addr,
+	output reg  [3:0] mbus_short_addr_override,
 	output reg [21:0] mbus_clk_div,
 	output reg mbus_tx_prio,
 	
@@ -369,7 +370,7 @@ always @(posedge rst or posedge clk) begin
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
 		mbus_master_mode <= `SD 1'b0;
 		mbus_tx_prio <= `SD 1'b0;
-		mbus_long_addr <= `SD 20'h00000;
+		mbus_long_addr <= `SD 20'hfffff;
 		mbus_clk_div <= `SD 22'h000020;
 	end else begin
 		state <= `SD next_state;
@@ -423,16 +424,19 @@ always @(posedge rst or posedge clk) begin
 					capability_query <= `SD 1'b1;
 				end
 			end else if(latched_command[13]) begin
-				if(ma_data == 8'h6d) begin
+				if(ma_data == "m") begin
 					parameter_staging <= `SD {mbus_master_mode, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h70) begin
+				end else if(ma_data == "p") begin
 					parameter_staging <= `SD {mbus_tx_prio, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h6c) begin
-					parameter_staging <= `SD mbus_long_addr;
+				end else if(ma_data == "l") begin
+					parameter_staging <= `SD {4'b0000, mbus_long_addr};
 					parameter_shift_countdown <= `SD 3;
-				end else if(ma_data == 8'h63) begin
+				end else if(ma_data == "s") begin
+					parameter_staging <= `SD {4'b000, mbus_short_addr_override, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "c") begin
 					parameter_staging <= `SD mbus_clk_div;
 					parameter_shift_countdown <= `SD 3;
 				end
@@ -477,16 +481,19 @@ always @(posedge rst or posedge clk) begin
 				to_parameter <= `SD 7;
 				parameter_shift_countdown <= `SD 2;
 			end else if(latched_command[14]) begin
-				if(ma_data == 8'h6c) begin
+				if(ma_data == "l") begin
 					to_parameter <= `SD 8;
 					parameter_shift_countdown <= `SD 3;
-				end else if(ma_data == 8'h70) begin
+				end else if(ma_data == "s") begin
+					to_parameter <= `SD 14;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "p") begin
 					to_parameter <= `SD 13;
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h6d) begin
+				end else if(ma_data == "m") begin
 					to_parameter <= `SD 9;
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h63) begin
+				end else if(ma_data == "c") begin
 					to_parameter <= `SD 10;
 					parameter_shift_countdown <= `SD 3;
 				end
@@ -521,6 +528,8 @@ always @(posedge rst or posedge clk) begin
 				gpio_int_enable_temp <= `SD {gpio_int_enable_temp[15:0], ma_data};
 			else if(to_parameter == 13)
 				mbus_tx_prio <= `SD ma_data[0];
+			else if(to_parameter == 14)
+				mbus_short_addr_override <= `SD ma_data[3:0];
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end
