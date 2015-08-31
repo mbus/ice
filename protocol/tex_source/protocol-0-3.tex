@@ -228,9 +228,11 @@
     The current MBus implementation operates on 4-byte words, so the data field length must be a multiple of four.
     As with discrete ({\tt `d'}) messages, the length field limits the maximum message size to 255 bytes.  Longer messages should be fragmented.
   \item At the end of the message, snoop messages shall append one additional
-    byte. This additional byte shall indicate the control bits of the snooped
-    message. Control Bit~0 shall be mapped to bit 0 and Control
-    Bit~1 shall be mapped to bit 1. The remaining bits are undefined.
+    control byte:
+    \subitem Bit~0: Control Bit 0
+    \subitem Bit~1: Control Bit 1
+    \subitem Bit~2: RX was broadcast
+    \subitem Bit~3: RX had an error
   \item This message is sent only from the ICE board to report messages it has
     snooped (but not ACK'd).
   \item Messages that match both the ICE address and the snoop address (that
