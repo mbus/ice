@@ -242,7 +242,7 @@ reg force_mbus_reset;
 
 always @(posedge reset or posedge clk) begin
 	if(reset) begin
-		was_mbus_master_mode <= `SD mbus_master_mode;
+		was_mbus_master_mode <= `SD 1'b0;//mbus_master_mode;
 		force_mbus_reset <= `SD 1'b0;
 	end else begin
 		was_mbus_master_mode <= `SD mbus_master_mode;
@@ -394,8 +394,9 @@ ein_int ei0(
 );
 
 //GPIO interface
-//assign sl_arb_request[4] = 1'b0;
-gpio_int gi1(
+assign sl_arb_request[4] = 1'b0;
+assign GPIO = 24'd0;
+/*gpio_int gi1(
 	.clk(clk),
 	.reset(reset),
 	
@@ -416,7 +417,7 @@ gpio_int gi1(
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
 	.incr_ctr(gpio_ctr_incr)
-);
+);*/
 
 //PMU interface
 wire [7:0] pmu_debug;
