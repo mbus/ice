@@ -275,35 +275,33 @@
           \begin{bytefield} \\
             \colorbitbox{lightgreen}{8}{`m'} &
             \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 7)} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 4)} &
             \colorbitbox{lightergreen}{8}{`l'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
+            \bitbox{8}{Full Prefix}
           \end{bytefield}
-        \item {\bf Default:} {\tt 0xfffff0 0xfffff0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 6 bytes. The first three bytes shall
-          be considered the ones mask the second three bytes shall be
-          considered the zeros mask. The masks are 20~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
+        \item {\bf Default:} {\tt 0xXfffff} (Disabled)
+        \item This shall be followed by 3 bytes. An MBus full prefix is
+          20~bits long, the top 4~bits shall be ignored.
       \end{itemize}
-    \paragraph{\texttt{0x6d 0x73 `ms'}: Set MBus Short Prefix}
+    \paragraph{\texttt{0x6d 0x73 `ms'}: Set MBus Short Prefix Override}
       \begin{itemize}
         \item[]
           \begin{bytefield} \\
             \colorbitbox{lightgreen}{8}{`m'} &
             \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 3)} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 2)} &
             \colorbitbox{lightergreen}{8}{`s'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
+            \bitbox{8}{Short Prefix}
           \end{bytefield}
-        \item {\bf Default:} {\tt 0xf0 0xf0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 2 bytes. The first byte shall
-          be considered the ones mask the second byte shall be
-          considered the zeros mask. The masks are 4~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
+        \item {\bf Default:} {\tt 0xXf} (Disabled)
+        \item This shall be followed by 1 byte. An MBus short prefix is 4~bits
+          long, the top 4~bits shall be ignored.
+        \item If this value is not set, the ICE board will participate in
+          enumeration. If this value is set after enumeration, it will
+          override the selected address.
+        \item The current ICE protocol does not have a command for reading out
+          the state of internal enumeration (whether ICE has been enumerated
+          and what address it was assigned).
         \item {\bf NOTE:} Changing the short prefix after enumeration is a
           violation of the MBus protocol. The ICE board will permit this, but
           it may have unexpected consequences.
