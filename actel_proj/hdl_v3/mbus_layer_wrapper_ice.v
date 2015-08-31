@@ -168,6 +168,7 @@ message_fifo mf1(
 
 reg [31:0] mbus_txaddr, mbus_txdata;
 wire [31:0] mbus_rxdata, mbus_rxaddr;
+wire [1:0] ice_export_control_bits;
 
 wire mbus_txack, mbus_txfail, mbus_txsucc;
 reg mbus_txpend, mbus_txpend_next, mbus_txreq, mbus_txreq_next, mbus_txresp_ack;
@@ -251,6 +252,7 @@ mbus_general_layer_wrapper mclw1(
     .RX_BROADCAST(mbus_rxbcast),
     .RX_FAIL(mbus_rxfail),
     .RX_PEND(mbus_rxpend),
+    .ice_export_control_bits(ice_export_control_bits),
 
     //TX Ports
     .TX_ADDR(mbus_txaddr),
@@ -332,7 +334,7 @@ always @(posedge reset or posedge clk) begin
 			data_ctr_tot <= `SD 8'h00;
 		end else if(store_status) begin
 			cur_status_bits <= `SD {mbus_rxfail, mbus_rxpend};
-			status_bits <= `SD status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, 2'b00};
+			status_bits <= `SD status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, ice_export_control_bits};
 		end
 			
 		if(next_state != state) begin
