@@ -16,6 +16,9 @@ reg [7:0] mem_1[0:`MEM_SIZE];
 reg clk;
 reg reset;
 
+reg flash_record;
+reg flash_playback;
+
 
 wire ice_dout, ice_cout, ice_din, ice_cin;
 
@@ -50,7 +53,7 @@ M25P05A f0(
 m3_ice_top t0(
 	.SYS_CLK(clk),
 	.PB({3'b111,~reset}),
-    .DIP_SW({2'b10}),
+    .DIP_SW({flash_record, flash_playback}),
 	
     .FLASH_D(flash_d),
 	.FLASH_C(flash_c),
@@ -179,6 +182,8 @@ begin
 	//Initialize the clock...
 	clk = 0;
 	reset = 0;
+	flash_record = 1'b1;
+	flash_playback = 1'b0;
 
 	// top-level resets
 	uart_0_tx_latch = 1'b0;
@@ -204,6 +209,22 @@ begin
 	for (l=0; l<50; l=l+1) begin
 		send_command_0("C:\\Users\\Ben Kempke\\Documents\\repos\\ice\\actel_proj\\test_sequences\\power_1p2_on");
 	end
+	
+	flash_record = 1'b0;
+	flash_playback = 1'b1;
+	//Wait for the reset circuitry to kick in...
+	@ (posedge clk);
+	@ (posedge clk);
+	@ (posedge clk);
+	`SD reset = 1;
+	//Need a longer reset to give the flash a chance to write out the last page program
+	for(i = 0; i < 3000; i=i+1) begin
+		@(posedge clk);
+	end
+	`SD reset = 0;
+	@ (posedge clk);
+	@ (posedge clk);
+	@ (posedge clk);
 
 	/*send_command_1("../test_sequences/mbus_set_master_on");
 	send_command_1("../test_sequences/mbus_set_master_off");
@@ -214,7 +235,7 @@ begin
 	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");*/
 
 	//Wait for stuff to happen...
-	for(i = 0; i < 300000; i=i+1) begin
+	for(i = 0; i < 500000; i=i+1) begin
 		@(posedge clk);
 	end
 

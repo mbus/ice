@@ -75,26 +75,31 @@ parameter STATE_REC_TIMER_INIT = 2;
 parameter STATE_REC_TIMER = 3;
 parameter STATE_PB_WAIT_READ = 4;
 parameter STATE_PB_WAIT = 5;
-parameter STATE_PB_DATA = 6;
+parameter STATE_PB_COMMAND = 6;
+parameter STATE_PB_DATA = 7;
 
 reg [3:0] state, next_state;
 reg [31:0] timer, timer_shift;
 reg save_timer, just_recorded_timer;
-reg wait_flag, clear_wait_flag, set_wait_flag;
 reg wait_ctr_clear, wait_ctr_incr;
 reg clear_timer_flag;
+reg first_round_flag;
 reg [8:0] wait_ctr;
 
 always @(posedge rst or posedge clk) begin
 
 	if(rst) begin
 		timer <= `SD 32'd0;
-		wait_flag <= `SD 1'b0;
+		first_round_flag <= `SD 1'b1;
 		state <= `SD STATE_IDLE;
 	end else begin
 		state <= `SD next_state;
 
-		timer <= `SD timer + 1;
+		//Base all timing off of first command, not boot-up time
+		if(~first_round_flag)
+			timer <= `SD timer + 1;
+		if((record_enable & fifo_out_valid) | (playback_enable & flash_ready))
+			first_round_flag <= `SD 1'b0;
 
 		if(wait_ctr_clear)
 			wait_ctr <= `SD 0;
@@ -102,11 +107,6 @@ always @(posedge rst or posedge clk) begin
 			wait_ctr <= `SD wait_ctr + 1;
 			timer_shift <= `SD {timer_shift[23:0], flash_out_data};
 		end
-
-		if(clear_wait_flag)
-			wait_flag <= `SD 1'b0;
-		else if(set_wait_flag)
-			wait_flag <= `SD 1'b1;
 
 		if(save_timer) begin
 			just_recorded_timer <= `SD 1'b1;
@@ -125,8 +125,6 @@ always @* begin
 	out_data_strobe = 1'b0;
 	wait_ctr_clear = 1'b1;
 	wait_ctr_incr = 1'b0;
-	clear_wait_flag = 1'b0;
-	set_wait_flag = 1'b0;
 	save_timer = 1'b0;
 	clear_timer_flag = 1'b0;
 	fifo_out_latch = 1'b0;
@@ -136,7 +134,7 @@ always @* begin
 			if(record_enable)
 				next_state = STATE_REC_PROGRAM;
 			else if(playback_enable)
-				next_state = STATE_PB_WAIT_READ;
+				next_state = STATE_PB_COMMAND;
 		end
 
 		STATE_REC_PROGRAM: begin
@@ -147,6 +145,7 @@ always @* begin
 				clear_timer_flag = 1'b1;
 			if(fifo_out_valid && fifo_out_bus_idle && ~just_recorded_timer) begin
 				flash_latch = 1'b0;
+				fifo_out_latch = 1'b0;
 				next_state = STATE_REC_TIMER_INIT;
 			end
 		end
@@ -168,21 +167,27 @@ always @* begin
 		STATE_PB_WAIT_READ: begin
 			wait_ctr_clear = 1'b0;
 			wait_ctr_incr = flash_ready;
-			if(flash_ready && wait_ctr == 4)
+			flash_latch = flash_ready;
+			if(flash_ready && wait_ctr == 3)
 				next_state = STATE_PB_WAIT;
 		end
 
 		STATE_PB_WAIT: begin
-			set_wait_flag = 1'b1;
 			if(timer > timer_shift)
+				next_state = STATE_PB_COMMAND;
+		end
+		
+		STATE_PB_COMMAND: begin
+			out_data_strobe = flash_ready;
+			flash_latch = flash_ready;
+			if(flash_ready)
 				next_state = STATE_PB_DATA;
 		end
 
 		STATE_PB_DATA: begin
-			clear_wait_flag = flash_ready;
 			out_data_strobe = flash_ready;
 			flash_latch = flash_ready;
-			if(ice_bus_idle && ~wait_flag)
+			if(ice_bus_idle)
 				next_state = STATE_PB_WAIT_READ;
 		end
 	endcase

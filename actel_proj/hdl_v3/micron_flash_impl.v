@@ -191,15 +191,15 @@ always @* begin
 
 		STATE_RD_ADDR: begin
 			//3 bytes addr, 1 byte dummy
-			flash_latch = flash_out_latch;
+			flash_latch = flash_ready;
 			flash_continue = 1'b1;
-			if(flash_out_latch && flash_byte_ctr == 4)
+			if(flash_ready && flash_byte_ctr == 5)
 				next_state = STATE_RD_DATA;
 		end
 
 		STATE_RD_DATA: begin
 			flash_continue = 1'b1;
-			flash_latch = flash_out_latch;
+			flash_latch = in_data_latch;
 			ready_out = flash_ready;
 		end
 	endcase

@@ -81,6 +81,10 @@ uart u1(
 wire [7:0] fc_data;
 wire fc_data_strobe;
 wire ice_bus_idle;
+wire record_enable = DIP_SW[2];
+wire playback_enable = DIP_SW[1];
+wire [7:0] ice_rx_data = (playback_enable) ? fc_data : uart_rx_data;
+wire ice_rx_latch = (playback_enable) ? fc_data_strobe : uart_rx_latch;
 flash_controller fc0(
 	.clk(clk),
 	.rst(reset),
@@ -107,8 +111,8 @@ flash_controller fc0(
 	.ice_bus_idle(ice_bus_idle),
 
 	//Last inputs select the desired functionality of this block
-	.record_enable(DIP_SW[2]),
-	.playback_enable(DIP_SW[1])
+	.record_enable(record_enable),
+	.playback_enable(playback_enable)
 );
 
 //Global event counter is used for tagging messages in time
@@ -135,8 +139,8 @@ ice_bus_controller #(NUM_DEV) ice1(
 	.clk(clk),
 	.rst(reset),
 
-	.rx_char(uart_rx_data),
-	.rx_char_valid(uart_rx_latch),
+	.rx_char(ice_rx_data),
+	.rx_char_valid(ice_rx_latch),
 	.tx_char(uart_tx_data),
 	.tx_char_valid(uart_tx_latch),
 	.tx_char_ready(uart_tx_empty),
