@@ -236,7 +236,9 @@ basics_int bi0(
 /* Need to reset the whole MBus node when starts/stops acting as the master
  * node, otherwise if nothing was plugged in, the input pins were floating
  * and it could be in a weird state. */
+assign sl_arb_request[2:1] = 2'b00;
 
+/*
 reg was_mbus_master_mode;
 reg force_mbus_reset;
 
@@ -256,6 +258,7 @@ always @(posedge reset or posedge clk) begin
 end
 
 wire [3:0] mb_debug;
+
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
 	.reset(reset | force_mbus_reset),
@@ -290,7 +293,7 @@ mbus_layer_wrapper_ice mb0(
 	.incr_ctr(mbus_ctr_incr),
 	
 	.debug(mb_debug)
-);
+);*/
 
 /*
 //Discrete interface module controls all of the discrete interface signals
@@ -394,9 +397,9 @@ ein_int ei0(
 );
 
 //GPIO interface
-assign sl_arb_request[4] = 1'b0;
-assign GPIO = 24'd0;
-/*gpio_int gi1(
+//assign sl_arb_request[4] = 1'b0;
+//assign GPIO = 24'd0;
+gpio_int gi1(
 	.clk(clk),
 	.reset(reset),
 	
@@ -417,7 +420,7 @@ assign GPIO = 24'd0;
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
 	.incr_ctr(gpio_ctr_incr)
-);*/
+);
 
 //PMU interface
 wire [7:0] pmu_debug;

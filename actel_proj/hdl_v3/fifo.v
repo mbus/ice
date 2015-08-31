@@ -28,14 +28,20 @@ ram #(9,DEPTH_LOG2) fr1(
 	.out_addr(tail)
 );
 
+reg [8:0] last_head, last_tail;
+
 assign in_data_overflow = (head == tail-1);
-assign out_data_valid = ~(head == tail);
+assign out_data_valid = ~(head == tail) && (last_head != tail) && (last_tail == tail);
 
 always @(posedge clk) begin
 	if(rst) begin
 		tail <= `SD 0;
 		head <= `SD 0;
+		last_tail <= `SD 0;
+		last_head <= `SD 0;
 	end else begin
+		last_tail <= `SD tail;
+		last_head <= `SD head;
 		if(in_data_latch)
 			head <= `SD head + 1;
 		if(out_data_latch)

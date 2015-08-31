@@ -178,6 +178,8 @@ wire capability_match = //Each time the feature set changes, it must be reflecte
 	(capability_counter == "b") || 
 	(capability_counter == "M") || 
 	(capability_counter == "m") || 
+	(capability_counter == "G") || 
+	(capability_counter == "g") || 
 	(capability_counter == "P") || 
 	(capability_counter == "p");
 always @* begin

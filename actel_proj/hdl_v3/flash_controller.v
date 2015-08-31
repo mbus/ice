@@ -91,6 +91,7 @@ always @(posedge rst or posedge clk) begin
 	if(rst) begin
 		timer <= `SD 32'd0;
 		first_round_flag <= `SD 1'b1;
+		just_recorded_timer <= `SD 1'b1;
 		state <= `SD STATE_IDLE;
 	end else begin
 		state <= `SD next_state;
