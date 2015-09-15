@@ -37,6 +37,7 @@ module basics_int(
 	output reg [23:0] gpio_int_enable,
 
 	//MBus settings
+	output reg mbus_force_reset,
 	output reg mbus_master_mode,
 	output reg mbus_snoop_enabled,
 	output reg [19:0] mbus_long_addr,
@@ -351,7 +352,7 @@ always @* begin
 end
 
 reg last_ma_frame_valid;
-reg [3:0] to_parameter;
+reg [4:0] to_parameter;
 always @(posedge rst or posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
@@ -369,6 +370,7 @@ always @(posedge rst or posedge clk) begin
 		gpio_level <= `SD 24'h000000;
 		uart_baud_div <= `SD 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
+		mbus_force_reset <= `SD 1'b0;
 		mbus_master_mode <= `SD 1'b0;
 		mbus_tx_prio <= `SD 1'b0;
 		mbus_master_mode <= `SD 1'b0;
@@ -437,6 +439,9 @@ always @(posedge rst or posedge clk) begin
 				end else if(ma_data == "l") begin
 					parameter_staging <= `SD {4'b0000, mbus_long_addr};
 					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == "r") begin
+					parameter_staging <= `SD {7'b0000000, mbus_force_reset, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == "s") begin
 					parameter_staging <= `SD {4'b000, mbus_short_addr_override, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
@@ -491,6 +496,9 @@ always @(posedge rst or posedge clk) begin
 				if(ma_data == "l") begin
 					to_parameter <= `SD 8;
 					parameter_shift_countdown <= `SD 3;
+				end else if(ma_data == "r") begin
+					to_parameter <= `SD 16;
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == "s") begin
 					to_parameter <= `SD 14;
 					parameter_shift_countdown <= `SD 1;
@@ -542,6 +550,8 @@ always @(posedge rst or posedge clk) begin
 				mbus_short_addr_override <= `SD ma_data[3:0];
 			else if(to_parameter == 15)
 				mbus_snoop_enabled <= `SD ma_data[0];
+			else if(to_parameter == 16)
+				mbus_force_reset <= `SD ma_data[0];
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end

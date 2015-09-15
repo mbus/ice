@@ -178,18 +178,16 @@ begin
 	@ (posedge clk);
 	@ (posedge clk);
 
-	send_command_1("../test_sequences/mbus_set_master_on");
-	send_command_1("../test_sequences/mbus_set_master_off");
-	//send_command_1("../test_sequences/mbus_set_short_prefix_to_4");
-	//send_command_1("../test_sequences/mbus_set_long_prefix_to_12345");
+	send_command_0("../test_sequences/mbus_reset_on");
 
-	send_command_0("../test_sequences/mbus_set_master_on");
-	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
-	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
+	send_command_1("../test_sequences/mbus_reset_on");
+	send_command_1("../test_sequences/mbus_reset_off");
 
 	send_command_1("../test_sequences/mbus_set_snoop_on");
 
 	send_command_0("../test_sequences/mbus_set_master_on");
+	send_command_0("../test_sequences/mbus_reset_off");
+
 	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
 	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
 
