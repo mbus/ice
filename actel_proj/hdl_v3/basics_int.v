@@ -370,7 +370,9 @@ always @(posedge rst or posedge clk) begin
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
 		mbus_master_mode <= `SD 1'b0;
 		mbus_tx_prio <= `SD 1'b0;
+		mbus_master_mode <= `SD 1'b0;
 		mbus_long_addr <= `SD 20'hfffff;
+		mbus_short_addr_override <= `SD 4'hf;
 		mbus_clk_div <= `SD 22'h000020;
 	end else begin
 		state <= `SD next_state;
