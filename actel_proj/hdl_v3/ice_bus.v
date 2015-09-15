@@ -198,20 +198,27 @@ basics_int bi0(
  * and it could be in a weird state. */
 
 reg was_mbus_master_mode;
+reg next_was_mbus_master_mode;
 reg force_mbus_reset;
+reg next_force_mbus_reset;
+
+always @* begin
+	next_was_mbus_master_mode = mbus_master_mode;
+
+	if(was_mbus_master_mode != mbus_master_mode) begin
+		next_force_mbus_reset = 1'b1;
+	end else begin
+		next_force_mbus_reset = 1'b0;
+	end
+end
 
 always @(posedge reset or posedge clk) begin
 	if(reset) begin
-		was_mbus_master_mode <= `SD mbus_master_mode;
+		was_mbus_master_mode <= `SD 1'b0;
 		force_mbus_reset <= `SD 1'b0;
 	end else begin
-		was_mbus_master_mode <= `SD mbus_master_mode;
-
-		if(was_mbus_master_mode != mbus_master_mode) begin
-			force_mbus_reset <= `SD 1'b1;
-		end else begin
-			force_mbus_reset <= `SD 1'b0;
-		end
+		was_mbus_master_mode <= `SD next_was_mbus_master_mode;
+        force_mbus_reset <= `SD next_force_mbus_reset;
 	end
 end
 
