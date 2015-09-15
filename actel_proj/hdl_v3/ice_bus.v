@@ -132,6 +132,7 @@ wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
 wire [23:0] gpio_int_enable;
 wire mbus_master_mode;
+wire mbus_snoop_enabled;
 wire mbus_tx_prio;
 wire [19:0] mbus_long_addr;
 wire  [3:0] mbus_short_addr_override;
@@ -174,6 +175,7 @@ basics_int bi0(
 
 	//MBus settings
 	.mbus_master_mode(mbus_master_mode),
+	.mbus_snoop_enabled(mbus_snoop_enabled),
 	.mbus_long_addr(mbus_long_addr),
 	.mbus_short_addr_override(mbus_short_addr_override),
 	.mbus_clk_div(mbus_clk_div),
@@ -224,6 +226,7 @@ mbus_layer_wrapper_ice mb0(
 	.CLKOUT(FPGA_MB_COUT),
 
 	.MASTER_NODE(mbus_master_mode),
+	.mbus_snoop_enabled(mbus_snoop_enabled),
 	.mbus_long_addr(mbus_long_addr),
 	.mbus_short_addr_override(mbus_short_addr_override),
 	.mbus_clk_div(mbus_clk_div),

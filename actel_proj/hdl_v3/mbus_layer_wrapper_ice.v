@@ -10,6 +10,7 @@ module mbus_layer_wrapper_ice(
 	input [19:0] mbus_long_addr,
 	input  [3:0] mbus_short_addr_override,
 	input MASTER_NODE,
+	input mbus_snoop_enabled,
 	input [21:0] mbus_clk_div,
 	input mbus_tx_prio,
 
@@ -231,6 +232,7 @@ mbus_general_layer_wrapper mclw1(
 
     .CLK_EXT(mbus_clk),
     .MASTER_EN(MASTER_NODE),
+    .mbus_snoop_enabled(mbus_snoop_enabled),
     .ADDRESS(mbus_long_addr),
 
     .ASSIGNED_ADDR_IN(assigned_addr),

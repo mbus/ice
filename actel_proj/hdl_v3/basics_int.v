@@ -38,6 +38,7 @@ module basics_int(
 
 	//MBus settings
 	output reg mbus_master_mode,
+	output reg mbus_snoop_enabled,
 	output reg [19:0] mbus_long_addr,
 	output reg  [3:0] mbus_short_addr_override,
 	output reg [21:0] mbus_clk_div,
@@ -371,6 +372,7 @@ always @(posedge rst or posedge clk) begin
 		mbus_master_mode <= `SD 1'b0;
 		mbus_tx_prio <= `SD 1'b0;
 		mbus_master_mode <= `SD 1'b0;
+		mbus_snoop_enabled <= `SD 1'b0;
 		mbus_long_addr <= `SD 20'hfffff;
 		mbus_short_addr_override <= `SD 4'hf;
 		mbus_clk_div <= `SD 22'h000020;
@@ -438,6 +440,9 @@ always @(posedge rst or posedge clk) begin
 				end else if(ma_data == "s") begin
 					parameter_staging <= `SD {4'b000, mbus_short_addr_override, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "S") begin
+					parameter_staging <= `SD {7'b0000000, mbus_snoop_enabled, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == "c") begin
 					parameter_staging <= `SD mbus_clk_div;
 					parameter_shift_countdown <= `SD 3;
@@ -489,6 +494,9 @@ always @(posedge rst or posedge clk) begin
 				end else if(ma_data == "s") begin
 					to_parameter <= `SD 14;
 					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "S") begin
+					to_parameter <= `SD 15;
+					parameter_shift_countdown <= `SD 1;
 				end else if(ma_data == "p") begin
 					to_parameter <= `SD 13;
 					parameter_shift_countdown <= `SD 1;
@@ -532,6 +540,8 @@ always @(posedge rst or posedge clk) begin
 				mbus_tx_prio <= `SD ma_data[0];
 			else if(to_parameter == 14)
 				mbus_short_addr_override <= `SD ma_data[3:0];
+			else if(to_parameter == 15)
+				mbus_snoop_enabled <= `SD ma_data[0];
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end
