@@ -575,8 +575,10 @@ always @(posedge rst or posedge clk) begin
 		if(shift_ver_in)
 			version_in <= `SD {version_in[7:0], ma_data};
 
-		if(latch_command) 
+		if(latch_command) begin
 			latched_command <= `SD {set_mbus_match, query_mbus_match, set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+			//                      14              13                12                    11                      10              9                 8               7                 6              5                4              3                2                  1                    0
+		end
 
 	end
 end
