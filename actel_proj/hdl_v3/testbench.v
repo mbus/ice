@@ -18,6 +18,14 @@ reg reset;
 
 
 wire ice_0_dout, ice_0_cout, ice_1_dout, ice_1_cout;
+wire ice_0_din,  ice_0_cin,  ice_1_din,  ice_1_cin;
+
+// http://www-inst.eecs.berkeley.edu/~cs152/fa06/handouts/CummingsHDLCON1999_BehavioralDelays_Rev1_1.pdf
+// Use LHS for delays in continuous assignment
+assign #10000 ice_0_din = ice_1_dout;
+assign #10000 ice_0_cin = ice_1_cout;
+assign #10000 ice_1_din = ice_0_dout;
+assign #10000 ice_1_cin = ice_0_cout;
 
 wire uart_0_rxd;
 wire uart_0_rx_latch;
@@ -45,8 +53,8 @@ m3_ice_top t0(
 
 	.FPGA_MB_DOUT(ice_0_dout),
 	.FPGA_MB_COUT(ice_0_cout),
-	.FPGA_MB_DIN(ice_1_dout),
-	.FPGA_MB_CIN(ice_1_cout)
+	.FPGA_MB_DIN(ice_0_din),
+	.FPGA_MB_CIN(ice_0_cin)
 );
 
 wire uart_1_rxd;
@@ -76,8 +84,8 @@ m3_ice_top t1(
 
 	.FPGA_MB_DOUT(ice_1_dout),
 	.FPGA_MB_COUT(ice_1_cout),
-	.FPGA_MB_DIN(ice_0_dout),
-	.FPGA_MB_CIN(ice_0_cout)
+	.FPGA_MB_DIN(ice_1_din),
+	.FPGA_MB_CIN(ice_1_cin)
 );
 
 task send_command_0;
