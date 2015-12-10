@@ -47,7 +47,7 @@ always @ (posedge reset or posedge clk) begin
 		rx_latch      <= `SD 0;
 		rx_d1         <= `SD 1;
 		rx_busy       <= `SD 0;
-		rx_sync	      <= `SD 0;
+		rx_sync	      <= `SD {{NUM_SYNC}{1'b1}};
 	end else begin
 		// Synchronize the asynch signal
 		rx_sync[0] <= `SD rx_in;
@@ -62,8 +62,8 @@ always @ (posedge reset or posedge clk) begin
 		// Start of frame detected, Proceed with rest of data
 		if (rx_busy) begin
 			rx_sample_cnt <= `SD rx_sample_cnt + 1;
-			// Logic to sample at middle of data (or just at the beginning since really this shouldn't be a big deal with bouncing...)
-			if (rx_sample_cnt == 1) begin
+			// Logic to sample at middle of data
+			if (rx_sample_cnt == baud_div[7:1]) begin
 				if ((rx_d == 1) && (rx_cnt == 0)) begin
 					rx_busy <= `SD 0;
 				end else begin
