@@ -25,6 +25,8 @@ module uart (
 	output reg rx_latch      //RX Data ready line (high for one rxclk cycle)
 );
 
+parameter NUM_SYNC=5;
+
 // Internal Variables 
 reg [7:0] tx_reg;
 reg [3:0] tx_cnt;
@@ -32,7 +34,8 @@ reg [3:0] rx_cnt;
 reg [15:0] rx_sample_cnt;
 reg [15:0] tx_sample_cnt;
 reg rx_d1;
-reg rx_d2;
+reg [NUM_SYNC-1:0] rx_sync;
+wire rx_d = rx_sync[NUM_SYNC-1];
 reg rx_busy;
 
 // UART RX Logic 
@@ -43,15 +46,15 @@ always @ (posedge reset or posedge clk) begin
 		rx_cnt        <= `SD 0;
 		rx_latch      <= `SD 0;
 		rx_d1         <= `SD 1;
-		rx_d2         <= `SD 1;
 		rx_busy       <= `SD 0;
+		rx_sync	      <= `SD {{NUM_SYNC}{1'b1}};
 	end else begin
 		// Synchronize the asynch signal
-		rx_d1 <= `SD rx_in;
-		rx_d2 <= `SD rx_d1;
+		rx_sync[0] <= `SD rx_in;
+		rx_sync[NUM_SYNC-1:1] <= `SD rx_sync[NUM_SYNC-2:0];
 		rx_latch <= `SD 0;
 		// Check if just received start of frame
-		if (!rx_busy && !rx_d2) begin
+		if (!rx_busy && !rx_d) begin
 			rx_busy       <= `SD 1;
 			rx_sample_cnt <= `SD 1;
 			rx_cnt        <= `SD 0;
@@ -59,20 +62,20 @@ always @ (posedge reset or posedge clk) begin
 		// Start of frame detected, Proceed with rest of data
 		if (rx_busy) begin
 			rx_sample_cnt <= `SD rx_sample_cnt + 1;
-			// Logic to sample at middle of data (or just at the beginning since really this shouldn't be a big deal with bouncing...)
-			if (rx_sample_cnt == 1) begin
-				if ((rx_d2 == 1) && (rx_cnt == 0)) begin
+			// Logic to sample at middle of data
+			if (rx_sample_cnt == baud_div[7:1]) begin
+				if ((rx_d == 1) && (rx_cnt == 0)) begin
 					rx_busy <= `SD 0;
 				end else begin
 					rx_cnt <= `SD rx_cnt + 1; 
 					// Start storing the rx data
 					if (rx_cnt > 0 && rx_cnt < 9) begin
-						rx_data[rx_cnt - 1] <= `SD rx_d2;
+						rx_data[rx_cnt - 1] <= `SD rx_d;
 					end
 					if (rx_cnt == 9) begin
 						rx_busy <= `SD 0;
 						// Check if End of frame received correctly
-						if (rx_d2 == 1) begin
+						if (rx_d == 1) begin
 							rx_latch     <= `SD 1;
 						end
 					end
