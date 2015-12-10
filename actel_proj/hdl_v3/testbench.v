@@ -19,8 +19,15 @@ reg reset;
 reg flash_record;
 reg flash_playback;
 
+wire ice_0_dout, ice_0_cout, ice_1_dout, ice_1_cout;
+wire ice_0_din,  ice_0_cin,  ice_1_din,  ice_1_cin;
 
-wire ice_dout, ice_cout, ice_din, ice_cin;
+// http://www-inst.eecs.berkeley.edu/~cs152/fa06/handouts/CummingsHDLCON1999_BehavioralDelays_Rev1_1.pdf
+// Use LHS for delays in continuous assignment
+assign #10000 ice_0_din = ice_1_dout;
+assign #10000 ice_0_cin = ice_1_cout;
+assign #10000 ice_1_din = ice_0_dout;
+assign #10000 ice_1_cin = ice_0_cout;
 
 wire uart_0_rxd;
 wire uart_0_rx_latch;
@@ -64,10 +71,10 @@ m3_ice_top t0(
 	.USB_UART_RXD(uart_0_rxd),
 	.USB_UART_TXD(uart_0_txd),
 
-	.FPGA_MB_DOUT(ice_dout),
-	.FPGA_MB_COUT(ice_cout),
-	.FPGA_MB_DIN(ice_din),
-	.FPGA_MB_CIN(ice_cin)
+	.FPGA_MB_DOUT(ice_0_dout),
+	.FPGA_MB_COUT(ice_0_cout),
+	.FPGA_MB_DIN(ice_0_din),
+	.FPGA_MB_CIN(ice_0_cin)
 );
 
 wire uart_1_rxd;
@@ -95,10 +102,10 @@ m3_ice_top t1(
 	.USB_UART_RXD(uart_1_rxd),
 	.USB_UART_TXD(uart_1_txd),
 
-	.FPGA_MB_DOUT(ice_din),
-	.FPGA_MB_COUT(ice_cin),
-	.FPGA_MB_DIN(ice_dout),
-	.FPGA_MB_CIN(ice_cout)
+	.FPGA_MB_DOUT(ice_1_dout),
+	.FPGA_MB_COUT(ice_1_cout),
+	.FPGA_MB_DIN(ice_1_din),
+	.FPGA_MB_CIN(ice_1_cin)
 );
 
 task send_command_0;
@@ -206,6 +213,7 @@ begin
 		@(posedge clk);
 	end
 
+	send_command_0("../test_sequences/mbus_reset_on");
 	for (l=0; l<50; l=l+1) begin
 		send_command_0("C:\\Users\\Ben Kempke\\Documents\\repos\\ice\\actel_proj\\test_sequences\\power_1p2_on");
 	end
@@ -231,8 +239,22 @@ begin
 	send_command_1("../test_sequences/mbus_set_snoop_match_all_short");
 	send_command_1("../test_sequences/mbus_set_snoop_match_all_long");
 
+	send_command_1("../test_sequences/mbus_reset_on");
+	send_command_1("../test_sequences/mbus_reset_off");
+
+	send_command_1("../test_sequences/mbus_set_snoop_on");
+
 	send_command_0("../test_sequences/mbus_set_master_on");
-	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");*/
+	send_command_0("../test_sequences/mbus_reset_off");
+
+	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
+	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
+
+	send_command_1("../test_sequences/mbus_set_snoop_off");
+	send_command_1("../test_sequences/mbus_set_short_prefix_to_4");
+
+	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
+	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
 
 	//Wait for stuff to happen...
 	for(i = 0; i < 500000; i=i+1) begin

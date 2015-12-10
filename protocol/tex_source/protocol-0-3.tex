@@ -228,9 +228,11 @@
     The current MBus implementation operates on 4-byte words, so the data field length must be a multiple of four.
     As with discrete ({\tt `d'}) messages, the length field limits the maximum message size to 255 bytes.  Longer messages should be fragmented.
   \item At the end of the message, snoop messages shall append one additional
-    byte. This additional byte shall indicate the control bits of the snooped
-    message. Control Bit~0 shall be mapped to bit 0 and Control
-    Bit~1 shall be mapped to bit 1. The remaining bits are undefined.
+    control byte:
+    \subitem Bit~0: Control Bit 0
+    \subitem Bit~1: Control Bit 1
+    \subitem Bit~2: RX was broadcast
+    \subitem Bit~3: RX had an error
   \item This message is sent only from the ICE board to report messages it has
     snooped (but not ACK'd).
   \item Messages that match both the ICE address and the snoop address (that
@@ -269,86 +271,74 @@
 \begin{itemize}
   \item The first byte of the message shall define which parameter is to
     be configured.
+    \paragraph{\texttt{0x6d 0x72 `mr'}: Assert Internal MBus Reset}
+      \begin{itemize}
+        \item[]
+          \begin{bytefield} \\
+            \colorbitbox{lightgreen}{8}{`m'} &
+            \colorbitbox{lightred}{8}{Event ID} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 2)} &
+            \colorbitbox{lightergreen}{8}{`r'} &
+            \bitbox{8}{MBus Reset}
+          \end{bytefield}
+        \item {\bf Default:} {\tt 0x0} (Disabled)
+        \item This command controls a signal that will hold the internal MBus
+          module in reset. While in reset, COUT and DOUT are held high. This
+          is useful for bootstrapping when tying multiple ice boards together
+          in a loop.
+      \end{itemize}
     \paragraph{\texttt{0x6d 0x6c `ml'}: Set MBus Full Prefix}
       \begin{itemize}
         \item[]
           \begin{bytefield} \\
             \colorbitbox{lightgreen}{8}{`m'} &
             \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 7)} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 4)} &
             \colorbitbox{lightergreen}{8}{`l'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
+            \bitbox{8}{Full Prefix}
           \end{bytefield}
-        \item {\bf Default:} {\tt 0xfffff0 0xfffff0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 6 bytes. The first three bytes shall
-          be considered the ones mask the second three bytes shall be
-          considered the zeros mask. The masks are 20~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
+        \item {\bf Default:} {\tt 0xXfffff} (Disabled)
+        \item This shall be followed by 3 bytes. An MBus full prefix is
+          20~bits long, the top 4~bits shall be ignored.
       \end{itemize}
-    \paragraph{\texttt{0x6d 0x73 `ms'}: Set MBus Short Prefix}
+    \paragraph{\texttt{0x6d 0x73 `ms'}: Set MBus Short Prefix Override}
       \begin{itemize}
         \item[]
           \begin{bytefield} \\
             \colorbitbox{lightgreen}{8}{`m'} &
             \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 3)} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 2)} &
             \colorbitbox{lightergreen}{8}{`s'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
+            \bitbox{8}{Short Prefix}
           \end{bytefield}
-        \item {\bf Default:} {\tt 0xf0 0xf0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 2 bytes. The first byte shall
-          be considered the ones mask the second byte shall be
-          considered the zeros mask. The masks are 4~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
+        \item {\bf Default:} {\tt 0xXf} (Disabled)
+        \item This shall be followed by 1 byte. An MBus short prefix is 4~bits
+          long, the top 4~bits shall be ignored.
+        \item If this value is not set, the ICE board will participate in
+          enumeration. If this value is set after enumeration, it will
+          override the selected address.
+        \item The current ICE protocol does not have a command for reading out
+          the state of internal enumeration (whether ICE has been enumerated
+          and what address it was assigned).
         \item {\bf NOTE:} Changing the short prefix after enumeration is a
           violation of the MBus protocol. The ICE board will permit this, but
           it may have unexpected consequences.
       \end{itemize}
-    \paragraph{\texttt{0x6d 0x4c `mL'}: Set MBus Snoop Full Prefix}
+    \paragraph{\texttt{0x6d 0x53 `mS'}: Enable MBus Snooping}
       \begin{itemize}
         \item[]
           \begin{bytefield} \\
             \colorbitbox{lightgreen}{8}{`m'} &
             \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 7)} &
-            \colorbitbox{lightergreen}{8}{`L'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
-          \end{bytefield}
-        \item {\bf Default:} {\tt 0xfffff0 0xfffff0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 6 bytes. The first three bytes shall
-          be considered the ones mask the second three bytes shall be
-          considered the zeros mask. The masks are 20~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
-        \item Messages matching the snoop prefix shall be reported by a
-          {\tt `B'} message but will not be ACK'd on the physical bus by ICE.
-        \item In the case of a conflict between a snoop and a match, the match
-          takes precedence and ICE will ACK the message.
-      \end{itemize}
-    \paragraph{\texttt{0x6d 0x53 `mS'}: Set MBus Snoop Short Prefix}
-      \begin{itemize}
-        \item[]
-          \begin{bytefield} \\
-            \colorbitbox{lightgreen}{8}{`m'} &
-            \colorbitbox{lightred}{8}{Event ID} &
-            \colorbitbox{lightcyan}{8}{Len (Must be 3)} &
+            \colorbitbox{lightcyan}{8}{Len (Must be 2)} &
             \colorbitbox{lightergreen}{8}{`S'} &
-            \bitbox{8}{Ones Mask} &
-            \bitbox{8}{Zeros Mask}
+            \bitbox{8}{Snoop Enabled}
           \end{bytefield}
-        \item {\bf Default:} {\tt 0xf0 0xf0} (Disabled)
-        \item \hl{NOTE: This command is not supported by the current MBus implementation.}
-        \item This shall be followed by 2 bytes. The first byte shall
-          be considered the ones mask the second byte shall be
-          considered the zeros mask. The masks are 4~bits long, the bottom
-          4~bits of the transmitted masks shall be ignored.
-        \item Messages matching the snoop prefix shall be reported by a
-          {\tt `B'} message but will not be ACK'd on the physical bus by ICE.
+        \item {\bf Default:} {\tt 0x00} (Disabled)
+        \item If snooping is enabled, the ICE board shall report every MBus
+          message that it sees.
+        \item Snooped messages shall be reported by a {\tt `B'} message but
+          will not be ACK'd on the physical bus by ICE.
         \item In the case of a conflict between a snoop and a match, the match
           takes precedence and ICE will ACK the message.
       \end{itemize}

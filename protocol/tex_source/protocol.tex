@@ -320,6 +320,17 @@ The following protocols are currently well-defined:
 
 \begin{itemize}
 
+\item Revision 0.2.9 -- Sep 15, 2015
+\subitem Replace the `mL' and `mS' messages with a single snooping on/off
+`mS'. Software can easily filter for snooped messages of interest.
+\subitem Add a `mr' to explicitly hold the ICE MBus module in reset.
+
+\item Revision 0.2.8 -- Aug 30, 2015
+\subitem Fix `ml`, `ms` messages to match implementation
+\subitem Clarify that `ms` is an override to internal enumeration
+\subitem Remove ``not implemented'' notices for methods now implemented
+\subitem Document additional bits the ICE board sets for `B` messages
+
 \item Revision 0.2.7 -- Oct 29, 2013
 \subitem Add `?c' message
 \subitem Add `B', `b', `M', and `m' messages

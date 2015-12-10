@@ -8,7 +8,9 @@ module mbus_layer_wrapper_ice(
 	input reset,
 
 	input [19:0] mbus_long_addr,
+	input  [3:0] mbus_short_addr_override,
 	input MASTER_NODE,
+	input mbus_snoop_enabled,
 	input [21:0] mbus_clk_div,
 	input mbus_tx_prio,
 
@@ -167,6 +169,7 @@ message_fifo mf1(
 
 reg [31:0] mbus_txaddr, mbus_txdata;
 wire [31:0] mbus_rxdata, mbus_rxaddr;
+wire [1:0] ice_export_control_bits;
 
 wire mbus_txack, mbus_txfail, mbus_txsucc;
 reg mbus_txpend, mbus_txpend_next, mbus_txreq, mbus_txreq_next, mbus_txresp_ack;
@@ -178,13 +181,65 @@ reg mbus_rxack;
 
 assign debug = {CLKIN, mbus_rxfail, mbus_rxreq, mbus_rxack};
 reg mbus_reset, mbus_reset_pend;
- 
+
+/* The MBus controller expects a register interface to hold the short address
+* configuration. With ICE, the short address may either be set by a command to
+* the board or via an enumerate command over MBus. */
+
+// These hold values as assigned by the MBus controller
+reg       mbus_register_assigned_addr_valid;
+reg [3:0] mbus_register_assigned_addr;
+
+// These are the values fed back into MBus
+reg       assigned_addr_valid;
+reg [3:0] assigned_addr;
+
+// And the remaining control signals
+wire [3:0] assigned_addr_out;
+wire       assigned_addr_write;
+wire       assigned_addr_invalidN;
+
+always @* begin
+	if (mbus_short_addr_override != 4'hf) begin
+		// ICE user set an address
+		assigned_addr_valid = 1'b1;
+		assigned_addr = mbus_short_addr_override;
+	end else begin
+		assigned_addr_valid = mbus_register_assigned_addr_valid;
+		assigned_addr = mbus_register_assigned_addr;
+	end
+end
+
+// Note: This register is reset with the ICE reset and not the mbus_reset
+always @(posedge mbus_clk or posedge reset)
+begin
+	if (reset) begin
+		mbus_register_assigned_addr_valid <= `SD 1'b0;
+		mbus_register_assigned_addr <= `SD 4'b1111;
+	end else begin
+		if (assigned_addr_write) begin
+			mbus_register_assigned_addr_valid <= `SD 1'b1;
+			mbus_register_assigned_addr <= `SD assigned_addr_out;
+		end else if (~assigned_addr_invalidN) begin
+			mbus_register_assigned_addr_valid <= `SD 1'b0;
+			mbus_register_assigned_addr <= `SD 4'b1111;
+		end
+	end
+end
+
 mbus_general_layer_wrapper mclw1(
     .RESETn(~mbus_reset),
 
     .CLK_EXT(mbus_clk),
     .MASTER_EN(MASTER_NODE),
+    .mbus_snoop_enabled(mbus_snoop_enabled),
     .ADDRESS(mbus_long_addr),
+
+    .ASSIGNED_ADDR_IN(assigned_addr),
+    .ASSIGNED_ADDR_OUT(assigned_addr_out),
+    .ASSIGNED_ADDR_VALID(assigned_addr_valid),
+    .ASSIGNED_ADDR_WRITE(assigned_addr_write),
+    .ASSIGNED_ADDR_INVALIDn(assigned_addr_invalidN),
 	
     .CLKIN(CLKIN),
     .DIN(DIN),
@@ -199,6 +254,7 @@ mbus_general_layer_wrapper mclw1(
     .RX_BROADCAST(mbus_rxbcast),
     .RX_FAIL(mbus_rxfail),
     .RX_PEND(mbus_rxpend),
+    .ice_export_control_bits(ice_export_control_bits),
 
     //TX Ports
     .TX_ADDR(mbus_txaddr),
@@ -280,7 +336,7 @@ always @(posedge reset or posedge clk) begin
 			data_ctr_tot <= `SD 8'h00;
 		end else if(store_status) begin
 			cur_status_bits <= `SD {mbus_rxfail, mbus_rxpend};
-			status_bits <= `SD status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, 2'b00};
+			status_bits <= `SD status_bits | {4'b0000, mbus_rxfail, mbus_rxbcast, ice_export_control_bits};
 		end
 			
 		if(next_state != state) begin

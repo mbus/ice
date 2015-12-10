@@ -37,8 +37,11 @@ module basics_int(
 	output reg [23:0] gpio_int_enable,
 
 	//MBus settings
+	output reg mbus_force_reset,
 	output reg mbus_master_mode,
+	output reg mbus_snoop_enabled,
 	output reg [19:0] mbus_long_addr,
+	output reg  [3:0] mbus_short_addr_override,
 	output reg [21:0] mbus_clk_div,
 	output reg mbus_tx_prio,
 	
@@ -351,7 +354,7 @@ always @* begin
 end
 
 reg last_ma_frame_valid;
-reg [3:0] to_parameter;
+reg [4:0] to_parameter;
 always @(posedge rst or posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
@@ -369,9 +372,13 @@ always @(posedge rst or posedge clk) begin
 		gpio_level <= `SD 24'h000000;
 		uart_baud_div <= `SD 16'd174;
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
+		mbus_force_reset <= `SD 1'b0;
 		mbus_master_mode <= `SD 1'b0;
 		mbus_tx_prio <= `SD 1'b0;
-		mbus_long_addr <= `SD 20'h00000;
+		mbus_master_mode <= `SD 1'b0;
+		mbus_snoop_enabled <= `SD 1'b0;
+		mbus_long_addr <= `SD 20'hfffff;
+		mbus_short_addr_override <= `SD 4'hf;
 		mbus_clk_div <= `SD 22'h000020;
 	end else begin
 		state <= `SD next_state;
@@ -425,16 +432,25 @@ always @(posedge rst or posedge clk) begin
 					capability_query <= `SD 1'b1;
 				end
 			end else if(latched_command[13]) begin
-				if(ma_data == 8'h6d) begin
+				if(ma_data == "m") begin
 					parameter_staging <= `SD {mbus_master_mode, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h70) begin
+				end else if(ma_data == "p") begin
 					parameter_staging <= `SD {mbus_tx_prio, 16'h0000};
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h6c) begin
-					parameter_staging <= `SD mbus_long_addr;
+				end else if(ma_data == "l") begin
+					parameter_staging <= `SD {4'b0000, mbus_long_addr};
 					parameter_shift_countdown <= `SD 3;
-				end else if(ma_data == 8'h63) begin
+				end else if(ma_data == "r") begin
+					parameter_staging <= `SD {7'b0000000, mbus_force_reset, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "s") begin
+					parameter_staging <= `SD {4'b000, mbus_short_addr_override, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "S") begin
+					parameter_staging <= `SD {7'b0000000, mbus_snoop_enabled, 16'h0000};
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "c") begin
 					parameter_staging <= `SD mbus_clk_div;
 					parameter_shift_countdown <= `SD 3;
 				end
@@ -479,16 +495,25 @@ always @(posedge rst or posedge clk) begin
 				to_parameter <= `SD 7;
 				parameter_shift_countdown <= `SD 2;
 			end else if(latched_command[14]) begin
-				if(ma_data == 8'h6c) begin
+				if(ma_data == "l") begin
 					to_parameter <= `SD 8;
 					parameter_shift_countdown <= `SD 3;
-				end else if(ma_data == 8'h70) begin
+				end else if(ma_data == "r") begin
+					to_parameter <= `SD 16;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "s") begin
+					to_parameter <= `SD 14;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "S") begin
+					to_parameter <= `SD 15;
+					parameter_shift_countdown <= `SD 1;
+				end else if(ma_data == "p") begin
 					to_parameter <= `SD 13;
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h6d) begin
+				end else if(ma_data == "m") begin
 					to_parameter <= `SD 9;
 					parameter_shift_countdown <= `SD 1;
-				end else if(ma_data == 8'h63) begin
+				end else if(ma_data == "c") begin
 					to_parameter <= `SD 10;
 					parameter_shift_countdown <= `SD 3;
 				end
@@ -523,6 +548,12 @@ always @(posedge rst or posedge clk) begin
 				gpio_int_enable_temp <= `SD {gpio_int_enable_temp[15:0], ma_data};
 			else if(to_parameter == 13)
 				mbus_tx_prio <= `SD ma_data[0];
+			else if(to_parameter == 14)
+				mbus_short_addr_override <= `SD ma_data[3:0];
+			else if(to_parameter == 15)
+				mbus_snoop_enabled <= `SD ma_data[0];
+			else if(to_parameter == 16)
+				mbus_force_reset <= `SD ma_data[0];
 				
 			parameter_shift_countdown <= `SD parameter_shift_countdown - 1;
 		end
@@ -556,8 +587,10 @@ always @(posedge rst or posedge clk) begin
 		if(shift_ver_in)
 			version_in <= `SD {version_in[7:0], ma_data};
 
-		if(latch_command) 
+		if(latch_command) begin
 			latched_command <= `SD {set_mbus_match, query_mbus_match, set_capability_match, query_capability_match, set_m3sw_match, query_m3sw_match, set_gpio_match, query_gpio_match, set_goc_match, query_goc_match, set_i2c_match, query_i2c_match, ver_request_match, query_request_match, generate_nak};
+			//                      14              13                12                    11                      10              9                 8               7                 6              5                4              3                2                  1                    0
+		end
 
 	end
 end

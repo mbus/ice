@@ -1,0 +1,20 @@
+# Generic
+*.swp
+*.swo
+
+# Simulation / synthesis cruft
+*.tcl.old
+DVEfiles/
+cm.log
+csrc/
+dve
+dve.daidir/
+dve.vdb/
+inter.vpd
+program.out
+simv
+simv.daidir/
+simv.vdb/
+ucli.key
+vcs.key
+

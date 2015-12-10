@@ -175,9 +175,12 @@ wire goc_polarity, goc_mode;
 wire [23:0] gpio_level;
 wire [23:0] gpio_direction;
 wire [23:0] gpio_int_enable;
+wire mbus_force_reset;
 wire mbus_master_mode;
+wire mbus_snoop_enabled;
 wire mbus_tx_prio;
 wire [19:0] mbus_long_addr;
+wire  [3:0] mbus_short_addr_override;
 wire [21:0] mbus_clk_div;
 basics_int bi0(
 	.clk(clk),
@@ -216,8 +219,11 @@ basics_int bi0(
 	.gpio_int_enable(gpio_int_enable),
 
 	//MBus settings
+	.mbus_force_reset(mbus_force_reset),
 	.mbus_master_mode(mbus_master_mode),
+	.mbus_snoop_enabled(mbus_snoop_enabled),
 	.mbus_long_addr(mbus_long_addr),
+	.mbus_short_addr_override(mbus_short_addr_override),
 	.mbus_clk_div(mbus_clk_div),
 	.mbus_tx_prio(mbus_tx_prio),
 	
@@ -240,20 +246,27 @@ assign sl_arb_request[2:1] = 2'b00;
 
 /*
 reg was_mbus_master_mode;
-reg force_mbus_reset;
+reg next_was_mbus_master_mode;
+reg force_mbus_reset_because_master_changed;
+reg next_force_mbus_reset_because_master_changed;
+
+always @* begin
+	next_was_mbus_master_mode = mbus_master_mode;
+
+	if(was_mbus_master_mode != mbus_master_mode) begin
+		next_force_mbus_reset_because_master_changed = 1'b1;
+	end else begin
+		next_force_mbus_reset_because_master_changed = 1'b0;
+	end
+end
 
 always @(posedge reset or posedge clk) begin
 	if(reset) begin
-		was_mbus_master_mode <= `SD 1'b0;//mbus_master_mode;
-		force_mbus_reset <= `SD 1'b0;
+		was_mbus_master_mode <= `SD 1'b0;
+		force_mbus_reset_because_master_changed <= `SD 1'b0;
 	end else begin
-		was_mbus_master_mode <= `SD mbus_master_mode;
-
-		if(was_mbus_master_mode != mbus_master_mode) begin
-			force_mbus_reset <= `SD 1'b1;
-		end else begin
-			force_mbus_reset <= `SD 1'b0;
-		end
+		was_mbus_master_mode <= `SD next_was_mbus_master_mode;
+        force_mbus_reset_because_master_changed <= `SD next_force_mbus_reset_because_master_changed;
 	end
 end
 
@@ -261,7 +274,7 @@ wire [3:0] mb_debug;
 
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
-	.reset(reset | force_mbus_reset),
+	.reset(reset | mbus_force_reset | force_mbus_reset_because_master_changed),
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
@@ -269,7 +282,9 @@ mbus_layer_wrapper_ice mb0(
 	.CLKOUT(FPGA_MB_COUT),
 
 	.MASTER_NODE(mbus_master_mode),
+	.mbus_snoop_enabled(mbus_snoop_enabled),
 	.mbus_long_addr(mbus_long_addr),
+	.mbus_short_addr_override(mbus_short_addr_override),
 	.mbus_clk_div(mbus_clk_div),
 	.mbus_tx_prio(mbus_tx_prio),
 
