@@ -15,5 +15,5 @@ This repository hosts the hardware and firmeware for ICE.
 For more information, please visit http://mbus.io/ice.html
 
 [protocol]: http://mbus.io/static/ICE-Protocol.pdf
-[py-ice]: https://github.com/lab11/M-ulator/blob/master/platforms/m3/programming/ice.py
+[py-ice]: https://github.com/mbus/m3-python
 
