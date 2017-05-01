@@ -1,0 +1,7 @@
+BOARD CHANGES:
+
+-VSOL -> VGOC
+- direct input for vgoc
+- header for logic analysis should be on PRC side, not FPGA
+- fix ein pins
+
