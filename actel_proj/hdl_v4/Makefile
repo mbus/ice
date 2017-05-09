@@ -11,7 +11,9 @@ SYNVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +
 APRVCS = SW_VCS=2011.03 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +lint=all,noVCDE +warn=all -timescale=1ns/1ps +vcs+lic+wait +multisource_int_delays +plusarg_save +overlap -full64 -Mupdate -line -debug -cc gcc +libext+.v+.vlib+.vh +prof +neg_tchk +memopt -negdelay +define+APR
 VCSFLAGS = 
 INTFLAGS = -I +memcbk
-MB_PATH = ../../../mbus/mbus/verilog/no_pwr_gating_yesheng
+#ANDREW: decided to just include the files locally
+#MB_PATH = ../../../mbus/mbus/verilog/no_pwr_gating_yesheng
+MB_PATH = .
 
 ##### 
 # Modify starting here

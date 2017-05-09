@@ -48,7 +48,10 @@ module ice_bus (
 parameter NUM_DEV = 7;
 
 //User lines are current not used as there are no daughterboards which have been made
-assign USER[5:1] = 5'd0;
+assign USER[5:3] = 3'd0;
+//Direct assign of USB_UART_TDX and USB_UART_RXD to debug header
+assign USER[2] = USB_UART_RXD;
+assign USER[1] = USB_UART_TXD;
 //Direct assignment of GOC signal to debug header
 assign USER[0] = debug[3];
 
