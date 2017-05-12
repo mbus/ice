@@ -257,6 +257,24 @@
     that ICE has ACK'd on the bus.
 \end{itemize}
 
+\subsubsection{\texttt{0x65 `e'} -- Exit ICE}
+{\em Asynchronous Message}
+\begin{itemize}
+  \item[]
+    \begin{bytefield} \\
+      \colorbitbox{lightgreen}{8}{`e'} &
+      \colorbitbox{lightred}{8}{Event ID} &
+      \colorbitbox{lightcyan}{8}{Len (must be 4)} &
+      \colorbitbox{lightergreen}{32}{Exit\_Code} 
+    \end{bytefield}
+  \item This command shall terminate the m3\_ice program with exit code
+  \textit{Exit\_Code}.  This is used for testing of the ICE system.  
+  \item \textit{Len} must be 0x04
+  \item \textit{Exit\_Code} must be 4 bytes 
+\end{itemize}
+
+
+
 \subsubsection{\texttt{0x4d `M'} -- Query MBus Configuration}
 {\em Synchronous Request}
 \begin{itemize}
