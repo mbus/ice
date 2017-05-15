@@ -65,7 +65,7 @@ wire [15:0] uart_baud_div;
 uart u1(
 	.reset(reset),
 	.clk(clk),
-	.baud_div(uart_baud_div[7:0]),
+	.baud_div(uart_baud_div),
 	.rx_in(USB_UART_TXD),
 	.tx_out(USB_UART_RXD),
 	.tx_latch(uart_tx_latch),
