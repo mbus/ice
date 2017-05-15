@@ -37,6 +37,7 @@ reg rx_d1;
 reg [NUM_SYNC-1:0] rx_sync;
 wire rx_d = rx_sync[NUM_SYNC-1];
 reg rx_busy;
+reg rx_error;
 
 // UART RX Logic 
 always @ (posedge reset or posedge clk) begin
@@ -73,17 +74,28 @@ always @ (posedge reset or posedge clk) begin
 						rx_data[rx_cnt - 1] <= `SD rx_d;
 					end
 					if (rx_cnt == 9) begin
-						rx_busy <= `SD 0;
 						// Check if End of frame received correctly
 						if (rx_d == 1) begin
 							rx_latch     <= `SD 1;
-						end
+                            rx_busy <= `SD 0;
+                        // ANDREW: go to error state if baud mismatch
+						end else begin
+                            rx_error <= 1;
+                        end
 					end
 				end
 			end else if(rx_sample_cnt == baud_div-1) begin
 				rx_sample_cnt <= `SD 0;
-			end
-		end 
+			end //if/else if  rx_sample 
+		end else if (rx_error)
+        begin
+            if (rx_in == 1)
+            begin
+                rx_error <= 0;
+                rx_busy <= 0;
+            end
+        end
+
 	end
 end
 
