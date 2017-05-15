@@ -368,7 +368,9 @@ always @(posedge rst or posedge clk) begin
 		gpio_direction <= `SD 24'h000000;
 		gpio_int_enable <= `SD 24'h000000;
 		gpio_level <= `SD 24'h000000;
-		uart_baud_div <= `SD 16'd174;
+        // v0.4 - assume 2MBaud
+		uart_baud_div <= `SD 16'd10; //20
+
 		{M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW} <= `SD 3'h7;
 		mbus_force_reset <= `SD 1'b0;
 		mbus_master_mode <= `SD 1'b0;

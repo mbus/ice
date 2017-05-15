@@ -62,10 +62,12 @@ wire uart_tx_empty;
 wire [15:0] uart_baud_div;
 // 20MHz -> 3 Mbaud -> DIVIDE_FACTOR = 6.6666
 // 20MHz -> 115200 -> DIVIDE_FACTOR = 173
+// >= v0.4 - use 1MBaud
+// 20MHZ -> 2MBaud -> DIVIDE_FACTOR = 10
 uart u1(
 	.reset(reset),
 	.clk(clk),
-	.baud_div(uart_baud_div[7:0]),
+	.baud_div(uart_baud_div),
 	.rx_in(USB_UART_TXD),
 	.tx_out(USB_UART_RXD),
 	.tx_latch(uart_tx_latch),
