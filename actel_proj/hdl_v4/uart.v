@@ -12,7 +12,7 @@ module uart (
 	input reset             ,//Reset signal for entire UART module (active high)
 
 	input clk               ,//Clock corresponding to TX baudrate
-	input [7:0] baud_div   ,
+	input [15:0] baud_div   ,
 
 	input rx_in             ,//UART RX line
 	output reg tx_out       ,//UART TX line
@@ -48,23 +48,34 @@ always @ (posedge reset or posedge clk) begin
 		rx_latch      <= `SD 0;
 		rx_d1         <= `SD 1;
 		rx_busy       <= `SD 0;
+        rx_error      <=     0;
 		rx_sync	      <= `SD {{NUM_SYNC}{1'b1}};
 	end else begin
 		// Synchronize the asynch signal
 		rx_sync[0] <= `SD rx_in;
 		rx_sync[NUM_SYNC-1:1] <= `SD rx_sync[NUM_SYNC-2:0];
 		rx_latch <= `SD 0;
+
+        // check if in an error state
+        // why can't this use a state machine like normal verilog?
+		if (rx_error)
+        begin
+            if (rx_in == 1)
+            begin
+                rx_error <= 0;
+            end
+
 		// Check if just received start of frame
-		if (!rx_busy && !rx_d) begin
+        end else if (!rx_busy && !rx_d) begin
 			rx_busy       <= `SD 1;
 			rx_sample_cnt <= `SD 1;
 			rx_cnt        <= `SD 0;
-		end
+
 		// Start of frame detected, Proceed with rest of data
-		if (rx_busy) begin
+        end else if (rx_busy) begin
 			rx_sample_cnt <= `SD rx_sample_cnt + 1;
 			// Logic to sample at middle of data
-			if (rx_sample_cnt == baud_div[7:1]) begin
+			if (rx_sample_cnt == baud_div[15:1]) begin
 				if ((rx_d == 1) && (rx_cnt == 0)) begin
 					rx_busy <= `SD 0;
 				end else begin
@@ -74,10 +85,10 @@ always @ (posedge reset or posedge clk) begin
 						rx_data[rx_cnt - 1] <= `SD rx_d;
 					end
 					if (rx_cnt == 9) begin
+                        rx_busy <= `SD 0;
 						// Check if End of frame received correctly
 						if (rx_d == 1) begin
 							rx_latch     <= `SD 1;
-                            rx_busy <= `SD 0;
                         // ANDREW: go to error state if baud mismatch
 						end else begin
                             rx_error <= 1;
@@ -87,15 +98,7 @@ always @ (posedge reset or posedge clk) begin
 			end else if(rx_sample_cnt == baud_div-1) begin
 				rx_sample_cnt <= `SD 0;
 			end //if/else if  rx_sample 
-		end else if (rx_error)
-        begin
-            if (rx_in == 1)
-            begin
-                rx_error <= 0;
-                rx_busy <= 0;
-            end
-        end
-
+        end // rx_busy
 	end
 end
 
