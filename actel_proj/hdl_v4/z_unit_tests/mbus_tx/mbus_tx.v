@@ -57,6 +57,7 @@ module testbench;
     reg         tx_pend;
     reg         tx_req;
     reg         tx_priority;
+    reg         tx_resp_ack;
     
     reg         rx_ack;
     
@@ -70,7 +71,6 @@ module testbench;
     wire        tx_ack;
     wire        tx_fail;
     wire        tx_succ;
-    wire        tx_resp_ack;
 
     wire [31:0] rx_addr;
     wire [31:0] rx_data;
@@ -158,6 +158,7 @@ module testbench;
         tx_pend = 0;
         tx_req = 0;
         tx_priority = 0;
+        tx_resp_ack = 0;
         
         rx_ack= 0;
 
@@ -167,31 +168,81 @@ module testbench;
         reset = 0;
 
         @(negedge clock); 
+        $display("fist packet, asserting TX_REQ");
         assert( tx_ack == 0) else $fatal(1);
         tx_req = 1;
         
-        while( tx_ack == 0) begin
-            @(negedge clock); 
-        end
+        while( tx_ack == 0) @(negedge clock); 
         $display("Got TX_ACK, Deasserting TX_REQ");
         tx_req = 0;
 
         // nobody to ACK it, should fail
-        while (tx_fail == 0) begin
-            @(negedge clock); 
-        end
+        while (tx_fail == 0) @(negedge clock); 
         assert( tx_succ == 0) else $fatal(1);
+        tx_resp_ack = 1;
 
-        @(negedge clock); 
+        @(negedge clock);
+        tx_resp_ack = 0;
 
-        for (i = 0; i < 1000; i = i + 1)
-        begin
+        for (i = 0; i < 1000; i = i + 1) begin
             @(negedge clock);
         end
 
         @(negedge clock);
-        @(negedge clock); 
+        $display("Second packet, asserting TX_REQ and TX_PEND");
+        tx_req = 1;
+        tx_pend = 1;
+        tx_data = 32'hF000000F;
+
+        $display("Waiting for TX_ACK to go high");
+        while(tx_ack == 0) @(negedge clock); 
+
+        $display("TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
+        tx_req = 0;
+        tx_pend = 1; // keep this high
+
+        $display("Waiting for TX_ACK to go low");
+        while (tx_ack == 1) @(negedge clock);
         
+        $display("TX_ACK is low, setup for next word");
+        tx_req = 1;
+        tx_pend = 1; // keep this high
+        tx_data = 32'hF0F0F0F0;
+
+        $display("Waiting for TX_ACK to go high");
+        while(tx_ack == 0) @(negedge clock); 
+
+        $display("TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
+        tx_req = 0;
+        tx_pend = 1; // keep this high
+
+        $display("Waiting for TX_ACK to go low");
+        while (tx_ack == 1) @(negedge clock);
+
+        $display("TX_ACK low, setup for last word");
+        tx_req = 1;
+        tx_pend = 0; //last word, now this goes low
+        tx_data = 32'h0000000F;
+
+        $display("Waiting for TX_ACK to go high");
+        while(tx_ack == 0) @(negedge clock); 
+
+        $display("Got final TX_ACK, deasserting TX_REQ");
+        tx_req = 0;
+        
+        $display("waiting for tx_fail");
+        while (tx_fail == 0) @(negedge clock); 
+        assert( tx_succ == 0) else $fatal(1);
+
+        $display("SEND TX_RESP_ACK");
+        tx_resp_ack = 1;
+
+        @(negedge clock);
+        tx_resp_ack = 0;
+        
+        for (i = 0; i < 1000; i = i + 1) begin
+            @(negedge clock);
+        end
 
         $display("@@@Passed");
         $finish;

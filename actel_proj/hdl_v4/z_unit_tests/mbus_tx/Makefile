@@ -53,15 +53,12 @@ SIMFILES = 	$(VERILOG_PATH)/mbus_addr_rf.v \
 #####
 simv:		$(SIMFILES) $(TESTBENCH)
 		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee program.out
-		urg -dir simv.vdb -report ./REPORTS
 
 syn_simv:	$(SIMFILES) $(TESTBENCH)
 		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee syn_program.out
-		urg -dir syn_simv.vdb -report ./REPORTS
 
 apr_simv:	$(APRFILES) $(TESTBENCH)
 		$(APRVCS) $(VCSFLAGS) $(TESTBENCH) $(APRFILES) -o apr_simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee apr_program.out
-		urg -dir apr_simv.vdb -report ./REPORTS
 
 # updated interactive debugger "DVE", using the latest version of VCS
 dve:	$(SIMFILES) $(TESTBENCH) 
