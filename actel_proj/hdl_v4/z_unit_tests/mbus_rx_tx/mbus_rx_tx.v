@@ -270,41 +270,59 @@ module testbench;
         reset = 0;
 
         @(negedge clock); 
-        $display("fist packet, asserting TX_REQ");
+        $display("TXM:\nTXM: fist packet (should ACK)\nTXM:");
+        $display("TXM: asserting TX_REQ");
         assert( TXM_tx_ack == 0) else $fatal(1);
         TXM_tx_req = 1;
         
         while( TXM_tx_ack == 0) @(negedge clock); 
-        $display("Got TX_ACK, Deasserting TX_REQ");
+        $display("TXM:Got TX_ACK, Deasserting TX_REQ");
         TXM_tx_req = 0;
 
         // should get ACKed
         while ( (TXM_tx_fail == 0) && (TXM_tx_succ == 0) ) @(negedge clock); 
         assert( TXM_tx_succ == 1) else $fatal(1);
         assert( TXM_tx_fail == 0) else $fatal(1);
+        $display("TXM:Got TX_SUCC, Sending TX_RESP_ACK"); 
         TXM_tx_resp_ack = 1;
 
         @(negedge clock);
+        $display("TXM: Done TX_RESP_ACK"); 
         TXM_tx_resp_ack = 0;
+
+        assert( RXM_rx_req == 1); 
+        assert( RXM_rx_addr == 32'hf00000b0 );
+        assert( RXM_rx_data == 32'h0a00feed);
+        $display("RXM: RX_REQ high, correct addr/data, assert RX_ACK");
+
+        RXM_rx_ack = 1;
+
+        @(negedge clock);
+        assert( RXM_rx_req == 0);
+        $display("RXM: RX_REQ low, deasserting RX_ACK");
+        RXM_rx_ack = 0;
+
 
         for (i = 0; i < 1000; i = i + 1) begin
             @(negedge clock);
         end
 
         @(negedge clock);
-        $display("Second packet, asserting TX_REQ and TX_PEND");
+        $display("TXM:\nTXM: Sending second packet (should NAK)\nTXM");
+        $display("TXM: asserting TX_REQ and TX_PEND");
         TXM_tx_req = 1;
         TXM_tx_pend = 1;
-        TXM_tx_data = 32'hF000000F;
+        TXM_tx_addr = 32'hf00000C0; //Not the RXM address
+        TXM_tx_data = 32'hfeedface;
 
-        $display("Waiting for TX_ACK to go high");
+        $display("TXM: Waiting for TX_ACK to go high");
         while(TXM_tx_ack == 0) @(negedge clock); 
 
-        $display("TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
+        $display("TXM: TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
         TXM_tx_req = 0;
         TXM_tx_pend = 1; // keep this high
 
-        $display("Waiting for TX_ACK to go low");
+        $display("TXM: Waiting for TX_ACK to go low");
         while (TXM_tx_ack == 1) @(negedge clock);
         
         $display("TX_ACK is low, setup for next word");
@@ -335,6 +353,107 @@ module testbench;
         
         $display("waiting for tx_fail or tx_succ");
         while ( (TXM_tx_fail == 0) && (TXM_tx_succ == 0) ) @(negedge clock); 
+        assert( TXM_tx_succ == 0) else $fatal(1);
+        assert( TXM_tx_fail == 1) else $fatal(1);
+
+        $display("SEND TX_RESP_ACK");
+        TXM_tx_resp_ack = 1;
+
+        @(negedge clock);
+        TXM_tx_resp_ack = 0;
+        
+        for (i = 0; i < 1000; i = i + 1) begin
+            @(negedge clock);
+        end
+
+        @(negedge clock);
+        $display("TXM:\nTXM: Sending third packet (should ACK)\nTXM");
+        $display("TXM: asserting TX_REQ and TX_PEND");
+        TXM_tx_req = 1;
+        TXM_tx_pend = 1;
+        TXM_tx_addr = 32'hf00000B0; //Yes the RXM address
+        TXM_tx_data = 32'hdeadbeef;
+
+        $display("TXM: Waiting for 1st TX_ACK to go high");
+        while(TXM_tx_ack == 0) @(negedge clock); 
+
+        $display("TXM: TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
+        TXM_tx_req = 0;
+        TXM_tx_pend = 1; // keep this high
+
+        $display("TXM: Waiting for 1st TX_ACK to go low");
+        while (TXM_tx_ack == 1) @(negedge clock);
+        
+        $display("TXM: TX_ACK is low, setup for next word");
+        TXM_tx_req = 1;
+        TXM_tx_pend = 1; // keep this high
+        TXM_tx_data = 32'hF0F0F0F0;
+
+        $display("TXM: Waiting for 2nd TX_ACK to go high");
+        while(TXM_tx_ack == 0) @(negedge clock); 
+
+        $display("TXM: TX_ACK is high, TX_REQ goes low, TX_PEND stays high");
+        TXM_tx_req = 0;
+        TXM_tx_pend = 1; // keep this high
+
+        $display("RXM: Waiting for TX_ACK to go low");
+        while (RXM_rx_req == 0) @(negedge clock);
+        assert( RXM_rx_req == 1); 
+        assert( RXM_rx_pend == 1); 
+        assert( RXM_rx_addr == 32'hf00000b0 );
+        assert( RXM_rx_data == 32'hdeadbeef);
+        $display("RXM: RX_REQ high, correct addr/data, assert RX_ACK");
+        RXM_rx_ack = 1;
+
+        @(negedge clock);
+        assert( RXM_rx_req == 0);
+        $display("RXM: RX_REQ low, deasserting RX_ACK");
+        RXM_rx_ack = 0;
+
+        $display("TXM: Waiting for TX_ACK to go low");
+        while (TXM_tx_ack == 1) @(negedge clock);
+
+        $display("TXM: TX_ACK low, setup for last word");
+        TXM_tx_req = 1;
+        TXM_tx_pend = 0; //last word, now this goes low
+        TXM_tx_data = 32'h0000000F;
+
+        $display("TXM: Waiting for TX_ACK to go high");
+        while(TXM_tx_ack == 0) @(negedge clock); 
+
+        $display("TXM: Got final TX_ACK, deasserting TX_REQ");
+        TXM_tx_req = 0;
+
+        $display("RXM: Waiting for RX_REQ to go low");
+        while (RXM_rx_req == 0) @(negedge clock);
+
+        assert( RXM_rx_req == 1); 
+        assert( RXM_rx_pend == 1); 
+        assert( RXM_rx_data == 32'hf0f0f0f0);
+        $display("RXM: RX_REQ high, correct addr/data, assert RX_ACK");
+        RXM_rx_ack = 1;
+
+        @(negedge clock);
+        assert( RXM_rx_req == 0);
+        $display("RXM: RX_REQ low, deasserting RX_ACK");
+        RXM_rx_ack = 0;
+
+        $display("RXM: Waiting for RX_REQ to go low");
+        while (RXM_rx_req == 0) @(negedge clock);
+
+        assert( RXM_rx_req == 1); 
+        assert( RXM_rx_pend == 0); 
+        assert( RXM_rx_data == 32'h0000000f);
+        $display("RXM: RX_REQ high, correct addr/data, assert RX_ACK");
+        RXM_rx_ack = 1;
+
+        @(negedge clock);
+        assert( RXM_rx_req == 0);
+        $display("RXM: RX_REQ low, deasserting RX_ACK");
+        RXM_rx_ack = 0;
+
+        $display("TXM: waiting for tx_fail or tx_succ");
+        while ( (TXM_tx_fail == 0) && (TXM_tx_succ == 0) ) @(negedge clock); 
         assert( TXM_tx_succ == 1) else $fatal(1);
         assert( TXM_tx_fail == 0) else $fatal(1);
 
@@ -347,6 +466,7 @@ module testbench;
         for (i = 0; i < 1000; i = i + 1) begin
             @(negedge clock);
         end
+
 
         $display("@@@Passed");
         $finish;

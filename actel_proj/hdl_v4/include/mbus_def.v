@@ -33,7 +33,11 @@
 `define IO_HOLD 1'b1
 `define IO_RELEASE 1'b0
 
-`define POWER_GATING
+// DON'T DEFINE POWER_GATING FOR THE FPGA!
+//`define POWER_GATING
+`ifdef POWER_GATING
+`undef POWER_GATING
+`endif
 
 // A broadcast message consists of two segaments,
 // 0x0A			0xBB_XXXXXX for short address or

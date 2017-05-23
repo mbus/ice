@@ -45,8 +45,8 @@ module mbus_general_layer_wrapper(
                             // Lower TX_PEND for last byte transmitted
 	output 	[`ADDR_WIDTH-1:0] RX_ADDR,  // MBUS address of recived message (ours or broadcast?) 
 	output 	[`DATA_WIDTH-1:0] RX_DATA,  // MBUS recieved data (1 Word/time)
-	output 	RX_REQ, 
-	input 	RX_ACK, 
+	output 	RX_REQ,         // MBUS will raise to indidicate an RX'ed packet
+	input 	RX_ACK,         // Raise to tell MBUS you got it
 	output  RX_BROADCAST,
 	output	RX_FAIL,
 	output 	RX_PEND, 
