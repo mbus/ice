@@ -16,13 +16,18 @@ do
     # compile
     make > make.out 2>make.err
 
+    # run the test
     PASS_CHECK=$(grep '@@@' make.out)
     if [ "$PASS_CHECK" == "@@@Passed" ]; then
         echo "PASSED: $PASS_CHECK"
     else 
         echo "FAILED: $PASS_CHECK"
     fi
-    
+   
+    # cleanup
+    rm make.out
+    rm make.err
+
     # backup 
     cd ..
 done
