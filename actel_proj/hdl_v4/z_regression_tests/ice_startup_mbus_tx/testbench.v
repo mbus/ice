@@ -59,6 +59,14 @@ uart u0(
 	.tx_empty(uart_0_tx_empty)
 );
 
+wire POR_PAD;
+wire PMU_SCL;
+wire PMU_SDA;
+
+wire M3_0P6_SW;
+wire M3_1P2_SW;
+wire M3_VBATT_SW;
+
 m3_ice_top t0(
 	.SYS_CLK(clk),
 	.PB({3'b111,~reset}),
@@ -69,7 +77,19 @@ m3_ice_top t0(
 	.FPGA_MB_DOUT(ice_0_dout),
 	.FPGA_MB_COUT(ice_0_cout),
 	.FPGA_MB_DIN(ice_0_din),
-	.FPGA_MB_CIN(ice_0_cin)
+	.FPGA_MB_CIN(ice_0_cin),
+
+
+    .POR_PAD(POR_PAD),
+	.PMU_SCL(PMU_SCL),
+	.PMU_SDA(PMU_SDA),
+
+
+	.M3_0P6_SW(M3_0P6_SW),
+	.M3_1P2_SW(M3_1P2_SW),
+	.M3_VBATT_SW(M3_VBATT_SW)
+
+
 );
 
 wire uart_1_rxd;
@@ -124,9 +144,10 @@ m3_ice_top t1(
 
     function [7:0] toByteFromAscii;
         input [15:0] hex_string;
+        //$display("ascii: %s", hex_string);
         toByteFromAscii[7:4] = asciiToNum(hex_string[15:8]);
         toByteFromAscii[3:0] = asciiToNum(hex_string[7:0]);
-        //$display("%h", toByte);
+        //$display("hex: %h", toByteFromAscii);
     endfunction
 
     function [15:0] getByteFromAsciiStr;
@@ -312,18 +333,127 @@ begin
 	send_command_1("../../../test_sequences/mbus_reset_off");
 
     //now go back to ice0
-   
-    //MBUS internal reset on
-    send_command_0( "6d0a027201", 16'd5);
-    wait_for_rx_0(16'd3);
+  
+    //v0.4 speed probe
+    //skip the slow one?
+    send_command_0("560000",16'd3);
+    wait_for_rx_0(16'd5);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
-    //MBUS internal reset off
-    send_command_0( "6d0b027200", 16'd5);
+    //m3_ice startup version probe 
+    send_command_0("560000",16'd3);
+    wait_for_rx_0(16'd5);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("7601020004",16'd5);
     wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("3f02013f",16'd4);
+    wait_for_rx_0(16'd14);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("6f0305630061a800",16'd8);
+    wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("6f04027001",16'd5);
+    wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("6f05026f00",16'd5);
+    wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //
+    // PMU stuff doesn't appear to work correctly here?
+    //
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("7006036f0301",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+   
+    //extra delay in real life...
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700703760013",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700803760119",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700903760219",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700a036f0201",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700b036f0101",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700c036f0001",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700c036f0001",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700d036f0000",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    // this one doesn't seem to get ACK'ed?
+    ////?
+    //send_command_0("700e036f0001",16'd6);
+    ////wait_for_rx_0(16'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //?
+    send_command_0("6d0f026d00",16'd5);
+    wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //MBUS Tx
     send_command_0("620c08f0123450deadbeef", 16'd11);
     wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //MBUS MEM Wr
+    send_command_0("62080cf0000012affff000cafef00d", 16'd15);
+    //wait_for_rx_0(16'd3);
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //Wait for stuff to happen...
 	for(i = 0; i < 10000; i=i+1) begin
