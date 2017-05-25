@@ -452,7 +452,7 @@ begin
 
     //MBUS MEM Wr
     send_command_0("62080cf0000012affff000cafef00d", 16'd15);
-    //wait_for_rx_0(16'd3);
+    wait_for_rx_0(16'd3);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //Wait for stuff to happen...
