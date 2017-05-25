@@ -95,6 +95,7 @@ wire ma_data_valid2, ma_frame_valid;
 wire [8:0] sl_data;
 wire [8:0] sl_addr;
 wire [8:0] sl_tail;
+wire       sl_latch_tail;
 wire [NUM_DEV-1:0] sl_arb_request, sl_arb_grant;
 wire sl_overflow;
 ice_bus_controller #(NUM_DEV) ice1(
