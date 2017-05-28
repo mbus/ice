@@ -21,7 +21,9 @@ INCLUDE_DIR=$(VERILOG_PATH)/
 
 #TESTBENCH = tb_mbus.v
 TESTBENCH = testbench.v
-SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
+SIMFILES = 	mbus_err_gen.v \
+		mbus_glitch.v \
+		$(MB_PATH)/mbus_addr_rf.v \
 		$(MB_PATH)/mbus_swapper.v \
 		$(MB_PATH)/mbus_wire_ctrl.v \
 		$(MB_PATH)/mbus_ctrl.v \

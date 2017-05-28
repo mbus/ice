@@ -21,11 +21,11 @@ INCLUDE_DIR=$(VERILOG_PATH)/
 
 TESTBENCH = mbus_tx.v
 SIMFILES = 	$(MBUS_PATH)/mbus_addr_rf.v \
- 			$(MBUS_PATH)/mbus_swapper.v \
- 			$(MBUS_PATH)/mbus_wire_ctrl.v \
- 			$(MBUS_PATH)/mbus_ctrl.v \
- 			$(MBUS_PATH)/mbus_node_master_en.v \
- 			$(MBUS_PATH)/mbus_general_layer_wrapper.v
+			$(MBUS_PATH)/mbus_swapper.v \
+			$(MBUS_PATH)/mbus_wire_ctrl.v \
+			$(MBUS_PATH)/mbus_ctrl.v \
+			$(MBUS_PATH)/mbus_node_master_en.v \
+			$(MBUS_PATH)/mbus_general_layer_wrapper.v 
 
 #SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 #		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \
