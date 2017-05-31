@@ -63,6 +63,7 @@ wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is sen
 //MBus clock generation logic
 reg mbus_clk;
 reg [21:0] mbus_clk_counter;
+
 always @(posedge clk) begin
 	if(reset) begin
 		mbus_clk_counter <= `SD 0;
@@ -172,7 +173,6 @@ wire mbus_rxpend, mbus_rxreq, mbus_rxfail, mbus_rxbcast;
 reg mbus_rxack;
 
 assign debug = {CLKIN, mbus_rxfail, mbus_rxreq, mbus_rxack};
-reg mbus_reset, mbus_reset_pend;
 
 /* The MBus controller expects a register interface to hold the short address
 * configuration. With ICE, the short address may either be set by a command to
@@ -203,7 +203,7 @@ always @* begin
 end
 
 // Note: This register is reset with the ICE reset and not the mbus_reset
-always @(posedge mbus_clk or posedge reset)
+always @(posedge mbus_clk )
 begin
 	if (reset) begin
 		mbus_register_assigned_addr_valid <= `SD 1'b0;
@@ -220,7 +220,7 @@ begin
 end
 
 mbus_general_layer_wrapper mclw1(
-    .RESETn(~mbus_reset),
+    .RESETn(~reset),
 
     .CLK_EXT(mbus_clk),
     .MASTER_EN(MASTER_NODE),
@@ -293,8 +293,10 @@ parameter STATE_TX_WORD1 = 13;
 parameter STATE_TX_FRAGMENT = 14;
 parameter STATE_TX_END0 = 15;
 parameter STATE_TX_END1 = 16;
+
    
-always @(posedge reset or posedge clk) begin
+//Doesn't need an async reset
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		status_bits <= `SD 8'h00;
@@ -302,8 +304,6 @@ always @(posedge reset or posedge clk) begin
 		data_ctr <= `SD 3'd0;
 		first_message <= `SD 1'b1;
 		state_ctr <= `SD 8'h00;
-		mbus_reset_pend <= `SD 1'b1;
-		mbus_reset <= `SD 1'b1;
 		shift_count <= `SD 4'd0;
 		mbus_txdata <= `SD 32'd0;
 		mbus_txaddr <= `SD 32'd0;
@@ -311,13 +311,8 @@ always @(posedge reset or posedge clk) begin
 		mbus_txreq <= `SD 1'b0;
 		mbus_txresp_ack <= `SD 1'b0;
 	end else begin
-		if(mbus_reset_pend) begin
-			mbus_reset_pend <= `SD 1'b0;
-			mbus_reset <= `SD 1'b1;
-		end else begin
-			mbus_reset <= `SD 1'b0;
-		end
 		state <= `SD next_state;
+
 		mbus_rxack <= `SD next_mb_ack;
 		rxreq_db <= `SD {rxreq_db[0], mbus_rxreq};
 		rxfail_db <= `SD {rxfail_db[0], mbus_rxfail};

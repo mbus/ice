@@ -47,6 +47,28 @@ module ice_bus (
 
 parameter NUM_DEV = 7;
 
+// Create a syncronized reset signal
+reg reset_syn0;
+reg reset_syn1;
+
+//only place posedge reset allowed
+always @ (posedge clk or posedge reset) begin
+    if (reset)  begin
+        reset_syn0 <= `SD 1'b1;
+        reset_syn1 <= `SD 1'b1;
+    end
+    else begin
+        reset_syn0 <= `SD 1'b0;
+        reset_syn1 <= `SD reset_syn0;
+    end
+end
+
+
+
+
+
+
+
 //User lines are current not used as there are no daughterboards which have been made
 assign USER[5:3] = 3'd0;
 //Direct assign of USB_UART_TDX and USB_UART_RXD to debug header
@@ -65,7 +87,7 @@ wire [15:0] uart_baud_div;
 // >= v0.4 - use 1MBaud
 // 20MHZ -> 2MBaud -> DIVIDE_FACTOR = 10
 uart u1(
-	.reset(reset),
+	.reset(reset_syn1),
 	.clk(clk),
 	.baud_div(uart_baud_div),
 	.rx_in(USB_UART_TXD),
@@ -82,7 +104,7 @@ wire mbus_ctr_incr, gpio_ctr_incr;
 wire [7:0] global_counter;
 global_event_counter gec1(
 	.clk(clk),
-	.rst(reset),
+	.rst(reset_syn1),
 	
 	.ctr_incr(mbus_ctr_incr | gpio_ctr_incr),
 	.counter_out(global_counter)
@@ -100,7 +122,7 @@ wire [NUM_DEV-1:0] sl_arb_request, sl_arb_grant;
 wire sl_overflow;
 ice_bus_controller #(NUM_DEV) ice1(
 	.clk(clk),
-	.rst(reset),
+	.rst(reset_syn1),
 
 	.rx_char(uart_rx_data),
 	.rx_char_valid(uart_rx_latch),
@@ -146,7 +168,7 @@ wire  [3:0] mbus_short_addr_override;
 wire [21:0] mbus_clk_div;
 basics_int bi0(
 	.clk(clk),
-	.rst(reset),
+	.rst(reset_syn1),
 
 	//Immediates from bus controller
 	.generate_nak(ma_generate_nak),
@@ -205,35 +227,42 @@ basics_int bi0(
  * node, otherwise if nothing was plugged in, the input pins were floating
  * and it could be in a weird state. */
 
-reg was_mbus_master_mode;
-reg next_was_mbus_master_mode;
-reg force_mbus_reset_because_master_changed;
-reg next_force_mbus_reset_because_master_changed;
+reg mbus_reset;
+reg next_mbus_reset;
+reg mbus_was_master;
+reg next_mbus_was_master;
+
+
+// this will delay the mbus_reset 1 cycle, but it will sync the various 
+// reset signals comming into the block
+always @ (posedge clk) begin
+    if (reset_syn1) begin
+        mbus_reset <= `SD 1'b1;
+        mbus_was_master <= `SD 1'h0;
+    end else begin
+        mbus_reset <= `SD next_mbus_reset;
+        mbus_was_master <= `SD next_mbus_was_master;
+    end
+end
 
 always @* begin
-	next_was_mbus_master_mode = mbus_master_mode;
+    next_mbus_reset = 1'h0;
+	next_mbus_was_master = mbus_was_master;
 
-	if(was_mbus_master_mode != mbus_master_mode) begin
-		next_force_mbus_reset_because_master_changed = 1'b1;
-	end else begin
-		next_force_mbus_reset_because_master_changed = 1'b0;
-	end
+	if(mbus_was_master != mbus_master_mode) begin
+        next_mbus_reset = 1'h1;
+        next_mbus_was_master = mbus_master_mode;
+	end else if ( mbus_force_reset  == 1'h1) begin
+        next_mbus_reset = 1'h1;
+    end
 end
 
-always @(posedge reset or posedge clk) begin
-	if(reset) begin
-		was_mbus_master_mode <= `SD 1'b0;
-		force_mbus_reset_because_master_changed <= `SD 1'b0;
-	end else begin
-		was_mbus_master_mode <= `SD next_was_mbus_master_mode;
-        force_mbus_reset_because_master_changed <= `SD next_force_mbus_reset_because_master_changed;
-	end
-end
+
 
 wire [3:0] mb_debug;
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
-	.reset(reset | mbus_force_reset | force_mbus_reset_because_master_changed),
+	.reset(mbus_reset),
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
@@ -313,7 +342,7 @@ discrete_int di0(
 assign sl_arb_request[3] = 1'b0;
 /*goc_int gi0(
 	.clk(clk),
-	.reset(reset),
+	.reset(reset_syn1),
 	
 	.GOC_PAD(GOC_PAD),
 	
@@ -345,7 +374,7 @@ assign FPGA_MB_ECI = (goc_mode) ? 1'b0 : ein_eci;
 //EIN interface provides GOC-like interface but through direct 3-wire connection
 ein_int ei0(
 	.clk(clk),
-	.reset(reset),
+	.reset(reset_syn1),
 	
 	.EMO_PAD(ein_emo),
 	.EDI_PAD(ein_edi),
@@ -395,11 +424,12 @@ gpio_int gi1(
 	.incr_ctr(gpio_ctr_incr)
 );
 
+
 //PMU interface
 wire [7:0] pmu_debug;
 pmu_int pi0(
 	.clk(clk),
-	.reset(reset),
+	.reset(reset_syn1),
 	
 	.pmu_scl(PMU_SCL),
 	.pmu_sda(PMU_SDA),
@@ -422,84 +452,8 @@ pmu_int pi0(
 	.debug(pmu_debug)
 );
 
-	
-/*//PINT interface module
-wire pint_busy;
-reg pint_tx_req_latch;
-reg pint_tx_char_latch;
-reg pint_tx_cmd_type;
-reg [3:0] hex_sr;
-wire pint_rx_latch;
-wire [7:0] pint_rx_data;
-wire pint_rx_req;
-wire [7:0] pint_fifo_data;
-reg pint_fifo_latch;
-wire pint_fifo_valid;
-pint_int pi1(
-	.reset(reset),
-	.clk(clk),
-	.busy(pint_busy),
-	.tx_req(pint_tx_req_latch),
-	.tx_cmd_type(pint_tx_cmd_type),
-	.tx_char({hex_sr,cd_hex_decode}),
-	.tx_char_latch(pint_tx_char_latch),
-	.rx_latch(pint_rx_latch),
-	.rx_data(pint_rx_data),
-	.rx_req(pint_rx_req),
-	.PINT_WRREQ(PINT_WRREQ),
-	.PINT_WRDATA(PINT_WRDATA),
-	.PINT_CLK(PINT_CLK),
-	.PINT_RESETN(PINT_RESETN),
-	.PINT_RDREQ(PINT_RDREQ),
-	.PINT_RDRDY(PINT_RDRDY),
-	.PINT_RDDATA(PINT_RDDATA)
-);
-
-//Discrete interface modules
-wire [7:0] disc_rx_char;
-wire disc_rx_char_latch;
-wire disc_rx_req;
-wire [7:0] disc_fifo_data;
-wire disc_fifo_valid;
-reg disc_fifo_latch;
-reg disc_tx_latch, disc_tx_req;
-reg disc_addr_latch, disc_addr_req;
-fifo #(8,4) f01(
-	.clk(clk),
-	.reset(reset),
-	.in(disc_rx_char),
-	.in_latch(disc_rx_char_latch),
-	.out(disc_fifo_data),
-	.out_latch(disc_fifo_latch),
-	.out_valid(disc_fifo_valid)
-);
-
-discrete_int di01(
-	.reset(reset),
-	.clk(clk),
-
-	.SCL_DISCRETE_BUF(SCL_DISCRETE_BUF),
-	.SCL_PD(SCL_PD),
-	.SCL_PU(SCL_PU),
-	.SCL_TRI(SCL_TRI),
-	
-	.SDA_DISCRETE_BUF(SDA_DISCRETE_BUF),
-	.SDA_PD(SDA_PD),
-	.SDA_PU(SDA_PU),
-	.SDA_TRI(SDA_TRI),
-
-	.addr_match_char({hex_sr,cd_hex_decode}),
-	.addr_match_latch(disc_addr_latch),
-	.addr_match_reset(disc_addr_req),
-
-	.tx_char({hex_sr,cd_hex_decode}),
-	.tx_char_latch(disc_tx_latch),
-	.tx_req(disc_tx_req),
-
-	.rx_char(disc_rx_char),
-	.rx_char_latch(disc_rx_char_latch),
-	.rx_req(disc_rx_req)
-);*/
+/* removed code about a PINT interface */	
+/* removed code about a Discrete interface */	
 
 //DEBUG:
 //assign debug = uart_rx_data;

@@ -353,7 +353,7 @@ end
 
 reg last_ma_frame_valid;
 reg [4:0] to_parameter;
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
 		counter <= `SD 8'd0;

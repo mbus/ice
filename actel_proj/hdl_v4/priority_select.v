@@ -33,7 +33,7 @@ always @* begin
 	end
 end
 
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	if(rst) begin
 		grants <= `SD 0;
 	end else begin
