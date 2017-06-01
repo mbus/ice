@@ -102,7 +102,7 @@ ein_mod pm0(
 	.clk(clk), 
 	.resetn(~reset), 
 	.CLK_DIV(CLK_DIV),
-	.fifo_din(in_char), 
+	.fifo_din(in_char[7:0]), 
 	.goc_mode(goc_mode),
 	.fragment(hd_is_fragment),
 	.fifo_RE(hd_frame_next), 
