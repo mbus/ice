@@ -144,7 +144,13 @@ wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
 assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant[1]) ? mf_sl_tail : 9'bzzzzzzzzz;
-message_fifo mf1(
+message_fifo 
+    //only used for ACK/NAKs
+    #(  .DEPTH_LOG2(2), 
+        .DEPTH(1<<2) 
+    )
+    mf1
+    (
 	.clk(clk),
 	.rst(reset),
 	

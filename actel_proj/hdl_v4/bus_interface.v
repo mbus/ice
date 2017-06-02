@@ -35,6 +35,8 @@ parameter ADDR = 0;
 parameter INCLUDE_INPUT_FIFO = 0;
 parameter INCLUDE_OUTPUT_FIFO = 0;
 parameter SUPPORTS_FRAGMENTATION = 0;
+parameter INPUT_FIFO_DEPTH_LOG2 = 9;
+parameter OUTPUT_FIFO_DEPTH_LOG2 = 9;
 
 //Local wires/buses
 wire in_mf_overflow;
@@ -47,7 +49,9 @@ wire insert_fvbit = last_frame_valid & ~(ma_frame_valid & addr_match);
 //Only include an input FIFO if it has been requested
 generate
 	if(INCLUDE_INPUT_FIFO) begin
-		message_fifo #(9) mf0(
+		message_fifo #(
+        .DEPTH_LOG2( INPUT_FIFO_DEPTH_LOG2) 
+        ) mf0(
 			.clk(clk),
 			.rst(rst),
 			.in_data(ma_data),
@@ -77,7 +81,9 @@ endgenerate
 //Output FIFO will always be needed in this case
 generate
 	if(INCLUDE_OUTPUT_FIFO) begin
-		message_fifo #(9) mf1(
+		message_fifo #(
+        .DEPTH_LOG2( OUTPUT_FIFO_DEPTH_LOG2) 
+        ) mf1(
 			.clk(clk),
 			.rst(rst),
 			.in_data(out_frame_data),
