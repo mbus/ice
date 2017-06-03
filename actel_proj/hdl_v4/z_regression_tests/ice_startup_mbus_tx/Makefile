@@ -44,6 +44,7 @@ SIMFILES = \
 		$(VERILOG_PATH)/ice_bus.v \
 		$(VERILOG_PATH)/ice_bus_controller.v \
 		$(VERILOG_PATH)/mbus_layer_wrapper_ice.v \
+		$(VERILOG_PATH)/mbus_ice_driver_tx.v \
 		$(VERILOG_PATH)/message_fifo.v \
 		$(VERILOG_PATH)/pmu_i2c.v \
 		$(VERILOG_PATH)/pmu_int.v \

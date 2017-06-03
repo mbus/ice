@@ -58,13 +58,11 @@ wire hd_frame_valid, hd_frame_data_valid, hd_header_done, hd_is_fragment, hd_is_
 wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
-reg hd_header_done_clear;
 reg shift_in_txaddr, shift_in_txdata;
-wire hd_frame_next = shift_in_txaddr | shift_in_txdata;
+wire hd_frame_next; // = shift_in_txaddr | shift_in_txdata;
 reg send_flag, send_ctr, send_status;
 wire [7:0] rx_frame_data = (send_flag) ? 8'h62 : (send_ctr) ? global_counter : (send_status) ? status_bits : data_sr[63:56];
-wire [8:0] tx_char;
-wire       tx_char_valid;
+wire [8:0] hd_frame_data;
 wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is send_flag needed here as well?!
 
 //MBus clock generation logic
@@ -98,7 +96,7 @@ bus_interface #(8'h62,1,1,1) bi0(
 	.sl_data(sl_data),
 	.sl_arb_request(sl_arb_request[0]),
 	.sl_arb_grant(sl_arb_grant[0]),
-	.in_frame_data(tx_char),
+	.in_frame_data(hd_frame_data),
 	.in_frame_valid(hd_frame_valid),
 	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
@@ -108,10 +106,14 @@ bus_interface #(8'h62,1,1,1) bi0(
 	.out_frame_valid(rx_frame_valid),
 	.out_frame_data_latch(rx_frame_data_latch)
 );
+
+/**********
+*  I have no idea how this works
+*****/
 header_decoder hd0(
 	.clk(clk),
 	.rst(reset),
-	.in_frame_data(tx_char),
+	.in_frame_data(hd_frame_data),
 	.in_frame_valid(hd_frame_valid),
 	.in_frame_data_valid(hd_frame_data_valid),
 	.in_frame_tail(hd_frame_tail),
@@ -122,14 +124,15 @@ header_decoder hd0(
 	.is_fragment(hd_is_fragment),
 	.header_done(hd_header_done),
 	.packet_is_empty(hd_is_empty),
-	.header_done_clear(hd_header_done_clear)
+	.header_done_clear(1'h0)
 );
-assign tx_char_valid = hd_frame_data_valid & hd_header_done & ~tx_char[8];
+
 
 /************************************************************
  *Ack generator is used to easily create ACK & NAK sequences*
  ************************************************************/
-reg ackgen_generate_ack, ackgen_generate_nak;
+//FIXME: make these tx-regs
+wire ackgen_gen_ack, ackgen_gen_nak;
 wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
@@ -137,8 +140,8 @@ ack_generator ag0(
 	.clk(clk),
 	.reset(reset),
 	
-	.generate_ack(ackgen_generate_ack),
-	.generate_nak(ackgen_generate_nak),
+	.generate_ack(ackgen_gen_ack),
+	.generate_nak(ackgen_gen_nak),
 	.eid_in(hd_header_eid),
 	
     .message_wait(1'h0),
@@ -146,6 +149,89 @@ ack_generator ag0(
 	.message_data_valid(ack_message_data_valid),
 	.message_frame_valid(ack_message_frame_valid)
 );
+
+
+
+
+//above is very confusing, hopefully this will simplify
+//
+//
+
+    //
+    // MBUS TX SIGNALS
+    //
+
+    //bus interface stuff
+    wire            tx_frame_valid;
+    wire            tx_char_valid;
+    wire [7:0]      tx_char;
+    wire            tx_char_pending;
+    wire            tx_char_advance;
+
+    //mbus transmit stuff
+    wire [31:0]     tx_mbus_txaddr;
+    wire [31:0]     tx_mbus_txdata;
+    wire            tx_mbus_txreq;
+    wire            tx_mbus_txpend;
+    wire            tx_mbus_txack;
+    wire            tx_mbus_txfail;
+    wire            tx_mbus_txsucc;
+    wire            tx_mbus_txresp_ack;
+ 
+    wire            tx_gen_ack;
+    wire            tx_gen_nak;
+    wire            tx_acknak_valid;
+
+
+
+//again, so I can understand
+assign tx_frame_valid =  hd_header_done;
+assign tx_char_valid = hd_frame_data_valid & hd_header_done & ~hd_frame_data[8];
+assign tx_char =  hd_frame_data[7:0];
+assign tx_char_pending = hd_frame_valid & ~hd_frame_data[8];
+
+assign hd_frame_next = tx_char_advance;
+assign ackgen_gen_ack = tx_gen_ack;
+assign ackgen_gen_nak = tx_gen_nak;
+assign tx_acknak_valid = ack_message_frame_valid;
+
+
+mbus_ice_driver_tx tx0 (
+    .clk(clk),
+    .reset(reset),
+
+    //bus interface stuff
+    .tx_frame_valid(tx_frame_valid),
+    .tx_char_valid(tx_char_valid),
+    .tx_char(tx_char),
+    .tx_char_pending(tx_char_pending),
+    .tx_char_advance(tx_char_advance),
+
+    //mbus transmit stuff
+    .tx_mbus_txaddr(tx_mbus_txaddr),
+    .tx_mbus_txdata(tx_mbus_txdata),
+    .tx_mbus_txreq(tx_mbus_txreq),
+    .tx_mbus_txpend(tx_mbus_txpend),
+    .tx_mbus_txack(tx_mbus_txack),
+    .tx_mbus_txfail(tx_mbus_txfail),
+    .tx_mbus_txsucc(tx_mbus_txsucc),
+    .tx_mbus_txresp_ack(tx_mbus_txresp_ack),
+
+    .tx_gen_ack(tx_gen_ack),
+    .tx_gen_nak(tx_gen_nak),
+    .tx_acknak_valid(tx_acknak_valid)
+    );
+
+
+
+
+
+
+
+
+
+
+
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [8:0] mf_sl_data;
@@ -264,16 +350,20 @@ mbus_general_layer_wrapper mclw1(
     .ice_export_control_bits(ice_export_control_bits),
 
     //TX Ports
-    .TX_ADDR(mbus_txaddr),
-    .TX_DATA(mbus_txdata),
-    .TX_PEND(mbus_txpend),
-    .TX_REQ(mbus_txreq),
-    .TX_PRIORITY(mbus_tx_prio),
-    .TX_ACK(mbus_txack),
-    .TX_FAIL(mbus_txfail),
-    .TX_SUCC(mbus_txsucc),
-    .TX_RESP_ACK(mbus_txresp_ack)
+    .TX_ADDR(tx_mbus_txaddr),
+    .TX_DATA(tx_mbus_txdata),
+    .TX_PEND(tx_mbus_txpend),
+    .TX_REQ(tx_mbus_txreq),
+    .TX_PRIORITY(1'h0),
+    .TX_ACK(tx_mbus_txack),
+    .TX_FAIL(tx_mbus_txfail),
+    .TX_SUCC(tx_mbus_txsucc),
+    .TX_RESP_ACK(tx_mbus_txresp_ack)
 );
+
+
+
+
 //TODO: Implement logic for mbus_txpend, mbus_txreq, mbus_txack, mbus_txfail, mbus_txresp_ack, mbus_txsucc, mbus_txdata, mbus_txaddr
    
 reg [4:0] state, next_state;
@@ -390,13 +480,13 @@ always @* begin
 	send_flag = 1'b0;
 	send_ctr = 1'b0;
 	incr_ctr = 1'b0;
-	hd_header_done_clear = 1'b0;
+	//hd_header_done_clear = 1'b0;
 	mbus_txpend_next = 1'b0;
 	mbus_txreq_next = 1'b0;
 	shift_in_txaddr = 1'b0;
 	shift_in_txdata = 1'b0;
-	ackgen_generate_nak = 1'b0;
-	ackgen_generate_ack = 1'b0;
+	//ackgen_generate_nak = 1'b0;
+	//ackgen_generate_ack = 1'b0;
 	case(state)
 		STATE_IDLE: begin
 			reset_status = 1'b1;
@@ -404,8 +494,9 @@ always @* begin
 				next_state = STATE_HDR0;
 			else if(rxfail)
 				next_state = STATE_FAIL_ACK;
-			else if(hd_header_done) //TODO: There should be no instance in which there is an empty MBus message, correct?
-				next_state = STATE_TX_START;
+            //ANDREW: keep from tx
+			//else if(hd_header_done) //TODO: There should be no instance in which there is an empty MBus message, correct?
+			//	next_state = STATE_TX_START;
 		end
 		
 		STATE_HDR0: begin
@@ -485,9 +576,9 @@ always @* begin
 		STATE_TX_DATA: begin //a
 			shift_in_txdata = tx_char_valid;
 			if(tx_char_valid) begin
-				if(tx_char[8] && hd_is_fragment) begin
-					hd_header_done_clear = 1'b1;
-					ackgen_generate_ack = 1'b1;
+				if(hd_frame_data[8] && hd_is_fragment) begin
+					//hd_header_done_clear = 1'b1;
+					//ackgen_generate_ack = 1'b1;
 					next_state = STATE_TX_FRAGMENT;
 				end else begin
 					if(shift_count == 4'd3)
@@ -529,12 +620,12 @@ always @* begin
 		end
 
 		STATE_TX_END0: begin // f
-			hd_header_done_clear = 1'b1;
+			//hd_header_done_clear = 1'b1;
 			if(mbus_txfail) begin
-				ackgen_generate_nak = 1'b1;
+				//ackgen_generate_nak = 1'b1;
 				next_state = STATE_TX_END1;
 			end else if(mbus_txsucc) begin
-				ackgen_generate_ack = 1'b1;
+				//ackgen_generate_ack = 1'b1;
 				next_state = STATE_TX_END1;
 			end
 		end
