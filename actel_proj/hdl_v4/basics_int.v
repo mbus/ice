@@ -425,7 +425,7 @@ always @(posedge clk) begin
 					parameter_shift_countdown <= `SD 3;
 				end
 			end else if(latched_command[9]) begin
-				parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
+				parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 21'h000000};
 				parameter_shift_countdown <= `SD 1;
 			end else if(latched_command[11]) begin
 				if(ma_data == 8'h62) begin
