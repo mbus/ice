@@ -259,10 +259,16 @@ end
 
 
 
+
+
 wire [3:0] mb_debug;
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
+<<<<<<< HEAD
 	.reset(mbus_reset),
+=======
+	.reset(reset_syn1 ), //| mbus_force_reset | force_mbus_reset_because_master_changed),
+>>>>>>> 1629983... Merge branch 'debug' of https://github.com/lukefahr/ice into debug
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
