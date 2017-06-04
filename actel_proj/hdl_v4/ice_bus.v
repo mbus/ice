@@ -227,29 +227,34 @@ basics_int bi0(
  * node, otherwise if nothing was plugged in, the input pins were floating
  * and it could be in a weird state. */
 
-reg was_mbus_master_mode;
-reg next_was_mbus_master_mode;
-reg force_mbus_reset_because_master_changed;
-reg next_force_mbus_reset_because_master_changed;
+reg mbus_reset;
+reg next_mbus_reset;
+reg mbus_was_master;
+reg next_mbus_was_master;
 
-always @* begin
-	next_was_mbus_master_mode = mbus_master_mode;
 
-	if(was_mbus_master_mode != mbus_master_mode) begin
-		next_force_mbus_reset_because_master_changed = 1'b1;
-	end else begin
-		next_force_mbus_reset_because_master_changed = 1'b0;
-	end
+// this will delay the mbus_reset 1 cycle, but it will sync the various 
+// reset signals comming into the block
+always @ (posedge clk) begin
+    if (reset_syn1) begin
+        mbus_reset <= `SD 1'b1;
+        mbus_was_master <= `SD 1'h0;
+    end else begin
+        mbus_reset <= `SD next_mbus_reset;
+        mbus_was_master <= `SD next_mbus_was_master;
+    end
 end
 
-always @(posedge clk) begin
-	if(reset) begin
-		was_mbus_master_mode <= `SD 1'b0;
-		force_mbus_reset_because_master_changed <= `SD 1'b0;
-	end else begin
-		was_mbus_master_mode <= `SD next_was_mbus_master_mode;
-        force_mbus_reset_because_master_changed <= `SD next_force_mbus_reset_because_master_changed;
-	end
+always @* begin
+    next_mbus_reset = 1'h0;
+	next_mbus_was_master = mbus_was_master;
+
+	if(mbus_was_master != mbus_master_mode) begin
+        next_mbus_reset = 1'h1;
+        next_mbus_was_master = mbus_master_mode;
+	end else if ( mbus_force_reset  == 1'h1) begin
+        next_mbus_reset = 1'h1;
+    end
 end
 
 
@@ -257,7 +262,7 @@ end
 wire [3:0] mb_debug;
 mbus_layer_wrapper_ice mb0(
 	.clk(clk),
-	.reset(reset_syn1 ), //| mbus_force_reset | force_mbus_reset_because_master_changed),
+	.reset(mbus_reset),
 	
 	.DIN(FPGA_MB_DIN),
 	.DOUT(FPGA_MB_DOUT),
