@@ -211,7 +211,7 @@ always @* begin
 end
 
 // Note: This register is reset with the ICE reset and not the mbus_reset
-always @(posedge mbus_clk or posedge reset)
+always @(posedge mbus_clk )
 begin
 	if (reset) begin
 		mbus_register_assigned_addr_valid <= `SD 1'b0;
@@ -327,7 +327,9 @@ always @(posedge clk) begin
 		end else begin
 			mbus_reset <= `SD 1'b0;
 		end
+
 		state <= `SD next_state;
+
 		mbus_rxack <= `SD next_mb_ack;
 		rxreq_db <= `SD {rxreq_db[0], mbus_rxreq};
 		rxfail_db <= `SD {rxfail_db[0], mbus_rxfail};
