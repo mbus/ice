@@ -220,7 +220,7 @@ always @* begin
 	end
 end
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		was_mbus_master_mode <= `SD 1'b0;
 		force_mbus_reset_because_master_changed <= `SD 1'b0;
