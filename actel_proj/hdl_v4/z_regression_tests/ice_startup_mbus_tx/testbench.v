@@ -310,6 +310,7 @@ begin
     //now go back to ice0
     assert( ice_0_dout_count == 1) else $fatal(1);
     ice_0_dout_count = 0;
+    ice_1_uart_rxd_count = 0;
   
     //v0.4 speed probe
     //skip the slow one?
@@ -321,7 +322,6 @@ begin
     //m3_ice startup version probe 
     send_command_0("560000",32'd3);
     wait_for_rx_0(32'd5);
-    $display( "ice_0_dout_count:%h", ice_0_dout_count);
     //assert( ice_0_dout_count == 23) else $fatal(1);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
@@ -431,14 +431,15 @@ begin
     assert( ice_0_dout_count == 30) else $fatal(1);
     ice_0_dout_count = 0;
 
-	for(i = 0; i < 1000; i=i+1) @(posedge clk);
-
     //MBUS Mem Wr - raise CPU reset
-    send_command_0("62080cf0000012affff000cafef00d", 32'd15);
+    send_command_0("62080c00000012affff000cafef00d", 32'd15);
     wait_for_rx_0(32'd3);
     assert( ice_0_dout_count == 19) else $fatal(1);
     ice_0_dout_count = 0;
-	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+    //check the ICE Rx on that
+	for(i = 0; i < 5000; i=i+1) @(posedge clk);
+    assert( ice_1_uart_rxd_count  == 29) else $fatal(1);
+    ice_1_uart_rxd_count = 0;
 
 
     //
@@ -450,7 +451,11 @@ begin
     wait_for_rx_0(16'd3);
     assert( ice_0_dout_count == 14) else $fatal(1);
     ice_0_dout_count = 0;
-	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+    //check the ICE Rx on that
+	for(i = 0; i < 5000; i=i+1) @(posedge clk);
+    assert( ice_1_uart_rxd_count  == 39) else $fatal(1);
+    ice_1_uart_rxd_count = 0;
+
 
 
     send_command_0(
@@ -459,12 +464,13 @@ begin
     wait_for_rx_0(16'd3);
     assert( ice_0_dout_count == 12) else $fatal(1);
     ice_0_dout_count = 0;
-	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+    //check the ICE Rx on that
+	for(i = 0; i < 5000; i=i+1) @(posedge clk);
+    assert( ice_1_uart_rxd_count  == 25 ) else $fatal(1);
+    ice_1_uart_rxd_count = 0;
 
     //$display( "ice_0_dout_count:%d", ice_0_dout_count);
-
-    //Wait for stuff to happen...
-	for(i = 0; i < 10000; i=i+1) @(posedge clk);
+    //$display( "ice_1_uart_rxd_count:%d", ice_1_uart_rxd_count );
 
 	for(i = 0; i < 100000; i=i+1) @(posedge clk);
 
