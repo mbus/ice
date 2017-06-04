@@ -75,9 +75,6 @@ simv:		$(SIMFILES) $(TESTBENCH)
 		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee program.out
 		#urg -dir simv.vdb -report ./REPORTS
 
-synth/m3_ice_top.vg:        $(SIMFILES) synth/m3_ice_top.tcl
-		cd synth && dc_shell-t -f ./m3_ice_top.tcl | tee synth.out
-
 syn_simv:	$(SYNFILES) $(TESTBENCH)
 		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) $(SYN_LIB) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee syn_program.out
 		#urg -dir syn_simv.vdb -report ./REPORTS
