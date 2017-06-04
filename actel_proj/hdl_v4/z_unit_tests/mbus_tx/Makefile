@@ -12,6 +12,7 @@ APRVCS = SW_VCS=2016.06 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +
 VCSFLAGS = 
 INTFLAGS = -I +memcbk
 VERILOG_PATH = ./../../
+MBUS_PATH = ./../../
 INCLUDE_DIR=$(VERILOG_PATH)/
 
 ##### 
@@ -19,25 +20,12 @@ INCLUDE_DIR=$(VERILOG_PATH)/
 #####
 
 TESTBENCH = mbus_tx.v
-SIMFILES = 	$(VERILOG_PATH)/mbus_addr_rf.v \
-			$(VERILOG_PATH)/mbus_busy_ctrl.v \
-			$(VERILOG_PATH)/mbus_clk_sim.v \
-			$(VERILOG_PATH)/mbus_ctrl_layer_wrapper.v \
-			$(VERILOG_PATH)/mbus_ctrl.v \
-			$(VERILOG_PATH)/mbus_ctrl_wrapper.v \
-			$(VERILOG_PATH)/mbus_err_inject.v \
-			$(VERILOG_PATH)/mbus_ext_int.v \
-			$(VERILOG_PATH)/mbus_general_layer_wrapper.v \
-			$(VERILOG_PATH)/mbus_int_ctrl.v \
-			$(VERILOG_PATH)/mbus_layer_wrapper.v \
-			$(VERILOG_PATH)/mbus_master_sleep_ctrl.v \
-			$(VERILOG_PATH)/mbus_master_wire_ctrl.v \
-			$(VERILOG_PATH)/mbus_node_master_en.v \
-			$(VERILOG_PATH)/mbus_regular_isolation.v \
-			$(VERILOG_PATH)/mbus_regular_sleep_ctrl.v \
-			$(VERILOG_PATH)/mbus_swapper.v \
-			$(VERILOG_PATH)/mbus_wire_ctrl.v
-			#$(VERILOG_PATH)/mbus_layer_wrapper_ice.v \
+SIMFILES = 	$(MBUS_PATH)/mbus_addr_rf.v \
+			$(MBUS_PATH)/mbus_swapper.v \
+			$(MBUS_PATH)/mbus_wire_ctrl.v \
+			$(MBUS_PATH)/mbus_ctrl.v \
+			$(MBUS_PATH)/mbus_node_master_en.v \
+			$(MBUS_PATH)/mbus_general_layer_wrapper.v 
 
 #SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 #		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \

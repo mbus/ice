@@ -330,7 +330,7 @@ begin
 		@(posedge clk);
 	end
 
-	//$stop;
+    $display("@@@Passed");
 	$finish;
 end
 
