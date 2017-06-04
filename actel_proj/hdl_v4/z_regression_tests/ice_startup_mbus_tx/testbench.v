@@ -11,6 +11,7 @@ module tb_ice();
     reg [15:0]      cmd_size;
 
 integer file, n, i, j, k;
+integer ice_0_dout_count;
 
 integer mem_idx_0, mem_idx_1;
 reg [7:0] mem_0[0:`MEM_SIZE];
@@ -124,6 +125,10 @@ m3_ice_top t1(
 	.FPGA_MB_CIN(ice_1_cin)
 );
 
+    always @(negedge ice_0_dout ) begin
+        ice_0_dout_count = ice_0_dout_count + 1;
+    end
+
 
 
 
@@ -232,45 +237,6 @@ m3_ice_top t1(
 
 
 
-
-//task send_command_0;
-//	input reg [80*8:1] file_name;
-//	integer resp_hack;
-//	begin
-//
-//	$display("Start %s", file_name);
-//
-//	file = $fopen(file_name,"r");
-//	@ (posedge clk);
-//	n = $fread(mem_0, file);
-//	@(posedge clk);
-//	for(mem_idx_0 = 0; mem_idx_0 < n; mem_idx_0=mem_idx_0+1) begin
-//		`SD uart_0_tx_latch = 1'b1;
-//		@(posedge clk);
-//		`SD uart_0_tx_latch = 1'b0;
-//		@(posedge clk);
-//		@(posedge uart_0_empty);
-//	end
-//	$fclose(file);
-//
-//	while (1'b1) begin
-//		resp_hack = 0;
-//		for (k=0; k<2000; k=k+1) begin
-//			if (uart_0_rx_latch) begin
-//				resp_hack = 1;
-//			end
-//			@(posedge clk);
-//		end
-//
-//		if (resp_hack == 0) begin
-//			break;
-//		end
-//	end
-//
-//	$display("End   %s", file_name);
-//	end
-//endtask
-
 task send_command_1;
 	input reg [80*8:1] file_name;
 	integer resp_hack;
@@ -317,6 +283,7 @@ begin
 	//Initialize the clock...
 	clk = 0;
 	reset = 0;
+    ice_0_dout_count = 0;
 
 	// top-level resets
 	uart_0_tx_latch = 1'b0;
@@ -341,16 +308,21 @@ begin
 	send_command_1("../../../test_sequences/mbus_reset_off");
 
     //now go back to ice0
+    assert( ice_0_dout_count == 1) else $fatal(1);
+    ice_0_dout_count = 0;
   
     //v0.4 speed probe
     //skip the slow one?
     send_command_0("560000",32'd3);
     wait_for_rx_0(32'd5);
+
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //m3_ice startup version probe 
     send_command_0("560000",32'd3);
     wait_for_rx_0(32'd5);
+    $display( "ice_0_dout_count:%h", ice_0_dout_count);
+    //assert( ice_0_dout_count == 23) else $fatal(1);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //?
@@ -456,11 +428,16 @@ begin
     //MBUS Tx
     send_command_0("620c08f0123450deadbeef", 32'd11);
     wait_for_rx_0(32'd3);
+    assert( ice_0_dout_count == 30) else $fatal(1);
+    ice_0_dout_count = 0;
+
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //MBUS Mem Wr - raise CPU reset
     send_command_0("62080cf0000012affff000cafef00d", 32'd15);
     wait_for_rx_0(32'd3);
+    assert( ice_0_dout_count == 19) else $fatal(1);
+    ice_0_dout_count = 0;
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
 
@@ -471,15 +448,22 @@ begin
         "621418000000120000000000200000910000000000000000000000",
         32'd27); 
     wait_for_rx_0(16'd3);
+    assert( ice_0_dout_count == 14) else $fatal(1);
+    ice_0_dout_count = 0;
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
 
     send_command_0(
         "62100c000000120000002080000000", 
         32'd15);
     wait_for_rx_0(16'd3);
+    assert( ice_0_dout_count == 12) else $fatal(1);
+    ice_0_dout_count = 0;
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    //$display( "ice_0_dout_count:%d", ice_0_dout_count);
 
     //Wait for stuff to happen...
-	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 
 	for(i = 0; i < 100000; i=i+1) @(posedge clk);
