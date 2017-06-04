@@ -188,7 +188,6 @@ wire mbus_rxpend, mbus_rxreq, mbus_rxfail, mbus_rxbcast;
 reg mbus_rxack;
 
 assign debug = {CLKIN, mbus_rxfail, mbus_rxreq, mbus_rxack};
-reg mbus_reset, mbus_reset_pend;
 
 /* The MBus controller expects a register interface to hold the short address
 * configuration. With ICE, the short address may either be set by a command to
@@ -236,7 +235,7 @@ begin
 end
 
 mbus_general_layer_wrapper mclw1(
-    .RESETn(~mbus_reset),
+    .RESETn(~reset),
 
     .CLK_EXT(mbus_clk),
     .MASTER_EN(MASTER_NODE),
@@ -320,8 +319,6 @@ always @(posedge clk) begin
 		data_ctr <= `SD 3'd0;
 		first_message <= `SD 1'b1;
 		state_ctr <= `SD 8'h00;
-		mbus_reset_pend <= `SD 1'b1;
-		mbus_reset <= `SD 1'b1;
 		shift_count <= `SD 4'd0;
 		mbus_txdata <= `SD 32'd0;
 		mbus_txaddr <= `SD 32'd0;
@@ -329,13 +326,6 @@ always @(posedge clk) begin
 		mbus_txreq <= `SD 1'b0;
 		mbus_txresp_ack <= `SD 1'b0;
 	end else begin
-		if(mbus_reset_pend) begin
-			mbus_reset_pend <= `SD 1'b0;
-			mbus_reset <= `SD 1'b1;
-		end else begin
-			mbus_reset <= `SD 1'b0;
-		end
-
 		state <= `SD next_state;
 
 		mbus_rxack <= `SD next_mb_ack;
