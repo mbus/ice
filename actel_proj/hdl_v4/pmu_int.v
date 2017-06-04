@@ -125,6 +125,7 @@ ack_generator ag0(
 	.generate_nak(ackgen_generate_nak),
 	.eid_in(hd_header_eid),
 	
+    .message_wait(1'h0),
 	.message_data(ack_message_data),
 	.message_data_valid(ack_message_data_valid),
 	.message_frame_valid(ack_message_frame_valid)

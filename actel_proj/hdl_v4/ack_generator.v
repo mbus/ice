@@ -7,7 +7,8 @@ module ack_generator(
 	input generate_ack,
 	input generate_nak,
 	input [7:0] eid_in,
-	
+
+    input message_wait, 
 	output reg [7:0] message_data,
 	output reg message_data_valid,
 	output reg message_frame_valid
@@ -38,21 +39,25 @@ always @* begin
 		
 		STATE_ACK0: begin
 			message_data = 8'h00;
-			next_state = STATE_EID;
+            if (message_wait == 0)
+                next_state = STATE_EID;
 		end
 		
 		STATE_NAK0: begin
 			message_data = 8'h01;
-			next_state = STATE_EID;
+            if (message_wait == 0)
+                next_state = STATE_EID;
 		end
 		
 		STATE_EID: begin
 			message_data = eid_in;
-			next_state = STATE_LEN;
+            if (message_wait == 0)
+                next_state = STATE_LEN;
 		end
 		
 		STATE_LEN: begin
-			next_state = STATE_IDLE;
+            if (message_wait == 0)
+                next_state = STATE_IDLE;
 		end
 	endcase
 end

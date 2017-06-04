@@ -93,7 +93,8 @@ ack_generator ag0(
 	.generate_ack(ackgen_generate_ack),
 	.generate_nak(ackgen_generate_nak),
 	.eid_in(latched_eid),
-	
+    
+    .message_wait(1'h0),
 	.message_data(ack_message_data),
 	.message_data_valid(ack_message_data_valid),
 	.message_frame_valid(ack_message_frame_valid)
