@@ -23,10 +23,34 @@ reg reset;
 wire ice_0_dout, ice_0_cout, ice_1_dout, ice_1_cout;
 wire ice_0_din,  ice_0_cin,  ice_1_din,  ice_1_cin;
 
+reg ice_1_txerr_enable; 
+wire ice_1_dout_txerr;
+
+mbus_err_generator err_gen0(
+    .ENABLE( ice_1_txerr_enable), 
+    .CIN(ice_1_cout), 
+    .DIN(ice_1_dout),
+    .DOUT(ice_1_dout_txerr)
+    );
+
+reg ice_1_glitch_enable;
+wire ice_1_dout_glitch;
+
+mbus_glitch glitch_gen0(
+    .SYSCLK(clk),
+    .ENABLE( ice_1_glitch_enable),
+    .GLITCH_CYCLES( 32'h8),
+    .CIN(ice_1_cout), 
+    .DIN(ice_1_dout),
+    .DOUT (ice_1_dout_glitch)
+    );
+
 
 // http://www-inst.eecs.berkeley.edu/~cs152/fa06/handouts/CummingsHDLCON1999_BehavioralDelays_Rev1_1.pdf
 // Use LHS for delays in continuous assignment
-assign #10000 ice_0_din = ice_1_dout;
+assign #10000 ice_0_din = (ice_1_txerr_enable ? ice_1_dout_txerr : 
+                            (ice_1_glitch_enable ? ice_1_dout_glitch : 
+                            ice_1_dout));
 assign #10000 ice_0_cin = ice_1_cout;
 assign #10000 ice_1_din = ice_0_dout;
 assign #10000 ice_1_cin = ice_0_cout;
@@ -322,6 +346,9 @@ begin
 	uart_0_tx_latch = 1'b0;
 	uart_1_tx_latch = 1'b0;
 
+    ice_1_txerr_enable  = 0;
+    ice_1_glitch_enable = 0;
+    
 	//Wait for the reset circuitry to kick in...
 	@ (posedge clk);
 	@ (posedge clk);
@@ -467,18 +494,29 @@ begin
     //
     //BIG MBUS bulk memory write
     //
+    //but we want it TX_ERR'ed
+    ice_1_txerr_enable = 1;
     send_command_0(
         "621418000000120000000000200000910000000000000000000000",
         32'd27); 
     wait_for_rx_0(16'd3);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
+    //Now turn this off just in case
+    ice_1_txerr_enable = 0;
+
+    //Now turn on the glitch
+    ice_1_glitch_enable = 1;
     send_command_0(
         "62100c000000120000002080000000", 
         32'd15);
     wait_for_rx_0(16'd3);
 
+    //Now turn off the glitch
+    ice_1_glitch_enable = 0;
+
     //Wait for stuff to happen...
+	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 

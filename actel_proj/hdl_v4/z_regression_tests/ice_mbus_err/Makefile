@@ -24,7 +24,8 @@ SYN_LIB = /afs/umich.edu/class/eecs470/lib/verilog/lec25dscc25.v
 
 #TESTBENCH = tb_mbus.v
 TESTBENCH = testbench.v
-SIMFILES = \
+SIMFILES = 	mbus_err_gen.v \
+		mbus_glitch.v \
 		$(MB_PATH)/mbus_addr_rf.v \
 		$(MB_PATH)/mbus_swapper.v \
 		$(MB_PATH)/mbus_wire_ctrl.v \
@@ -54,8 +55,7 @@ SIMFILES = \
 		$(VERILOG_PATH)/toplevel.v \
 		$(VERILOG_PATH)/uart.v
 
-SYNFILES = synth/m3_ice_top.vg \
-		$(VERILOG_PATH)/uart.v
+SYNFILES = $(SIMFILES)
 APRFILES = $(SIMFILES)
 
 #SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
@@ -70,16 +70,12 @@ APRFILES = $(SIMFILES)
 #####
 # Do Not Modify
 #####
-
 simv:		$(SIMFILES) $(TESTBENCH)
 		$(VCS) $(VCSFLAGS) $(TESTBENCH) $(SIMFILES) -o simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee program.out
 		#urg -dir simv.vdb -report ./REPORTS
 
-synth/m3_ice_top.vg:        $(SIMFILES) synth/m3_ice_top.tcl
-		cd synth && dc_shell-t -f ./m3_ice_top.tcl | tee synth.out
-
-syn_simv:	$(SYNFILES) $(TESTBENCH)
-		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) $(SYN_LIB) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee syn_program.out
+syn_simv:	$(SIMFILES) $(TESTBENCH)
+		$(SYNVCS) $(VCSFLAGS) $(TESTBENCH) $(SYNFILES) $(LIB) -o syn_simv -cm line+cond+fsm+tgl +incdir+$(INCLUDE_DIR) -R | tee syn_program.out
 		#urg -dir syn_simv.vdb -report ./REPORTS
 
 apr_simv:	$(APRFILES) $(TESTBENCH)
@@ -101,5 +97,4 @@ clean:
 	INCA_libs waves.shm irun* nclaunch* ncverilog* result*.txt .nclaunch* .simvision log*
 
 nuke:	clean
-	rm -rvf *.vg *.rep *.db *.chk *.log *.out DVEfiles/ 
-	rm -rvf synth/*.vg synth/*.rep synth/*.ddc synth/*.chk synth/command.log
+	rm -rvf *.vg *.rep *.db *.chk *.log *.out DVEfiles/
