@@ -8,7 +8,7 @@ module global_event_counter(
 	output reg [7:0] counter_out
 );
 
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	if(rst) begin
 		counter_out <= `SD 0;
 	end else begin

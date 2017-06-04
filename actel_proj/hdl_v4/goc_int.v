@@ -138,7 +138,7 @@ always @* begin
 	endcase
 end
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 	end else begin

@@ -70,6 +70,7 @@ wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is sen
 //MBus clock generation logic
 reg mbus_clk;
 reg [21:0] mbus_clk_counter;
+
 always @(posedge clk) begin
 	if(reset) begin
 		mbus_clk_counter <= `SD 0;
@@ -301,9 +302,9 @@ parameter STATE_TX_WORD1 = 13;
 parameter STATE_TX_FRAGMENT = 14;
 parameter STATE_TX_END0 = 15;
 parameter STATE_TX_END1 = 16;
+
    
 //Doesn't need an async reset
-//always @(posedge reset or posedge clk) begin
 always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;

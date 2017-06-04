@@ -119,7 +119,7 @@ always @* begin
 	endcase
 end
 
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	
 	if(rst) begin
 		state <= `SD STATE_RX_IDLE;

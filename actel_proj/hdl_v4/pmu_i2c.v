@@ -44,7 +44,7 @@ parameter STATE_SHIFT_DATA = 5;
 parameter STATE_ACK = 6;
 parameter STATE_STOP = 7;
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		state_counter <= `SD 0;

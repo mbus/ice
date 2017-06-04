@@ -194,7 +194,7 @@ pmu_i2c pi0(
 	.clear_failed(pmu_clear_failed)
 );
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		pmu_en_reg <= `SD 0;
