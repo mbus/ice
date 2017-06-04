@@ -42,7 +42,7 @@ parameter ST_TX_TXREQ       = 11; //b
 parameter ST_TX_TXACK       = 12; //c
 parameter ST_TX_TXSUCC      = 13; //d
 parameter ST_TX_RESULT      = 14; //e
-parameter ST_TX_SZ = $clog2(ST_TX_RESULT);
+parameter ST_TX_SZ = $clog2(ST_TX_RESULT+1);
 
 //transmit state machine
 reg [ST_TX_SZ-1:0]      tx_state;

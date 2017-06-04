@@ -14,7 +14,7 @@ do
     cd $DIR
     
     # compile
-    make clean
+    make clean > make.clean 2>&1
     make > make.out 2>make.err
 
     # run the test

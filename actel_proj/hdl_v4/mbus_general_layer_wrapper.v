@@ -49,7 +49,7 @@ module mbus_general_layer_wrapper(
 	input 	RX_ACK,         // Raise to tell MBUS you got it
 	output  RX_BROADCAST,
 	output	RX_FAIL,
-	output 	RX_PEND, 
+	output 	RX_PEND,        // MBUS will raise for more data coming over RX 
 	output	[1:0] ice_export_control_bits,
 	output 	TX_FAIL, 
 	output 	TX_SUCC, 

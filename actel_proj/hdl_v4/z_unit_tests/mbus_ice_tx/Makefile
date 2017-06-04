@@ -28,6 +28,7 @@ SIMFILES = 	$(MBUS_PATH)/mbus_addr_rf.v \
 			$(MBUS_PATH)/mbus_general_layer_wrapper.v \
 			$(VERILOG_PATH)/mbus_layer_wrapper_ice.v \
 			$(VERILOG_PATH)/mbus_ice_driver_tx.v \
+			$(VERILOG_PATH)/mbus_ice_driver_rx.v \
 			$(VERILOG_PATH)/bus_interface.v\
 			$(VERILOG_PATH)/header_decoder.v\
 			$(VERILOG_PATH)/message_fifo.v\

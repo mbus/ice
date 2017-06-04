@@ -12,6 +12,7 @@ module tb_ice();
 
 integer file, n, i, j, k;
 integer ice_0_dout_count;
+integer ice_1_uart_rxd_count;
 
 integer mem_idx_0, mem_idx_1;
 reg [7:0] mem_0[0:`MEM_SIZE];
@@ -127,6 +128,10 @@ m3_ice_top t1(
 
     always @(negedge ice_0_dout ) begin
         ice_0_dout_count = ice_0_dout_count + 1;
+    end
+
+    always @(negedge uart_1_rxd ) begin
+        ice_1_uart_rxd_count = ice_1_uart_rxd_count + 1;
     end
 
 
@@ -284,6 +289,7 @@ begin
 	clk = 0;
 	reset = 0;
     ice_0_dout_count = 0;
+    ice_1_uart_rxd_count = 0;
 
 	// top-level resets
 	uart_0_tx_latch = 1'b0;
