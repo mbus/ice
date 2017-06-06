@@ -1,52 +1,81 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Company: <Name>
+//
+// File: ice_mbus_tx.v
+// File history:
+//      <Revision number>: <Date>: <Comments>
+//      <Revision number>: <Date>: <Comments>
+//      <Revision number>: <Date>: <Comments>
+//
+// Description: 
+//
+// <Description here>
+//
+// Targeted device: <Family::IGLOO> <Die::AGLN250V2> <Package::100 VQFP>
+// Author: <Name>
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////// 
+
 `timescale 1ns/1ps
 
 `include "include/ice_def.v"
-
-`define MEM_SIZE 200_000
 `define SIM_FLAG
 
-module tb_ice();
+module ice_mbus_tx;
 
-    reg [8*255:0]   cmd;
-    reg [15:0]      cmd_size;
+parameter SYSCLK_PERIOD = 50;// 20MHZ
+//parameter SYSCLK_PERIOD = 5000;// 20MHZ
 
-integer file, n, i, j, k;
 integer ice_0_dout_count;
 integer ice_1_uart_rxd_count;
 
-integer mem_idx_0, mem_idx_1;
-reg [7:0] mem_0[0:`MEM_SIZE];
-reg [7:0] mem_1[0:`MEM_SIZE];
+reg         clk;
+reg         reset;
 
-reg clk;
-reg reset;
-
-
-wire ice_0_dout, ice_0_cout, ice_1_dout, ice_1_cout;
-wire ice_0_din,  ice_0_cin,  ice_1_din,  ice_1_cin;
-
-
-// http://www-inst.eecs.berkeley.edu/~cs152/fa06/handouts/CummingsHDLCON1999_BehavioralDelays_Rev1_1.pdf
-// Use LHS for delays in continuous assignment
-assign #10000 ice_0_din = ice_1_dout;
-assign #10000 ice_0_cin = ice_1_cout;
-assign #10000 ice_1_din = ice_0_dout;
-assign #10000 ice_1_cin = ice_0_cout;
+// UART PORTS
+reg [7:0]   uart_0_tx_data;
+reg         uart_0_tx_latch;
+wire        uart_0_tx_empty;
+wire [7:0]  uart_0_rx_data;
+wire        uart_0_rx_latch;
 
 wire        uart_0_rxd;
 wire        uart_0_txd;
 
-wire        uart_0_rx_latch;
-wire [7:0]  uart_0_rx_data;
+reg [7:0]   uart_1_tx_data;
+reg         uart_1_tx_latch;
+wire        uart_1_tx_empty;
+wire [7:0]  uart_1_rx_data;
+wire        uart_1_rx_latch;
 
-reg         uart_0_tx_latch;
-reg [7:0]   uart_0_tx_data;
-wire        uart_0_tx_empty;
+wire        uart_1_rxd;
+wire        uart_1_txd;
+
+// ICE PORTS
+wire        ice_0_cin;
+wire        ice_0_din;
+wire        ice_0_cout;
+wire        ice_0_dout;
+
+wire        ice_1_cin;
+wire        ice_1_din;
+wire        ice_1_cout;
+wire        ice_1_dout;
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+// Clock Driver
+//////////////////////////////////////////////////////////////////////
+always @(clk)
+    #(SYSCLK_PERIOD / 2.0) clk <= !clk;
 
 //
 // Generate UART signals for input into m3_ice_top
 //
-uart u0(
+uart uart0(
 	.clk(clk),
 	.reset(reset),
 	.baud_div(16'd10),
@@ -62,45 +91,6 @@ uart u0(
 	.tx_empty(uart_0_tx_empty)
 );
 
-wire POR_PAD;
-wire PMU_SCL;
-wire PMU_SDA;
-
-wire M3_0P6_SW;
-wire M3_1P2_SW;
-wire M3_VBATT_SW;
-
-m3_ice_top t0(
-	.SYS_CLK(clk),
-	.PB({3'b111,~reset}),
-
-	.USB_UART_RXD(uart_0_rxd),
-	.USB_UART_TXD(uart_0_txd),
-
-	.FPGA_MB_DOUT(ice_0_dout),
-	.FPGA_MB_COUT(ice_0_cout),
-	.FPGA_MB_DIN(ice_0_din),
-	.FPGA_MB_CIN(ice_0_cin),
-
-
-    .POR_PAD(POR_PAD),
-	.PMU_SCL(PMU_SCL),
-	.PMU_SDA(PMU_SDA),
-
-
-	.M3_0P6_SW(M3_0P6_SW),
-	.M3_1P2_SW(M3_1P2_SW),
-	.M3_VBATT_SW(M3_VBATT_SW)
-
-
-);
-
-wire uart_1_rxd;
-reg uart_1_rx_latch;
-reg [7:0] uart_1_rx_data;
-wire uart_1_txd;
-reg uart_1_tx_latch;
-wire uart_1_empty;
 uart u1(
 	.clk(clk),
 	.reset(reset),
@@ -110,20 +100,50 @@ uart u1(
 	.rx_data(uart_1_rx_data),
 	.tx_out(uart_1_txd),
 	.tx_latch(uart_1_tx_latch),
-	.tx_data(mem_1[mem_idx_1]),
-	.tx_empty(uart_1_empty)
+	.tx_data(uart_1_tx_data),
+	.tx_empty(uart_1_tx_empty)
 );
-m3_ice_top t1(
-	.SYS_CLK(clk),
+
+
+//////////////////////////////////////////////////////////////////////
+// Instantiate Unit Under Test:  hdl_v4
+//////////////////////////////////////////////////////////////////////
+
+// Use LHS for delays in continuous assignment
+assign #100 ice_0_din = ice_1_dout;
+assign #100 ice_0_cin = ice_1_cout;
+
+m3_ice_top ice_0(
+
+    .SYS_CLK(clk),
 	.PB({3'b111,~reset}),
 
-	.USB_UART_RXD(uart_1_rxd),
-	.USB_UART_TXD(uart_1_txd),
+    .USB_UART_TXD(uart_0_txd),
+    .USB_UART_RXD(uart_0_rxd),
 
-	.FPGA_MB_DOUT(ice_1_dout),
-	.FPGA_MB_COUT(ice_1_cout),
-	.FPGA_MB_DIN(ice_1_din),
-	.FPGA_MB_CIN(ice_1_cin)
+    .FPGA_MB_CIN(ice_0_cin),
+    .FPGA_MB_DIN(ice_0_din),
+    .FPGA_MB_COUT(ice_0_cout),
+    .FPGA_MB_DOUT(ice_0_dout)
+    
+);
+
+assign #100 ice_1_din = ice_0_dout;
+assign #100 ice_1_cin = ice_0_cout;
+
+m3_ice_top ice_1 (
+
+    .SYS_CLK(clk),
+	.PB({3'b111,~reset}),
+
+    .USB_UART_TXD(uart_1_txd),
+    .USB_UART_RXD(uart_1_rxd),
+
+    .FPGA_MB_CIN(ice_1_cin),
+    .FPGA_MB_DIN(ice_1_din),
+    .FPGA_MB_COUT(ice_1_cout),
+    .FPGA_MB_DOUT(ice_1_dout)
+    
 );
 
     always @(negedge ice_0_dout ) begin
@@ -135,13 +155,12 @@ m3_ice_top t1(
     end
 
 
-
-
     //
     // Stuff for parsing the string command into binary
     //
     function [3:0] asciiToNum;
         input [7:0] ascii;
+        begin
         //$display("bad ascii %c: %h", ascii, ascii);
         //< '0'
         if (ascii < 8'h30) $fatal(1);
@@ -155,20 +174,24 @@ m3_ice_top t1(
         else if (ascii < 8'h67) asciiToNum = ascii - 8'h61 + 8'd10; //'a'=10
         // > 'f'
         else $fatal(1);
+        end
     endfunction 
 
     function [7:0] toByteFromAscii;
         input [15:0] hex_string;
+        begin
         //$display("ascii: %s", hex_string);
         toByteFromAscii[7:4] = asciiToNum(hex_string[15:8]);
         toByteFromAscii[3:0] = asciiToNum(hex_string[7:0]);
         //$display("hex: %h", toByteFromAscii);
+        end
     endfunction
 
     function [15:0] getByteFromAsciiStr;
         input [8*2*512:0] cmd; // 8 bits/char * 2chars/byte * 260 bytes
         input [32:0] msb;
         reg [15:0] work;
+        begin
 
         work[15] = cmd[msb];    //must be a better way to do this
         work[14] = cmd[msb-1];
@@ -187,8 +210,9 @@ m3_ice_top t1(
         work[1]  = cmd[msb-14];
         work[0]  = cmd[msb-15];
         
-        $display("Work: %h", work);
+        //$display("Work: %h", work);
         getByteFromAsciiStr = toByteFromAscii(work);
+        end
     endfunction
 
         
@@ -197,9 +221,8 @@ m3_ice_top t1(
     // and transmit it to the ice simulation
     //
     task send_command_0;
-        input [8*2*512:0] cmd; // 8 bits/char * 2chars/byte * 260 bytes
+        input [8*2*260:0] cmd; // 8 bits/char * 2chars/byte * 260 bytes
         input [32:0]    cmd_size; // only 8 needed?
-
         integer i;
         reg [32:0] msb;
         reg [7:0] theByte;
@@ -207,14 +230,13 @@ m3_ice_top t1(
         //transmit our message, one byte at a time
         for (i = cmd_size-1 ; i >= 0; i = i - 1) begin
             msb= (1+i)*16  - 1;
-            $display ("msb: %d, 0x%h", msb, msb);
             theByte = getByteFromAsciiStr(cmd, msb);
 
             $display ("TX0: %h", theByte);
-            `SD uart_0_tx_data <= theByte;
-            `SD uart_0_tx_latch <= 1;
+             uart_0_tx_data <= theByte;
+             uart_0_tx_latch <= 1;
             @(posedge clk);
-            `SD uart_0_tx_latch <= 1'b0;
+             uart_0_tx_latch <= 1'b0;
             @(posedge clk);
             @(posedge uart_0_tx_empty);
             
@@ -227,67 +249,91 @@ m3_ice_top t1(
     task wait_for_rx_0;
         input [32:0]    rxBytes;
         integer i;
+    begin
         i = 0;
         //wait for an ack/nak
         while (i < rxBytes ) begin 
             if (uart_0_rx_latch) begin
                 $display("\tRX0: %h", uart_0_rx_data);
                 i = i + 1;
-                @(negedge uart_0_rx_latch);
+                while( uart_0_rx_latch) @(posedge clk);
             end else begin
                 @(posedge clk);
             end
         end
+    end
     endtask 
 
 
+    //
+    // parse a hex-as-string command into a binary command
+    // and transmit it to the ice simulation
+    //
+    task send_command_1;
+        input [8*2*260:0] cmd; // 8 bits/char * 2chars/byte * 260 bytes
+        input [32:0]    cmd_size; // only 8 needed?
 
-task send_command_1;
-	input reg [80*8:1] file_name;
-	integer resp_hack;
-	begin
+        integer i;
+        reg [32:0] msb;
+        reg [7:0] theByte;
 
-	$display("Start %s", file_name);
+        //transmit our message, one byte at a time
+        for (i = cmd_size-1 ; i >= 0; i = i - 1) begin
+            msb= (1+i)*16  - 1;
+            theByte = getByteFromAsciiStr(cmd, msb);
 
-	file = $fopen(file_name,"r");
-	@ (posedge clk);
-	n = $fread(mem_1, file);
-	@(posedge clk);
-	for(mem_idx_1 = 0; mem_idx_1 < n; mem_idx_1=mem_idx_1+1) begin
-		`SD uart_1_tx_latch = 1'b1;
-		@(posedge clk);
-		`SD uart_1_tx_latch = 1'b0;
-		@(posedge clk);
-		@(posedge uart_1_empty);
-	end
-	$fclose(file);
+            $display ("\t\tTX1: %h", theByte);
+             uart_1_tx_data <= theByte;
+             uart_1_tx_latch <= 1;
+            @(posedge clk);
+             uart_1_tx_latch <= 1'b0;
+            @(posedge clk);
+            @(posedge uart_1_tx_empty);
+            
+        end
+    endtask  
 
-	while (1'b1) begin
-		resp_hack = 0;
-		for (k=0; k<2000; k=k+1) begin
-			if (uart_1_rx_latch) begin
-				resp_hack = 1;
-			end
-			@(posedge clk);
-		end
+    //
+    //
+    //
+    task wait_for_rx_1;
+        input [32:0]    rxBytes;
+        integer i;
+    begin
+        i = 0;
+        //wait for an ack/nak
+        while (i < rxBytes ) begin 
+            if (uart_1_rx_latch) begin
+                $display("\t\t\tRX1: %h", uart_1_rx_data);
+                i = i + 1;
+                while( uart_1_rx_latch) @(posedge clk);
+            end else begin
+                @(posedge clk);
+            end
+        end
+    end
+    endtask 
 
-		if (resp_hack == 0) begin
-			break;
-		end
-	end
-
-	$display("End   %s", file_name);
-	end
-endtask
-
-
-
+    //
+    //
+    //
+`ifndef SIM_FLAG
+    task assert;
+        input condition;
+        if(!condition) begin
+            $display("@@@FAILED: assertion");
+            $finish(2);
+        end
+    endtask
+`endif    
 
 initial
 begin
-	//Initialize the clock...
+    integer i,j,k;
+
+    //Initialize the clock...
 	clk = 0;
-	reset = 0;
+	reset = 1;
     ice_0_dout_count = 0;
     ice_1_uart_rxd_count = 0;
 
@@ -295,26 +341,30 @@ begin
 	uart_0_tx_latch = 1'b0;
 	uart_1_tx_latch = 1'b0;
 
+    //#(SYSCLK_PERIOD * 10 )
+    //    reset = 0;
+
 	//Wait for the reset circuitry to kick in...
+    for (i = 0; i < 10; i = i + 1) @(negedge clk)        
 	@ (posedge clk);
-	@ (posedge clk);
-	@ (posedge clk);
-	`SD reset = 1;
-	@ (posedge clk);
-	@ (posedge clk);
-	`SD reset = 0;
-	@ (posedge clk);
-	@ (posedge clk);
+	 reset = 0;
 	@ (posedge clk);
 
-    //make ice1 the master
-	send_command_1("../../../test_sequences/mbus_reset_on");
-	send_command_1("../../../test_sequences/mbus_set_master_on");
-	send_command_1("../../../test_sequences/mbus_set_short_prefix_to_1");
-	send_command_1("../../../test_sequences/mbus_reset_off");
+    //mbus_reset_on
+	//mbus_set_master_on
+	//mbus_set_short_prefix_to_1
+	//mbus_reset_off
+    send_command_1("6d0f027201", 32'd5);
+    wait_for_rx_1(32'd3);
+	send_command_1("6d0d026d01", 32'd5);
+    wait_for_rx_1(32'd3);
+	send_command_1("6d10027301", 32'd5);
+    wait_for_rx_1(32'd3);
+	send_command_1("6d0f027200", 32'd5);
+    wait_for_rx_1(32'd3);
 
-    //now go back to ice0
-    assert( ice_0_dout_count == 1) else $fatal(1);
+     //now go back to ice0
+    assert( ice_0_dout_count < 2) else $fatal(1); // 0 or 1
     ice_0_dout_count = 0;
     ice_1_uart_rxd_count = 0;
   
@@ -434,7 +484,7 @@ begin
     //MBUS Tx
     send_command_0("620c08f0123450deadbeef", 32'd11);
     wait_for_rx_0(32'd3);
-    assert( ice_0_dout_count == 30) else $fatal(1);
+    assert( ice_0_dout_count == 22) else $fatal(1); //30?
     ice_0_dout_count = 0;
 
     //MBUS Mem Wr - raise CPU reset
@@ -482,8 +532,11 @@ begin
 
     $display("@@@Passed");
 	$finish;
+
 end
 
-always #1250 clk = ~clk;
 
-endmodule // testbench
+
+
+endmodule
+
