@@ -47,23 +47,12 @@ module ice_bus (
 
 parameter NUM_DEV = 7;
 
-// Create a syncronized reset signal
-reg reset_syn0;
-reg reset_syn1;
-
-//only place posedge reset allowed
-always @ (posedge clk or posedge reset) begin
-    if (reset)  begin
-        reset_syn0 <= `SD 1'b1;
-        reset_syn1 <= `SD 1'b1;
-    end
-    else begin
-        reset_syn0 <= `SD 1'b0;
-        reset_syn1 <= `SD reset_syn0;
-    end
-end
-
-
+wire reset_sync;
+sync sync0(
+    .clk(clk),
+    .async(reset), 
+    .sync(reset_sync)
+    );
 
 
 
@@ -87,7 +76,7 @@ wire [15:0] uart_baud_div;
 // >= v0.4 - use 1MBaud
 // 20MHZ -> 2MBaud -> DIVIDE_FACTOR = 10
 uart u1(
-	.reset(reset_syn1),
+	.reset(reset_sync),
 	.clk(clk),
 	.baud_div(uart_baud_div),
 	.rx_in(USB_UART_TXD),
@@ -104,7 +93,7 @@ wire mbus_ctr_incr, gpio_ctr_incr;
 wire [7:0] global_counter;
 global_event_counter gec1(
 	.clk(clk),
-	.rst(reset_syn1),
+	.rst(reset_sync),
 	
 	.ctr_incr(mbus_ctr_incr | gpio_ctr_incr),
 	.counter_out(global_counter)
@@ -122,7 +111,7 @@ wire [NUM_DEV-1:0] sl_arb_request, sl_arb_grant;
 wire sl_overflow;
 ice_bus_controller #(NUM_DEV) ice1(
 	.clk(clk),
-	.rst(reset_syn1),
+	.rst(reset_sync),
 
 	.rx_char(uart_rx_data),
 	.rx_char_valid(uart_rx_latch),
@@ -168,7 +157,7 @@ wire  [3:0] mbus_short_addr_override;
 wire [21:0] mbus_clk_div;
 basics_int bi0(
 	.clk(clk),
-	.rst(reset_syn1),
+	.rst(reset_sync),
 
 	//Immediates from bus controller
 	.generate_nak(ma_generate_nak),
@@ -236,7 +225,7 @@ reg next_mbus_was_master;
 // this will delay the mbus_reset 1 cycle, but it will sync the various 
 // reset signals comming into the block
 always @ (posedge clk) begin
-    if (reset_syn1) begin
+    if (reset_sync) begin
         mbus_reset <= `SD 1'b1;
         mbus_was_master <= `SD 1'h0;
     end else begin
@@ -344,7 +333,7 @@ discrete_int di0(
 assign sl_arb_request[3] = 1'b0;
 /*goc_int gi0(
 	.clk(clk),
-	.reset(reset_syn1),
+	.reset(reset_sync),
 	
 	.GOC_PAD(GOC_PAD),
 	
@@ -376,7 +365,7 @@ assign FPGA_MB_ECI = (goc_mode) ? 1'b0 : ein_eci;
 //EIN interface provides GOC-like interface but through direct 3-wire connection
 ein_int ei0(
 	.clk(clk),
-	.reset(reset_syn1),
+	.reset(reset_sync),
 	
 	.EMO_PAD(ein_emo),
 	.EDI_PAD(ein_edi),
@@ -401,11 +390,12 @@ ein_int ei0(
 	.sl_arb_grant(sl_arb_grant[6])
 );
 
+
 //GPIO interface
 //assign sl_arb_request[4] = 1'b0;
 gpio_int gi1(
 	.clk(clk),
-	.reset(reset),
+	.reset(reset_sync),
 	
 	.GPIO(GPIO),
 	
@@ -431,7 +421,7 @@ gpio_int gi1(
 wire [7:0] pmu_debug;
 pmu_int pi0(
 	.clk(clk),
-	.reset(reset_syn1),
+	.reset(reset_sync),
 	
 	.pmu_scl(PMU_SCL),
 	.pmu_sda(PMU_SDA),
@@ -460,10 +450,11 @@ pmu_int pi0(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = (~PB[4]) ? {FPGA_MB_CIN, FPGA_MB_DIN, USB_UART_TXD,USB_UART_RXD} :  
-               (~PB[3]) ? {1'b0, FPGA_MB_EMO, FPGA_MB_EDI, FPGA_MB_ECI} : 
-			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
-			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, reset, FPGA_MB_CIN, FPGA_MB_DIN};
+assign debug = ~PB;
+//assign debug = (~PB[4]) ? {FPGA_MB_CIN, FPGA_MB_DIN, USB_UART_TXD,USB_UART_RXD} :  
+//               (~PB[3]) ? {1'b0, FPGA_MB_EMO, FPGA_MB_EDI, FPGA_MB_ECI} : 
+//			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
+//			   (~PB[1]) ? {PMU_SCL, PMU_SDA} : {GOC_PAD, reset, FPGA_MB_CIN, FPGA_MB_DIN};
 //assign debug = {PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,PINT_RDREQ,PINT_RDRDY,PINT_RDDATA};
 //assign debug = {PINT_RDRDY,PINT_WRREQ,PINT_WRDATA,PINT_CLK,PINT_RESETN,SCL_DIG,SDA_DIG};
 
