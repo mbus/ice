@@ -51,6 +51,9 @@ always @(posedge clk) begin
 		shift_counter <= `SD 0;
 		failed <= `SD 0;
 		rw_latched <= `SD 0;
+
+        in_data <= `SD 8'h0;
+
 	end else begin
 		state <= `SD next_state;
 		

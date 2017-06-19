@@ -41,7 +41,14 @@ wire hd_frame_next;
 
 wire [8:0] in_char;
 wire hd_frame_data_valid;
-bus_interface #(8'h66,1,1,0) bi0(
+bus_interface #(
+    .ADDR(8'h66),
+    .INCLUDE_INPUT_FIFO(1),
+    .INCLUDE_OUTPUT_FIFO(1), 
+    .SUPPORTS_FRAGMENTATION(0),
+    .OUTPUT_FIFO_DEPTH_LOG2(5)
+    )
+    bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),
@@ -119,7 +126,8 @@ parameter STATE_IDLE = 0;
 parameter STATE_TRANSMITTING = 1;
 parameter STATE_ACK = 2;
 
-reg [3:0] state, next_state;
+reg [3:0] state /* synthesis syn_encoding="grey" */;
+reg [3:0] next_state;
 always @* begin
 	next_state = state;
 	ackgen_generate_ack = 1'b0;

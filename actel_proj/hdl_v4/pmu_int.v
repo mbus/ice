@@ -160,7 +160,8 @@ reg i2c_rw;
 wire [7:0] in_i2c_data;
 wire in_i2c_data_valid;
 
-reg [4:0] state, next_state;
+reg [4:0] state /* synthesis syn_encoding="grey" */;
+reg [4:0] next_state;
 parameter STATE_IDLE = 0;
 parameter STATE_GET_PARAM = 1;
 parameter STATE_GET_IDX = 2;
@@ -206,8 +207,15 @@ pmu_i2c pi0(
 always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
+
+        pwr_idx <= `SD 4'h0;
 		pmu_en_reg <= `SD 0;
+        pmu_dac_val <= `SD 5'h0;
+        pmu_param <= `SD 0;
+
 		first_time <= `SD 1;
+        slew <= `SD 0;
+
 	end else begin
 		state <= `SD next_state;
 		

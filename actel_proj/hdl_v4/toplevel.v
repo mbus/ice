@@ -71,15 +71,17 @@ por r1(
 );
 
 
+wire clk = SYS_CLK_BUF;
+
 sync sync0(
-    .clk(slow_clk),
+    .clk(clk),
     .async(reset), 
     .sync(reset_sync)
     );
 
 ice_bus ic1(
 	.reset(reset_sync),
-	.clk(SYS_CLK_BUF),
+	.clk(clk),
 	
 	.PB(PB[4:1]),
 	

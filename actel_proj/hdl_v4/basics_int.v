@@ -382,10 +382,24 @@ always @(posedge clk) begin
 		mbus_snoop_enabled <= `SD 1'b0;
 		mbus_long_addr <= `SD 20'hfffff;
 		mbus_short_addr_override <= `SD 4'hf;
+		mbus_clk_div <= `SD 22'h000020;
+        
+        //Should include these, but I'm not
+        // because 1) they didn't used to be and the design worked
+        // and 2)  I go over size if I do include them
 
-        latched_command <= 15'h0000;
-        parameter_shift_countdown <= 4'h0;
-        goc_polarity <= 0;
+        //latched_command <= `SD 15'h0000;
+        //latched_eid <= `SD 8'h0;
+        //parameter_shift_countdown <= 4'h0;
+        //goc_polarity <= 0;
+        //uart_baud_temp <= `SD 16'h0;
+        //gpio_direction_temp <= `SD 24'h0;
+        //gpio_int_enable_temp <= `SD 24'h0;
+        //gpio_level_temp <= `SD 24'h0;
+        //counter <= `SD 8'h0;
+        //parameter_staging <= `SD 24'h0;
+        //version_in <= `SD 16'h0;
+        //to_parameter <= `SD 5'h0;
 
 	end else begin
 		state <= `SD next_state;

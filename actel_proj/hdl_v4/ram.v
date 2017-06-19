@@ -16,7 +16,7 @@ output [DATA_WIDTH-1:0] out_data;
 input [DEPTH_LOG2-1:0] out_addr;
 
 //Locals
-reg [DATA_WIDTH-1:0] ram [DEPTH-1:0]; /* synthesis syn_ramstyle="no_rw_check" */
+reg [DATA_WIDTH-1:0] ram [DEPTH-1:0] /* synthesis syn_ramstyle="no_rw_check" */;
 assign out_data = ram[out_addr];
 
 always @(posedge clk) begin

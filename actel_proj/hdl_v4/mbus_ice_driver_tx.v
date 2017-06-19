@@ -46,7 +46,7 @@ parameter ST_TX_RESULT      = 13; //d
 parameter ST_TX_SZ = $clog2(ST_TX_RESULT+1);
 
 //transmit state machine
-reg [ST_TX_SZ-1:0]      tx_state /* synthesis syn_encoding="original" */  ;
+reg [ST_TX_SZ-1:0]      tx_state /* synthesis syn_encoding="original" */;
 reg [ST_TX_SZ-1:0]      tx_next_state;
 
 

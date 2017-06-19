@@ -66,8 +66,8 @@ generate
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end else begin
 
-        reg last_frame_valia;
-        wire insert_fvbit = last_frame_valia & ~(ma_frame_valid & addr_match);
+        reg last_frame_valid;
+        wire insert_fvbit = last_frame_valid & ~(ma_frame_valid & addr_match);
 
 		always @(posedge clk) begin
 			last_frame_valid <= `SD ma_frame_valid & addr_match;

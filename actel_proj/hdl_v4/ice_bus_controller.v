@@ -174,6 +174,8 @@ always @(posedge clk) begin
 	if(rst) begin
 		tx_state <= `SD STATE_TX_IDLE;
 		sl_addr_offset <= `SD 0;
+        sl_addr_offset_save <= `SD 8'h0;
+
 	end else begin
 		tx_state <= `SD next_tx_state;
 		if(addr_offset_clear)

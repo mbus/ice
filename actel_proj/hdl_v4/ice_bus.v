@@ -241,12 +241,6 @@ always @* begin
 end
 
 
-<<<<<<< HEAD
-
-
-=======
-
->>>>>>> f525e1f... ICE_BUS:  moved the reset sync to the toplevel design
 
 wire [3:0] mb_debug;
 mbus_layer_wrapper_ice mb0(

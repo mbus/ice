@@ -36,6 +36,7 @@ always @( posedge clk) begin
 		is_fragment <= `SD 1'b0;
 		packet_is_empty <= `SD 1'b0;
 		in_frame_addr_offset <= `SD 0;
+        header_eid <= `SD 8'h0;
 	end else begin
 		state <= `SD next_state;
 

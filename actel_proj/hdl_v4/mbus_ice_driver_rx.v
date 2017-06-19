@@ -42,7 +42,7 @@ parameter RX_ST_CTRL_BITS   = 15; //f
 parameter RX_ST_END_ACK     = 16; //10
 parameter RX_ST_SZ = $clog2(RX_ST_END_ACK+1);
 
-reg [RX_ST_SZ-1:0]      rx_state;
+reg [RX_ST_SZ-1:0]      rx_state /* synthesis syn_encoding="grey" */;
 reg [RX_ST_SZ-1:0]      rx_next_state;
 
 always @(posedge clk) begin
