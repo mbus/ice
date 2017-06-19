@@ -19,13 +19,17 @@
 `timescale 1ns/1ps
 
 `include "include/ice_def.v"
-`define SIM_FLAG
+
+//`define SIM_FLAG
 
 module ice_mbus_tx;
 
 parameter SYSCLK_PERIOD = 50;// 20MHZ
 //parameter SYSCLK_PERIOD = 5000;// 20MHZ
 
+parameter uart_baud_div = 16'd10;
+
+integer i,j,k;
 integer ice_0_dout_count;
 integer ice_1_uart_rxd_count;
 
@@ -52,6 +56,15 @@ wire        uart_1_rxd;
 wire        uart_1_txd;
 
 // ICE PORTS
+
+wire        ice_0_por_pad;
+wire        ice_0_pmu_scl;
+wire        ice_0_pmu_sda;
+
+wire        ice_1_por_pad;
+wire        ice_1_pmu_scl;
+wire        ice_1_pmu_sda;
+
 wire        ice_0_cin;
 wire        ice_0_din;
 wire        ice_0_cout;
@@ -78,7 +91,7 @@ always @(clk)
 uart uart0(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd10),
+	.baud_div(uart_baud_div),
 
 	.rx_in(uart_0_rxd),
 	.tx_out(uart_0_txd),
@@ -90,11 +103,10 @@ uart uart0(
 	.tx_data(uart_0_tx_data),
 	.tx_empty(uart_0_tx_empty)
 );
-
 uart u1(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd10),
+	.baud_div(uart_baud_div),
 	.rx_in(uart_1_rxd),
 	.rx_latch(uart_1_rx_latch),
 	.rx_data(uart_1_rx_data),
@@ -113,10 +125,22 @@ uart u1(
 assign #100 ice_0_din = ice_1_dout;
 assign #100 ice_0_cin = ice_1_cout;
 
+pullup(ice_0_por_pad);
+pullup(ice_0_pmu_scl);
+pullup(ice_0_pmu_sda);
+
+`ifdef SIM_FLAG
 m3_ice_top ice_0(
+`else
+hdl_v4 hdl_v4_0(
+`endif
 
     .SYS_CLK(clk),
 	.PB({3'b111,~reset}),
+    .POR_PAD( ice_0_por_pad), 
+
+    .PMU_SCL(ice_0_pmu_scl),
+    .PMU_SDA(ice_0_pmu_sda),
 
     .USB_UART_TXD(uart_0_txd),
     .USB_UART_RXD(uart_0_rxd),
@@ -125,19 +149,31 @@ m3_ice_top ice_0(
     .FPGA_MB_DIN(ice_0_din),
     .FPGA_MB_COUT(ice_0_cout),
     .FPGA_MB_DOUT(ice_0_dout)
-    
+
 );
 
 assign #100 ice_1_din = ice_0_dout;
 assign #100 ice_1_cin = ice_0_cout;
 
-m3_ice_top ice_1 (
+pullup(ice_1_por_pad);
+pullup(ice_1_pmu_scl);
+pullup(ice_1_pmu_sda);
+
+`ifdef SIM_FLAG
+m3_ice_top ice_1(
+`else
+hdl_v4 hdl_v4_1(
+`endif
 
     .SYS_CLK(clk),
 	.PB({3'b111,~reset}),
+    .POR_PAD( ice_1_por_pad), 
 
     .USB_UART_TXD(uart_1_txd),
     .USB_UART_RXD(uart_1_rxd),
+
+    .PMU_SCL(ice_1_pmu_scl),
+    .PMU_SDA(ice_1_pmu_sda),
 
     .FPGA_MB_CIN(ice_1_cin),
     .FPGA_MB_DIN(ice_1_din),
@@ -153,6 +189,12 @@ m3_ice_top ice_1 (
     always @(negedge uart_1_rxd ) begin
         ice_1_uart_rxd_count = ice_1_uart_rxd_count + 1;
     end
+
+    //task zero_ram_0;
+    //    begin
+    //        
+    //    end
+    //endtask
 
 
     //
@@ -320,22 +362,24 @@ m3_ice_top ice_1 (
 `ifndef SIM_FLAG
     task assert;
         input condition;
+    begin
         if(!condition) begin
             $display("@@@FAILED: assertion");
             $finish(2);
         end
-    endtask
+    end
+    endtask 
 `endif    
 
 initial
 begin
-    integer i,j,k;
 
     //Initialize the clock...
 	clk = 0;
 	reset = 1;
     ice_0_dout_count = 0;
     ice_1_uart_rxd_count = 0;
+
 
 	// top-level resets
 	uart_0_tx_latch = 1'b0;
@@ -345,9 +389,10 @@ begin
     //    reset = 0;
 
 	//Wait for the reset circuitry to kick in...
-    for (i = 0; i < 10; i = i + 1) @(negedge clk)        
+    for (i = 0; i < 100; i = i + 1) @(negedge clk)        
 	@ (posedge clk);
-	 reset = 0;
+        reset = 0;
+    for (i = 0; i < 100; i = i + 1) @(negedge clk)        
 	@ (posedge clk);
 
     //mbus_reset_on
@@ -364,7 +409,11 @@ begin
     wait_for_rx_1(32'd3);
 
      //now go back to ice0
-    assert( ice_0_dout_count < 2) else $fatal(1); // 0 or 1
+    `ifdef SIM_FLAG
+        assert( ice_0_dout_count < 2) else $fatal(1); // 0 or 1
+    `else
+        assert( ice_0_dout_count < 2);
+    `endif
     ice_0_dout_count = 0;
     ice_1_uart_rxd_count = 0;
   
@@ -484,17 +533,29 @@ begin
     //MBUS Tx
     send_command_0("620c08f0123450deadbeef", 32'd11);
     wait_for_rx_0(32'd3);
-    assert( ice_0_dout_count == 22) else $fatal(1); //30?
+    `ifdef SIM_FLAG
+        assert( ice_0_dout_count == 22) else $fatal(1); //30?
+    `else
+        assert( ice_0_dout_count == 22);
+    `endif
     ice_0_dout_count = 0;
 
     //MBUS Mem Wr - raise CPU reset
     send_command_0("62080c00000012affff000cafef00d", 32'd15);
     wait_for_rx_0(32'd3);
-    assert( ice_0_dout_count == 19) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_0_dout_count == 19) else $fatal(1);
+    `else
+        assert( ice_0_dout_count == 19);
+    `endif
     ice_0_dout_count = 0;
     //check the ICE Rx on that
 	for(i = 0; i < 5000; i=i+1) @(posedge clk);
-    assert( ice_1_uart_rxd_count  == 29) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_1_uart_rxd_count  == 29) else $fatal(1);
+    `else
+        assert( ice_1_uart_rxd_count  == 29);
+    `endif
     ice_1_uart_rxd_count = 0;
 
 
@@ -505,11 +566,19 @@ begin
         "621418000000120000000000200000910000000000000000000000",
         32'd27); 
     wait_for_rx_0(16'd3);
-    assert( ice_0_dout_count == 14) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_0_dout_count == 14) else $fatal(1);
+    `else
+        assert( ice_0_dout_count == 14);
+    `endif
     ice_0_dout_count = 0;
     //check the ICE Rx on that
 	for(i = 0; i < 5000; i=i+1) @(posedge clk);
-    assert( ice_1_uart_rxd_count  == 39) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_1_uart_rxd_count  == 39) else $fatal(1);
+    `else
+        assert( ice_1_uart_rxd_count  == 39);
+    `endif
     ice_1_uart_rxd_count = 0;
 
 
@@ -518,17 +587,25 @@ begin
         "62100c000000120000002080000000", 
         32'd15);
     wait_for_rx_0(16'd3);
-    assert( ice_0_dout_count == 12) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_0_dout_count == 12) else $fatal(1);
+    `else
+        assert( ice_0_dout_count == 12); 
+    `endif
     ice_0_dout_count = 0;
     //check the ICE Rx on that
 	for(i = 0; i < 5000; i=i+1) @(posedge clk);
-    assert( ice_1_uart_rxd_count  == 25 ) else $fatal(1);
+    `ifdef SIM_FLAG
+        assert( ice_1_uart_rxd_count  == 25 ) else $fatal(1);
+    `else
+        assert( ice_1_uart_rxd_count  == 25 );
+    `endif
     ice_1_uart_rxd_count = 0;
 
     //$display( "ice_0_dout_count:%d", ice_0_dout_count);
     //$display( "ice_1_uart_rxd_count:%d", ice_1_uart_rxd_count );
 
-	for(i = 0; i < 100000; i=i+1) @(posedge clk);
+	for(i = 0; i < 10000; i=i+1) @(posedge clk);
 
     $display("@@@Passed");
 	$finish;
