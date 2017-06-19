@@ -124,6 +124,9 @@ always @(posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_RX_IDLE;
 		byte_counter <= `SD 16'd0;
+        payload_len <= `SD 8'h0;
+        evt_id <= `SD 8'h0;
+
 	end else begin
 		state <= `SD next_state;
 			
@@ -148,7 +151,8 @@ end
 assign pri_latch = ~pri_granted;
 assign pri_en = 1'b1;
 
-reg [8:0] sl_addr_offset, sl_addr_offset_save;
+reg [8:0] sl_addr_offset;
+reg [7:0] sl_addr_offset_save;
 assign sl_addr = sl_tail + sl_addr_offset;
 
 parameter STATE_TX_IDLE = 0;

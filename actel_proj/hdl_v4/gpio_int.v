@@ -30,7 +30,7 @@ wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
 assign sl_data = (sl_arb_grant) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
-message_fifo #( .DEPTH_LOG2(5)) 
+message_fifo #( .DEPTH_LOG2(4)) 
 mf1(
 	.clk(clk),
 	.rst(reset),

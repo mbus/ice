@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module mbus_ice_driver_tx (
     input               clk,
     input               reset,
@@ -28,20 +30,19 @@ module mbus_ice_driver_tx (
 
 // Transmit states, some are fairly redundant
 parameter ST_TX_IDLE = 0;
-parameter ST_TX_FRAME_VALID = 1;
-parameter ST_TX_SHIFT_ADDR0 = 2;
-parameter ST_TX_SHIFT_ADDR1 = 3;
-parameter ST_TX_SHIFT_ADDR2 = 4;
-parameter ST_TX_SHIFT_ADDR3 = 5;
-parameter ST_TX_SHIFT_DATA0 = 6;
-parameter ST_TX_SHIFT_DATA1 = 7;
-parameter ST_TX_SHIFT_DATA2 = 8;
-parameter ST_TX_SHIFT_DATA3 = 9;
-parameter ST_TX_WAIT        = 10; //a
-parameter ST_TX_TXREQ       = 11; //b
-parameter ST_TX_TXACK       = 12; //c
-parameter ST_TX_TXSUCC      = 13; //d
-parameter ST_TX_RESULT      = 14; //e
+parameter ST_TX_SHIFT_ADDR0 = 1;
+parameter ST_TX_SHIFT_ADDR1 = 2;
+parameter ST_TX_SHIFT_ADDR2 = 3;
+parameter ST_TX_SHIFT_ADDR3 = 4;
+parameter ST_TX_SHIFT_DATA0 = 5;
+parameter ST_TX_SHIFT_DATA1 = 6;
+parameter ST_TX_SHIFT_DATA2 = 7;
+parameter ST_TX_SHIFT_DATA3 = 8;
+parameter ST_TX_WAIT        = 9;
+parameter ST_TX_TXREQ       = 10; //a
+parameter ST_TX_TXACK       = 11; //b
+parameter ST_TX_TXSUCC      = 12; //c
+parameter ST_TX_RESULT      = 13; //d
 parameter ST_TX_SZ = $clog2(ST_TX_RESULT+1);
 
 //transmit state machine
