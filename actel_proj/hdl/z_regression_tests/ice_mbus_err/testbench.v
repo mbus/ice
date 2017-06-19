@@ -12,6 +12,8 @@ module tb_ice();
 
 integer file, n, i, j, k;
 
+integer ice_0_uart_rxd_count;
+
 integer mem_idx_0, mem_idx_1;
 reg [7:0] mem_0[0:`MEM_SIZE];
 reg [7:0] mem_1[0:`MEM_SIZE];
@@ -201,7 +203,7 @@ m3_ice_top t1(
         work[1]  = cmd[msb-14];
         work[0]  = cmd[msb-15];
         
-        $display("Work: %h", work);
+        //$display("Work: %h", work);
         getByteFromAsciiStr = toByteFromAscii(work);
     endfunction
 
@@ -221,7 +223,7 @@ m3_ice_top t1(
         //transmit our message, one byte at a time
         for (i = cmd_size-1 ; i >= 0; i = i - 1) begin
             msb= (1+i)*16  - 1;
-            $display ("msb: %d, 0x%h", msb, msb);
+            //$display ("msb: %d, 0x%h", msb, msb);
             theByte = getByteFromAsciiStr(cmd, msb);
 
             $display ("TX0: %h", theByte);
@@ -333,6 +335,10 @@ task send_command_1;
 	end
 endtask
 
+always @(negedge uart_1_rxd ) begin
+    ice_0_uart_rxd_count = ice_0_uart_rxd_count + 1;
+end
+
 
 
 
@@ -349,6 +355,8 @@ begin
     ice_1_txerr_enable  = 0;
     ice_1_glitch_enable = 0;
     
+    ice_0_uart_rxd_count = 0;
+
 	//Wait for the reset circuitry to kick in...
 	@ (posedge clk);
 	@ (posedge clk);
@@ -490,6 +498,8 @@ begin
     wait_for_rx_0(32'd3);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
+    assert(ice_0_uart_rxd_count == 17)  else $fatal(1);
+    ice_0_uart_rxd_count = 0;
 
     //
     //BIG MBUS bulk memory write
@@ -501,6 +511,8 @@ begin
         32'd27); 
     wait_for_rx_0(16'd3);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+    assert(ice_0_uart_rxd_count == 21)  else $fatal(1);
+    ice_0_uart_rxd_count = 0;
 
     //Now turn this off just in case
     ice_1_txerr_enable = 0;
@@ -511,6 +523,9 @@ begin
         "62100c000000120000002080000000", 
         32'd15);
     wait_for_rx_0(16'd3);
+    //$display( "uart0: %d", ice_0_uart_rxd_count);
+    assert( ice_0_uart_rxd_count  == 26) else $fatal(1);
+    ice_0_uart_rxd_count = 0;
 
     //Now turn off the glitch
     ice_1_glitch_enable = 0;

@@ -162,7 +162,8 @@ always @* begin
         RX_ST_PEND_ACK: begin
             buffer_request = 1; 
             mbus_rx_ack = 1;
-            rx_next_state = RX_ST_PEND_WAIT;
+            if (mbus_rx_req == 0)
+                rx_next_state = RX_ST_PEND_WAIT;
         end
 
         RX_ST_PEND_WAIT: begin
@@ -180,7 +181,9 @@ always @* begin
 
         RX_ST_END_ACK: begin
             mbus_rx_ack = 1;
-            rx_next_state = RX_ST_IDLE; 
+            //need to wait until either req or fail falls
+            if(( mbus_rx_req == 0) && (mbus_rx_fail == 0))
+                rx_next_state = RX_ST_IDLE; 
         end
         
     endcase

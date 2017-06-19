@@ -20,7 +20,7 @@
 
 `include "include/ice_def.v"
 
-//`define SIM_FLAG
+`define SIM_FLAG
 
 module ice_mbus_tx;
 
