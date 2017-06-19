@@ -1,5 +1,3 @@
-`include "include/ice_def.v"
-
 module ram(clk,reset,in_data,in_addr,in_latch,out_data,out_addr);
 //User-defined parameters
 parameter DATA_WIDTH = 8;
@@ -16,7 +14,7 @@ output [DATA_WIDTH-1:0] out_data;
 input [DEPTH_LOG2-1:0] out_addr;
 
 //Locals
-reg [DATA_WIDTH-1:0] ram [DEPTH-1:0] /* synthesis syn_ramstyle="no_rw_check" */;
+reg [DATA_WIDTH-1:0] ram [DEPTH-1:0];
 assign out_data = ram[out_addr];
 
 always @(posedge clk) begin
@@ -24,9 +22,8 @@ always @(posedge clk) begin
 		//Not sure if there's really anything to do in the reset state...
 	end else begin
 		if(in_latch) begin
-			ram[in_addr] <= `SD in_data;
+			ram[in_addr] <= in_data;
 		end
-		//out_data <= `SD ram[out_addr];
 	end
 end
 
