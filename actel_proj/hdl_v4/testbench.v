@@ -35,7 +35,7 @@ wire uart_0_empty;
 uart u0(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd174),
+	.baud_div(16'd10),
 	.rx_in(uart_0_rxd),
 	.rx_latch(uart_0_rx_latch),
 	.tx_out(uart_0_txd),
@@ -66,7 +66,7 @@ wire uart_1_empty;
 uart u1(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd174),
+	.baud_div(16'd10),
 	.rx_in(uart_1_rxd),
 	.rx_latch(uart_1_rx_latch),
 	.rx_data(uart_1_rx_data),
