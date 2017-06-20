@@ -205,6 +205,8 @@ begin
 	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
 	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
 
+	send_command_0("../test_sequences/mbus_write_to_add2add2_at_f00000a");
+
 	//Wait for stuff to happen...
 	for(i = 0; i < 50000; i=i+1) begin
 		@(posedge clk);

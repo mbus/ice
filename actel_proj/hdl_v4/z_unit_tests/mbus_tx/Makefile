@@ -12,14 +12,20 @@ APRVCS = SW_VCS=2016.06 vcs +v2k +vc -Mupdate -line -full64 +v2k +vc -sverilog +
 VCSFLAGS = 
 INTFLAGS = -I +memcbk
 VERILOG_PATH = ./../../
+MBUS_PATH = ./../../
 INCLUDE_DIR=$(VERILOG_PATH)/
 
 ##### 
 # Modify starting here
 #####
 
-TESTBENCH = uart_test.v
-SIMFILES = 	$(VERILOG_PATH)/uart.v
+TESTBENCH = mbus_tx.v
+SIMFILES = 	$(MBUS_PATH)/mbus_addr_rf.v \
+ 			$(MBUS_PATH)/mbus_swapper.v \
+ 			$(MBUS_PATH)/mbus_wire_ctrl.v \
+ 			$(MBUS_PATH)/mbus_ctrl.v \
+ 			$(MBUS_PATH)/mbus_node_master_en.v \
+ 			$(MBUS_PATH)/mbus_general_layer_wrapper.v
 
 #SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 #		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \
