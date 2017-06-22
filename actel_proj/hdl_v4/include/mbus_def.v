@@ -73,3 +73,7 @@
 `define LC_CMD_MEM_WRITE	4'h2
 `define LC_CMD_MEM_READ		4'h3
 `define LC_CMD_MEM_STREAM	2'b01
+
+`ifndef SD
+    `define SD #1
+`endif

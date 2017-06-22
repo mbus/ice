@@ -227,7 +227,7 @@ reg		tx_underflow, next_tx_underflow;
 reg		ctrl_bit_buf, next_ctrl_bit_buf;
 
 // ICE-specific, save and export control bits
-reg		[1:0] ice_export_control_bits;
+//reg		[1:0] ice_export_control_bits;
 reg		[1:0] next_ice_export_control_bits;
 
 // rx registers

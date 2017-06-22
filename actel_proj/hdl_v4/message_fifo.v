@@ -36,7 +36,7 @@ ram #(9,DEPTH_LOG2) fr1(
 	.in_addr(head),
 	.in_latch(ram_wr_latch),
 	.out_data(out_data),
-	.out_addr(out_data_addr_reg)
+	.out_addr(out_data_addr_reg[DEPTH_LOG2-1:0])
 );
 
 assign ram_wr_data = {insert_fvbit,in_data};

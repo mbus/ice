@@ -25,7 +25,6 @@ SYN_LIB = /afs/umich.edu/class/eecs470/lib/verilog/lec25dscc25.v
 #TESTBENCH = tb_mbus.v
 TESTBENCH = testbench.v
 SIMFILES = \
-		$(MB_PATH)/mbus_addr_rf.v \
 		$(MB_PATH)/mbus_swapper.v \
 		$(MB_PATH)/mbus_wire_ctrl.v \
 		$(MB_PATH)/mbus_ctrl.v \
@@ -44,6 +43,8 @@ SIMFILES = \
 		$(VERILOG_PATH)/ice_bus.v \
 		$(VERILOG_PATH)/ice_bus_controller.v \
 		$(VERILOG_PATH)/mbus_layer_wrapper_ice.v \
+		$(VERILOG_PATH)/mbus_ice_driver_tx.v \
+		$(VERILOG_PATH)/mbus_ice_driver_rx.v \
 		$(VERILOG_PATH)/message_fifo.v \
 		$(VERILOG_PATH)/pmu_i2c.v \
 		$(VERILOG_PATH)/pmu_int.v \
@@ -52,7 +53,9 @@ SIMFILES = \
 		$(VERILOG_PATH)/pwm_mod.v \
 		$(VERILOG_PATH)/ram.v \
 		$(VERILOG_PATH)/toplevel.v \
-		$(VERILOG_PATH)/uart.v
+		$(VERILOG_PATH)/uart.v \
+		$(VERILOG_PATH)/sync.v \
+		$(VERILOG_PATH)/double_latch.v \
 
 #SYNFILES = synth/m3_ice_top.vg \
 #		$(VERILOG_PATH)/uart.v

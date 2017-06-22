@@ -148,7 +148,8 @@ end
 assign pri_latch = ~pri_granted;
 assign pri_en = 1'b1;
 
-reg [8:0] sl_addr_offset, sl_addr_offset_save;
+reg [8:0] sl_addr_offset;
+reg [7:0] sl_addr_offset_save;
 assign sl_addr = sl_tail + sl_addr_offset;
 
 parameter STATE_TX_IDLE = 0;

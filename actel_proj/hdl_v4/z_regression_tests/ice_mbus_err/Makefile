@@ -44,6 +44,8 @@ SIMFILES = 	mbus_err_gen.v \
 		$(VERILOG_PATH)/ice_bus.v \
 		$(VERILOG_PATH)/ice_bus_controller.v \
 		$(VERILOG_PATH)/mbus_layer_wrapper_ice.v \
+		$(VERILOG_PATH)/mbus_ice_driver_tx.v \
+		$(VERILOG_PATH)/mbus_ice_driver_rx.v \
 		$(VERILOG_PATH)/message_fifo.v \
 		$(VERILOG_PATH)/pmu_i2c.v \
 		$(VERILOG_PATH)/pmu_int.v \
@@ -52,7 +54,10 @@ SIMFILES = 	mbus_err_gen.v \
 		$(VERILOG_PATH)/pwm_mod.v \
 		$(VERILOG_PATH)/ram.v \
 		$(VERILOG_PATH)/toplevel.v \
-		$(VERILOG_PATH)/uart.v
+		$(VERILOG_PATH)/uart.v \
+		$(VERILOG_PATH)/sync.v \
+		$(VERILOG_PATH)/double_latch.v \
+
 
 SYNFILES = $(SIMFILES)
 APRFILES = $(SIMFILES)
