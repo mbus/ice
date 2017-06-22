@@ -48,7 +48,9 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		pwm_mod.v \
 		ram.v \
 		toplevel.v \
-		uart.v
+		uart.v \ 
+		sync.v \
+		double_latch.v 
 
 SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \

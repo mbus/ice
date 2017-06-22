@@ -101,11 +101,11 @@ ack_generator ag0(
 
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [7:0] mf_data = (ack_message_data_valid) ? ack_message_data : local_data;
-wire [7:0] mf_debug;
+//wire [7:0] mf_debug;
 wire mf_data_latch = local_data_latch | ack_message_data_valid;
 wire mf_frame_valid = local_frame_valid | ack_message_frame_valid;
 message_fifo 
-#( .DEPTH_LOG2(5) )
+#( .DEPTH_LOG2(4) )
 mf1(
 	.clk(clk),
 	.rst(rst),
@@ -382,6 +382,9 @@ always @(posedge clk) begin
 		mbus_long_addr <= `SD 20'hfffff;
 		mbus_short_addr_override <= `SD 4'hf;
 		mbus_clk_div <= `SD 22'h000020;
+
+        latched_command <= 15'h0000;
+
 	end else begin
 		state <= `SD next_state;
 		if(capability_incr) begin
@@ -424,7 +427,7 @@ always @(posedge clk) begin
 					parameter_shift_countdown <= `SD 3;
 				end
 			end else if(latched_command[9]) begin
-				parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 16'h000000};
+				parameter_staging <= `SD {M3_VBATT_SW, M3_1P2_SW, M3_0P6_SW, 21'h000000};
 				parameter_shift_countdown <= `SD 1;
 			end else if(latched_command[11]) begin
 				if(ma_data == 8'h62) begin

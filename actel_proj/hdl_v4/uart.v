@@ -33,7 +33,6 @@ reg [3:0] tx_cnt;
 reg [3:0] rx_cnt;
 reg [15:0] rx_sample_cnt;
 reg [15:0] tx_sample_cnt;
-reg rx_d1;
 reg [NUM_SYNC-1:0] rx_sync;
 wire rx_d = rx_sync[NUM_SYNC-1];
 reg rx_busy;
@@ -46,7 +45,6 @@ always @ (posedge clk) begin
 		rx_sample_cnt <= `SD 0;
 		rx_cnt        <= `SD 0;
 		rx_latch      <= `SD 0;
-		rx_d1         <= `SD 1;
 		rx_busy       <= `SD 0;
         rx_error      <=     0;
 		rx_sync	      <= `SD {{NUM_SYNC}{1'b1}};

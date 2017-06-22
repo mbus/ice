@@ -1,3 +1,3 @@
 `timescale 1ns/1ps
 
-`define SD #125
+`define SD #1

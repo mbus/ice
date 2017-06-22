@@ -43,8 +43,6 @@ wire in_mf_overflow;
 wire addr_match = (ma_addr == ADDR);
 wire [8:0] local_sl_data;
 wire [8:0] local_sl_tail;
-reg last_frame_valid;
-wire insert_fvbit = last_frame_valid & ~(ma_frame_valid & addr_match);
 
 //Only include an input FIFO if it has been requested
 generate
@@ -67,6 +65,10 @@ generate
 		);
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
 	end else begin
+
+        reg last_frame_valid;
+        wire insert_fvbit = last_frame_valid & ~(ma_frame_valid & addr_match);
+
 		always @(posedge clk) begin
 			last_frame_valid <= `SD ma_frame_valid & addr_match;
 		end
@@ -75,10 +77,12 @@ generate
 		assign in_frame_valid = addr_match & ma_frame_valid;
 		assign in_frame_data_valid = (addr_match & ma_data_valid) | insert_fvbit;
 		assign sl_overflow = (addr_match) ? in_mf_overflow : 1'bz;
+        assign in_frame_tail = 9'h0;
 	end
 endgenerate
 
 //Output FIFO will always be needed in this case
+wire sl_arb_data_valid;
 generate
 	if(INCLUDE_OUTPUT_FIFO) begin
 		message_fifo #(
@@ -94,6 +98,7 @@ generate
 			.out_data(local_sl_data),
 			.out_data_addr(sl_addr),
 			.out_frame_valid(sl_arb_request),
+            .out_frame_data_valid(sl_arb_data_valid ),
 			.latch_tail(sl_latch_tail & sl_arb_grant)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 9'bzzzzzzzzz;
@@ -102,6 +107,7 @@ generate
 		//TODO: This should just be able to store 1 ACK/NAK... (right now it doesn't do anything =(
 		assign sl_data = (sl_arb_grant) ? 8'd0 : 8'bzzzzzzzz;
 		assign sl_arb_request = 1'b0;
+        assign sl_tail = 9'bzzzzzzzzz;
 	end
 endgenerate
 

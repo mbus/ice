@@ -44,7 +44,7 @@ bus_interface #(
 .INCLUDE_INPUT_FIFO(0),
 .INCLUDE_OUTPUT_FIFO(1),
 .SUPPORTS_FRAGMENTATION(0),
-.OUTPUT_FIFO_DEPTH_LOG2(5)
+.OUTPUT_FIFO_DEPTH_LOG2(4)
 ) bi0(
 	.clk(clk),
 	.rst(reset),
@@ -96,7 +96,9 @@ bus_interface #(8'h50,0,0,0) bi1(
 	.ma_addr(ma_addr),
 	.ma_data_valid(ma_data_valid),
 	.ma_frame_valid(ma_frame_valid),
-	.sl_overflow(sl_overflow),
+	//.sl_overflow(sl_overflow),
+    .sl_addr(9'h0),
+    .sl_arb_grant(1'h0),
 	.in_frame_tail(hd2_frame_tail),
 	.in_frame_addr(hd2_frame_addr),
 	.in_frame_latch_tail(hd2_frame_latch_tail),
@@ -104,6 +106,7 @@ bus_interface #(8'h50,0,0,0) bi1(
 	.in_frame_data_valid(hd2_frame_data_valid),
 	.in_frame_valid(hd2_frame_valid)
 );
+
 header_decoder hd1(
 	.clk(clk),
 	.rst(reset),
