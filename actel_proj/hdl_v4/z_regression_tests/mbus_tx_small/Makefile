@@ -50,7 +50,8 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		$(VERILOG_PATH)/pwm_mod.v \
 		$(VERILOG_PATH)/ram.v \
 		$(VERILOG_PATH)/toplevel.v \
-		$(VERILOG_PATH)/uart.v
+		$(VERILOG_PATH)/uart.v \
+		$(VERILOG_PATH)/sync.v
 
 SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \

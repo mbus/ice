@@ -347,7 +347,8 @@ begin
 	//Wait for the reset circuitry to kick in...
     for (i = 0; i < 10; i = i + 1) @(negedge clk)        
 	@ (posedge clk);
-	 reset = 0;
+	    reset = 0;
+    for (i = 0; i < 10; i = i + 1) @(negedge clk)        
 	@ (posedge clk);
 
     //mbus_reset_on
