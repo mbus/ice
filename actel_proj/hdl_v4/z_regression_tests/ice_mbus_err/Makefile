@@ -16,7 +16,6 @@ INTFLAGS = -I +memcbk
 MB_PATH = ../../.
 VERILOG_PATH = ../../.
 INCLUDE_DIR=$(VERILOG_PATH)/
-SYN_LIB = /afs/umich.edu/class/eecs470/lib/verilog/lec25dscc25.v
 
 ##### 
 # Modify starting here
