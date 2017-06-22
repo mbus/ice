@@ -46,7 +46,7 @@ parameter ST_TX_RESULT      = 13; //d
 parameter ST_TX_SZ = $clog2(ST_TX_RESULT+1);
 
 //transmit state machine
-reg [ST_TX_SZ-1:0]      tx_state;
+reg [ST_TX_SZ-1:0]      tx_state /* synthesis syn_encoding="original" */  ;
 reg [ST_TX_SZ-1:0]      tx_next_state;
 
 
@@ -83,14 +83,19 @@ always @* begin
 
     case (tx_state)
         ST_TX_IDLE: begin
-            if (tx_frame_valid)
+            if (tx_frame_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_ADDR0;
+            end else begin
+                tx_next_state = tx_state;
+            end
         end
 
         ST_TX_SHIFT_ADDR0: begin 
             tx_mbus_txaddr_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_ADDR1;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
 
@@ -98,6 +103,8 @@ always @* begin
             tx_mbus_txaddr_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_ADDR2;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
         
@@ -105,6 +112,8 @@ always @* begin
             tx_mbus_txaddr_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_ADDR3;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
 
@@ -112,27 +121,38 @@ always @* begin
             tx_mbus_txaddr_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_DATA0;
+            end else begin
+                tx_next_state = tx_state;
             end
+
         end
 
         ST_TX_SHIFT_DATA0: begin 
             tx_mbus_txdata_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_DATA1;
+            end else begin
+                tx_next_state = tx_state;
             end
+
         end
 
         ST_TX_SHIFT_DATA1: begin 
             tx_mbus_txdata_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_DATA2;
+            end else begin
+                tx_next_state = tx_state;
             end
+
         end
         
         ST_TX_SHIFT_DATA2: begin 
             tx_mbus_txdata_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_SHIFT_DATA3;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
 
@@ -140,6 +160,8 @@ always @* begin
             tx_mbus_txdata_shift = tx_char_valid;
             if (tx_char_valid == 1) begin
                 tx_next_state = ST_TX_WAIT;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
 
@@ -153,15 +175,19 @@ always @* begin
             tx_mbus_txpend = tx_char_pending;
             if (tx_mbus_txack == 1) begin
                 tx_next_state = ST_TX_TXACK;
+            end else begin
+                tx_next_state = tx_state;
             end
         end 
 
         ST_TX_TXACK: begin  //b
             if (tx_mbus_txack == 0) begin
-                if (tx_char_pending) 
+                if (tx_char_pending == 1) 
                     tx_next_state = ST_TX_SHIFT_DATA0;
                 else
                     tx_next_state = ST_TX_TXSUCC;
+            end else begin
+                tx_next_state = tx_state;
             end
         end
                 
@@ -172,6 +198,8 @@ always @* begin
             end else if (tx_mbus_txfail == 1) begin
                 tx_gen_nak = 1;
                 tx_next_state = ST_TX_RESULT;
+            end else begin
+                tx_next_state = tx_state;
             end
         end 
 
@@ -179,8 +207,21 @@ always @* begin
             tx_mbus_txresp_ack = 1;
             if(tx_acknak_valid == 1'b0) begin
 				tx_next_state = ST_TX_IDLE;
+            end else begin
+                tx_next_state = tx_state;
             end
         end 
+        
+        default:  begin
+            tx_next_state = tx_state;
+            tx_mbus_txaddr_shift = 0;
+            tx_mbus_txdata_shift = 0;
+            tx_mbus_txreq = 0;
+            tx_mbus_txpend = 0;
+            tx_gen_ack = 0;
+            tx_gen_nak = 0;
+            tx_mbus_txresp_ack = 0;
+        end
 
     endcase
 end //always @*

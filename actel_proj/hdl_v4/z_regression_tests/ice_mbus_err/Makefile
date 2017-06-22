@@ -55,7 +55,9 @@ SIMFILES = 	mbus_err_gen.v \
 		$(VERILOG_PATH)/ram.v \
 		$(VERILOG_PATH)/toplevel.v \
 		$(VERILOG_PATH)/uart.v \
-		$(VERILOG_PATH)/sync.v
+		$(VERILOG_PATH)/sync.v \
+		$(VERILOG_PATH)/double_latch.v \
+
 
 SYNFILES = $(SIMFILES)
 APRFILES = $(SIMFILES)
