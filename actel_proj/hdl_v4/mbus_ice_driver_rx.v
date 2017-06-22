@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module mbus_ice_driver_rx (
     input               clk,
     input               reset,

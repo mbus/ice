@@ -103,7 +103,6 @@ wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
 wire hd_frame_next; // = shift_in_txaddr | shift_in_txdata;
-reg send_flag, send_ctr, send_status;
 wire [8:0] hd_frame_data;
 
 
@@ -376,6 +375,8 @@ mbus_general_layer_wrapper mclw1(
 
 
 
+
+//reg send_flag, send_ctr, send_status;
 
 //reg shift_in_txaddr, shift_in_txdata;
 //wire [7:0] rx_frame_data = (send_flag) ? 8'h62 : (send_ctr) ? global_counter : (send_status) ? status_bits : data_sr[63:56];
