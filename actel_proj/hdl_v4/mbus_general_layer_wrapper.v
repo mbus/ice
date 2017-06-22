@@ -30,21 +30,23 @@ module mbus_general_layer_wrapper(
 	input	ASSIGNED_ADDR_VALID,
 	output	ASSIGNED_ADDR_WRITE,
 	output	ASSIGNED_ADDR_INVALIDn,
-	input 	CLKIN,
-	output	CLKOUT,
+	input 	CLKIN,          // MBUS Clock input
+	output	CLKOUT,         // MBUS clock output
 	input 	RESETn,
-	input 	DIN,
-	output 	DOUT,
-	input	[`ADDR_WIDTH-1:0] TX_ADDR,
-	input 	[`DATA_WIDTH-1:0] TX_DATA, 
-	input 	TX_PEND, 
-	input 	TX_REQ, 
-	input 	TX_PRIORITY,
-	output 	TX_ACK, 
-	output 	[`ADDR_WIDTH-1:0] RX_ADDR, 
-	output 	[`DATA_WIDTH-1:0] RX_DATA, 
-	output 	RX_REQ, 
-	input 	RX_ACK, 
+	input 	DIN,            // MBUS Data In
+	output 	DOUT,           // MBUS Data out
+	input	[`ADDR_WIDTH-1:0] TX_ADDR,  // MBUS address to send data to
+	input 	[`DATA_WIDTH-1:0] TX_DATA,  // Data to send over MBUS (1 Word)
+	input 	TX_PEND,        // Raise high to to start transmit data
+	input 	TX_REQ,         // Raise high at start of transmit to send data with >1 Word
+	input 	TX_PRIORITY,    // No Idea, yet!
+    output 	TX_ACK,         // High when TX data latched, 
+                            // lower and re-raise TX_REQ for additional bytes
+                            // Lower TX_PEND for last byte transmitted
+	output 	[`ADDR_WIDTH-1:0] RX_ADDR,  // MBUS address of recived message (ours or broadcast?) 
+	output 	[`DATA_WIDTH-1:0] RX_DATA,  // MBUS recieved data (1 Word/time)
+	output 	RX_REQ,         // MBUS will raise to indidicate an RX'ed packet
+	input 	RX_ACK,         // Raise to tell MBUS you got it
 	output  RX_BROADCAST,
 	output	RX_FAIL,
 	output 	RX_PEND, 

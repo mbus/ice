@@ -35,7 +35,7 @@ wire uart_0_empty;
 uart u0(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd174),
+	.baud_div(16'd10), //now 2MBaud
 	.rx_in(uart_0_rxd),
 	.rx_latch(uart_0_rx_latch),
 	.tx_out(uart_0_txd),
@@ -66,7 +66,7 @@ wire uart_1_empty;
 uart u1(
 	.clk(clk),
 	.reset(reset),
-	.baud_div(16'd174),
+	.baud_div(16'd10),//now 2MBaud
 	.rx_in(uart_1_rxd),
 	.rx_latch(uart_1_rx_latch),
 	.rx_data(uart_1_rx_data),
@@ -204,6 +204,8 @@ begin
 
 	send_command_0("../test_sequences/mbus_send_message_SNS_config_bits");
 	send_command_0("../test_sequences/mbus_send_to_12345_data_deadbeef");
+
+	send_command_0("../test_sequences/mbus_write_to_add2add2_at_f00000a");
 
 	//Wait for stuff to happen...
 	for(i = 0; i < 50000; i=i+1) begin

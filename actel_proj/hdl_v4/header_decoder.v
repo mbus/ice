@@ -29,7 +29,7 @@ parameter STATE_WAIT_TAIL_LATCH = 4;
 
 reg [3:0] state, next_state;
 reg latch_eid, latch_is_fragment, set_header_done;
-always @(posedge rst or posedge clk) begin
+always @( posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
 		header_done <= `SD 1'b0;

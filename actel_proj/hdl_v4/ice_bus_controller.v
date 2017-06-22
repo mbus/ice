@@ -119,7 +119,7 @@ always @* begin
 	endcase
 end
 
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	
 	if(rst) begin
 		state <= `SD STATE_RX_IDLE;
@@ -164,7 +164,7 @@ reg save_offset;
 reg tx_len;
 reg addr_offset_clear, addr_offset_incr;
 
-assign tx_char = (tx_len) ? sl_addr_offset_save[7:0] : sl_data;
+assign tx_char = (tx_len) ? sl_addr_offset_save[7:0] : sl_data[7:0];
 
 always @(posedge clk) begin
 	if(rst) begin

@@ -30,7 +30,8 @@ wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
 assign sl_data = (sl_arb_grant) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant) ? mf_sl_tail : 9'bzzzzzzzzz;
-message_fifo #(9,0) mf1(
+message_fifo #( .DEPTH_LOG2(5)) 
+mf1(
 	.clk(clk),
 	.rst(reset),
 
@@ -138,7 +139,7 @@ always @* begin
 	end
 end
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 	end else begin

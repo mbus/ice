@@ -39,7 +39,13 @@ wire hd_frame_valid, hd_frame_data_valid, hd_header_done;
 wire [8:0] hd_frame_tail, hd_frame_addr;
 wire hd_frame_latch_tail;
 wire [7:0] hd_header_eid;
-bus_interface #(8'h70,0,1,0) bi0(
+bus_interface #(
+.ADDR(8'h70),
+.INCLUDE_INPUT_FIFO(0),
+.INCLUDE_OUTPUT_FIFO(1),
+.SUPPORTS_FRAGMENTATION(0),
+.OUTPUT_FIFO_DEPTH_LOG2(5)
+) bi0(
 	.clk(clk),
 	.rst(reset),
 	.ma_data(ma_data),
@@ -194,7 +200,7 @@ pmu_i2c pi0(
 	.clear_failed(pmu_clear_failed)
 );
 
-always @(posedge reset or posedge clk) begin
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		pmu_en_reg <= `SD 0;

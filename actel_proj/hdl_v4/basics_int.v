@@ -104,7 +104,9 @@ wire [7:0] mf_data = (ack_message_data_valid) ? ack_message_data : local_data;
 wire [7:0] mf_debug;
 wire mf_data_latch = local_data_latch | ack_message_data_valid;
 wire mf_frame_valid = local_frame_valid | ack_message_frame_valid;
-message_fifo mf1(
+message_fifo 
+#( .DEPTH_LOG2(5) )
+mf1(
 	.clk(clk),
 	.rst(rst),
 	
@@ -353,7 +355,7 @@ end
 
 reg last_ma_frame_valid;
 reg [4:0] to_parameter;
-always @(posedge rst or posedge clk) begin
+always @(posedge clk) begin
 	if(rst) begin
 		state <= `SD STATE_IDLE;
 		counter <= `SD 8'd0;

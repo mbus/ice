@@ -41,13 +41,6 @@ module mbus_layer_wrapper_ice(
 );
 
 
-/*mbus_clk_gen mbcg1(
-	.sys_clk(clk),
-	.reset(reset),
-	.clk_div(mbus_clk_div),
-	.mbus_clk(mbus_clk)
-);*/
-
 //Bus interface takes care of all buffering, etc for discrete data...
 reg rx_frame_valid;
 reg rx_char_latch;
@@ -64,11 +57,13 @@ wire hd_frame_next = shift_in_txaddr | shift_in_txdata;
 reg send_flag, send_ctr, send_status;
 wire [7:0] rx_frame_data = (send_flag) ? 8'h62 : (send_ctr) ? global_counter : (send_status) ? status_bits : data_sr[63:56];
 wire [8:0] tx_char;
+wire       tx_char_valid;
 wire rx_frame_data_latch = rx_char_latch | send_ctr | send_status;//TODO: Is send_flag needed here as well?!
 
 //MBus clock generation logic
 reg mbus_clk;
 reg [21:0] mbus_clk_counter;
+
 always @(posedge clk) begin
 	if(reset) begin
 		mbus_clk_counter <= `SD 0;
@@ -147,10 +142,15 @@ ack_generator ag0(
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
-reg [7:0] message_idx;
 assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant[1]) ? mf_sl_tail : 9'bzzzzzzzzz;
-message_fifo mf1(
+message_fifo 
+    //only used for ACK/NAKs
+    #(  .DEPTH_LOG2(2), 
+        .DEPTH(1<<2) 
+    )
+    mf1
+    (
 	.clk(clk),
 	.rst(reset),
 	
@@ -179,7 +179,6 @@ wire mbus_rxpend, mbus_rxreq, mbus_rxfail, mbus_rxbcast;
 reg mbus_rxack;
 
 assign debug = {CLKIN, mbus_rxfail, mbus_rxreq, mbus_rxack};
-reg mbus_reset, mbus_reset_pend;
 
 /* The MBus controller expects a register interface to hold the short address
 * configuration. With ICE, the short address may either be set by a command to
@@ -210,7 +209,7 @@ always @* begin
 end
 
 // Note: This register is reset with the ICE reset and not the mbus_reset
-always @(posedge mbus_clk or posedge reset)
+always @(posedge mbus_clk )
 begin
 	if (reset) begin
 		mbus_register_assigned_addr_valid <= `SD 1'b0;
@@ -227,7 +226,7 @@ begin
 end
 
 mbus_general_layer_wrapper mclw1(
-    .RESETn(~mbus_reset),
+    .RESETn(~reset),
 
     .CLK_EXT(mbus_clk),
     .MASTER_EN(MASTER_NODE),
@@ -295,13 +294,15 @@ parameter STATE_FAIL_ACK = 8;
 parameter STATE_TX_START = 9;
 parameter STATE_TX_DATA = 10;
 parameter STATE_TX_WAIT_PEND = 11;
-parameter STATE_TX_WORD0 = 12;
+//parameter STATE_TX_WORD0 = 12; //unused
 parameter STATE_TX_WORD1 = 13;
 parameter STATE_TX_FRAGMENT = 14;
 parameter STATE_TX_END0 = 15;
 parameter STATE_TX_END1 = 16;
+
    
-always @(posedge reset or posedge clk) begin
+//Doesn't need an async reset
+always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		status_bits <= `SD 8'h00;
@@ -309,8 +310,6 @@ always @(posedge reset or posedge clk) begin
 		data_ctr <= `SD 3'd0;
 		first_message <= `SD 1'b1;
 		state_ctr <= `SD 8'h00;
-		mbus_reset_pend <= `SD 1'b1;
-		mbus_reset <= `SD 1'b1;
 		shift_count <= `SD 4'd0;
 		mbus_txdata <= `SD 32'd0;
 		mbus_txaddr <= `SD 32'd0;
@@ -318,13 +317,8 @@ always @(posedge reset or posedge clk) begin
 		mbus_txreq <= `SD 1'b0;
 		mbus_txresp_ack <= `SD 1'b0;
 	end else begin
-		if(mbus_reset_pend) begin
-			mbus_reset_pend <= `SD 1'b0;
-			mbus_reset <= `SD 1'b1;
-		end else begin
-			mbus_reset <= `SD 1'b0;
-		end
 		state <= `SD next_state;
+
 		mbus_rxack <= `SD next_mb_ack;
 		rxreq_db <= `SD {rxreq_db[0], mbus_rxreq};
 		rxfail_db <= `SD {rxfail_db[0], mbus_rxfail};
@@ -469,7 +463,7 @@ always @* begin
 		end
 
 		//MBus TX states...
-		STATE_TX_START: begin
+		STATE_TX_START: begin //0x9
 			if(~hd_frame_valid) begin
 				next_state = STATE_TX_END0;
 			end else if(shift_count == 4'd4) begin
@@ -479,7 +473,7 @@ always @* begin
 			end
 		end
 
-		STATE_TX_DATA: begin
+		STATE_TX_DATA: begin //0xa
 			shift_in_txdata = tx_char_valid;
 			if(tx_char_valid) begin
 				if(tx_char[8] && hd_is_fragment) begin
@@ -495,32 +489,28 @@ always @* begin
 				next_state = STATE_TX_END0;
 		end
 
-		STATE_TX_WAIT_PEND: begin
-			if(~hd_frame_valid | tx_char_valid) begin
-				mbus_txpend_next = hd_frame_valid;
-				next_state = STATE_TX_WORD0;
-			end
+		STATE_TX_WAIT_PEND: begin //0xb
+            //ANDREW: multi-word transmissions must wait until 
+            // txack goes low from last tx and 
+            // mbus_txack runs on mbus_clk, not clk
+            if (~mbus_txack)  
+                next_state = STATE_TX_WORD1;
 		end
 
-		STATE_TX_WORD0: begin
-			mbus_txpend_next = mbus_txpend;
-			next_state = STATE_TX_WORD1;
-		end
-
-		STATE_TX_WORD1: begin
+		STATE_TX_WORD1: begin //d
 			mbus_txreq_next = 1'b1;
-			mbus_txpend_next = mbus_txpend;
-			if(mbus_txack)
+			mbus_txpend_next = hd_frame_valid;
+			if(mbus_txack) 
 				next_state = STATE_TX_DATA;
 		end
 
-		STATE_TX_FRAGMENT: begin
+		STATE_TX_FRAGMENT: begin //e
 			if(~ack_message_frame_valid & hd_frame_valid) begin
 				next_state = STATE_TX_DATA;
 			end
 		end
 
-		STATE_TX_END0: begin
+		STATE_TX_END0: begin // f
 			hd_header_done_clear = 1'b1;
 			if(mbus_txfail) begin
 				ackgen_generate_nak = 1'b1;
