@@ -22,6 +22,8 @@ MB_PATH = .
 #TESTBENCH = tb_mbus.v
 TESTBENCH = testbench.v
 SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
+		$(MB_PATH)/mbus_ice_driver_tx.v \
+		$(MB_PATH)/mbus_ice_driver_rx.v \
 		$(MB_PATH)/mbus_swapper.v \
 		$(MB_PATH)/mbus_wire_ctrl.v \
 		$(MB_PATH)/mbus_ctrl.v \
@@ -47,6 +49,7 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		priority_select.v \
 		pwm_mod.v \
 		ram.v \
+		sync.v \
 		toplevel.v \
 		uart.v \ 
 		sync.v \

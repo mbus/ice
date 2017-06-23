@@ -32,6 +32,7 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		$(VERILOG_PATH)/gpio_int.v \
 		$(VERILOG_PATH)/bus_interface.v \
 		$(VERILOG_PATH)/debounce_ms.v \
+		$(VERILOG_PATH)/double_latch.v \
 		$(VERILOG_PATH)/ein_int.v \
 		$(VERILOG_PATH)/ein_mod.v \
 		$(VERILOG_PATH)/global_event_counter.v \
@@ -49,10 +50,9 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		$(VERILOG_PATH)/priority_select.v \
 		$(VERILOG_PATH)/pwm_mod.v \
 		$(VERILOG_PATH)/ram.v \
-		$(VERILOG_PATH)/toplevel.v \
-		$(VERILOG_PATH)/uart.v \
 		$(VERILOG_PATH)/sync.v \
-		$(VERILOG_PATH)/double_latch.v \
+		$(VERILOG_PATH)/toplevel.v \
+		$(VERILOG_PATH)/uart.v 
 
 SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \
