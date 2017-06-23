@@ -136,7 +136,6 @@ m3_ice_top t1(
 
 
 
-
     //
     // Stuff for parsing the string command into binary
     //
@@ -437,6 +436,8 @@ begin
     assert( ice_0_dout_count == 30) else $fatal(1);
     ice_0_dout_count = 0;
 
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
     //MBUS Mem Wr - raise CPU reset
     send_command_0("62080c00000012affff000cafef00d", 32'd15);
     wait_for_rx_0(32'd3);
@@ -447,6 +448,7 @@ begin
     assert( ice_1_uart_rxd_count  == 29) else $fatal(1);
     ice_1_uart_rxd_count = 0;
 
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     //
     //BIG MBUS bulk memory write
@@ -462,7 +464,7 @@ begin
     assert( ice_1_uart_rxd_count  == 39) else $fatal(1);
     ice_1_uart_rxd_count = 0;
 
-
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
     send_command_0(
         "62100c000000120000002080000000", 
