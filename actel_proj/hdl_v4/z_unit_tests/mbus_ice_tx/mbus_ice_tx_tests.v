@@ -266,20 +266,60 @@ module testbench;
         test_message[4] = 8'h00;
         test_message[5] = 8'h00;
         test_message[6] = 8'ha2;
+
         test_message[7] = 8'had;
-        test_message[8] = 8'hd2;
+        test_message[8] = 8'hd3;
         test_message[9] = 8'hde;
         test_message[10] = 8'had;
-        test_message[11] = 8'hbe;
-        test_message[12] = 8'hef;
 
-        send_message(test_message,13);
+        test_message[11] = 8'hba;
+        test_message[12] = 8'had;
+        test_message[13] = 8'hbe;
+        test_message[14] = 8'hef;
 
-        //longer message, less wiggles
-        assert( DOUT_low_count == 16) else $fatal(1);
-        //interjection wiggles to follow, but that's ok
+        send_message(test_message,15);
+
+        //longer message, more wiggles
+        assert( DOUT_low_count == 31) else $fatal(1);
         
+        for (i = 0; i < 1000; i = i + 1) begin
+            @(negedge clock);
+        end
+
         @(negedge clock);
+        DOUT_low_count = 0;
+        global_counter = 8'h2;
+
+        $display("\nSending Third Message\n");
+        test_message[0] = 8'h62;
+        test_message[1] = 8'h0b;
+        test_message[2] = 8'h0c;
+        test_message[3] = 8'hf0;
+        test_message[4] = 8'h00;
+        test_message[5] = 8'h00;
+        test_message[6] = 8'ha2;
+
+        test_message[7] = 8'had;
+        test_message[8] = 8'hdd;
+        test_message[9] = 8'had;
+        test_message[10] = 8'hdd;
+
+        test_message[11] = 8'h12;
+        test_message[12] = 8'h13;
+        test_message[13] = 8'h14;
+        test_message[14] = 8'h15;
+
+        test_message[15] = 8'h23;
+        test_message[16] = 8'h24;
+        test_message[17] = 8'h25;
+        test_message[18] = 8'h26;
+
+
+        send_message(test_message,19);
+
+        //longer message, more wiggles
+        assert( DOUT_low_count == 40) else $fatal(1);
+        
 
         for (i = 0; i < 10000; i = i + 1) begin
             @(negedge clock);

@@ -79,6 +79,7 @@ generate
 endgenerate
 
 //Output FIFO will always be needed in this case
+wire sl_arb_data_valid;
 generate
 	if(INCLUDE_OUTPUT_FIFO) begin
 		message_fifo #(
@@ -94,6 +95,7 @@ generate
 			.out_data(local_sl_data),
 			.out_data_addr(sl_addr),
 			.out_frame_valid(sl_arb_request),
+            .out_frame_data_valid(sl_arb_data_valid ),
 			.latch_tail(sl_latch_tail & sl_arb_grant)
 		);
 		assign sl_data = (sl_arb_grant) ? local_sl_data : 9'bzzzzzzzzz;
