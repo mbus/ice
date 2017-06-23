@@ -52,8 +52,9 @@ SIMFILES = \
 		$(VERILOG_PATH)/priority_select.v \
 		$(VERILOG_PATH)/pwm_mod.v \
 		$(VERILOG_PATH)/ram.v \
+		$(VERILOG_PATH)/sync.v \
 		$(VERILOG_PATH)/toplevel.v \
-		$(VERILOG_PATH)/uart.v
+		$(VERILOG_PATH)/uart.v 
 
 #SYNFILES = synth/m3_ice_top.vg \
 #		$(VERILOG_PATH)/uart.v
