@@ -24,7 +24,6 @@
 module ice_mbus_tx;
 
 parameter SYSCLK_PERIOD = 50;// 20MHZ
-//parameter SYSCLK_PERIOD = 5000;// 20MHZ
 
 integer ice_0_dout_count;
 integer ice_1_uart_rxd_count;
@@ -540,4 +539,5 @@ end
 
 
 endmodule
+
 
