@@ -1,3 +1,5 @@
+`include "include/ice_def.v"
+
 module mbus_ice_driver_tx (
     input               clk,
     input               reset,
@@ -28,20 +30,19 @@ module mbus_ice_driver_tx (
 
 // Transmit states, some are fairly redundant
 parameter ST_TX_IDLE = 0;
-parameter ST_TX_FRAME_VALID = 1;
-parameter ST_TX_SHIFT_ADDR0 = 2;
-parameter ST_TX_SHIFT_ADDR1 = 3;
-parameter ST_TX_SHIFT_ADDR2 = 4;
-parameter ST_TX_SHIFT_ADDR3 = 5;
-parameter ST_TX_SHIFT_DATA0 = 6;
-parameter ST_TX_SHIFT_DATA1 = 7;
-parameter ST_TX_SHIFT_DATA2 = 8;
-parameter ST_TX_SHIFT_DATA3 = 9;
-parameter ST_TX_WAIT        = 10; //a
-parameter ST_TX_TXREQ       = 11; //b
-parameter ST_TX_TXACK       = 12; //c
-parameter ST_TX_TXSUCC      = 13; //d
-parameter ST_TX_RESULT      = 14; //e
+parameter ST_TX_SHIFT_ADDR0 = 1;
+parameter ST_TX_SHIFT_ADDR1 = 2;
+parameter ST_TX_SHIFT_ADDR2 = 3;
+parameter ST_TX_SHIFT_ADDR3 = 4;
+parameter ST_TX_SHIFT_DATA0 = 5;
+parameter ST_TX_SHIFT_DATA1 = 6;
+parameter ST_TX_SHIFT_DATA2 = 7;
+parameter ST_TX_SHIFT_DATA3 = 8;
+parameter ST_TX_WAIT        = 9;
+parameter ST_TX_TXREQ       = 10; //a
+parameter ST_TX_TXACK       = 11; //b
+parameter ST_TX_TXSUCC      = 12; //c
+parameter ST_TX_RESULT      = 13; //d
 parameter ST_TX_SZ = $clog2(ST_TX_RESULT+1);
 
 //transmit state machine
@@ -147,7 +148,7 @@ always @* begin
             tx_next_state = ST_TX_TXREQ;
         end
         
-        ST_TX_TXREQ: begin 
+        ST_TX_TXREQ: begin  //a
             tx_mbus_txreq = 1;
             tx_mbus_txpend = tx_char_pending;
             if (tx_mbus_txack == 1) begin
@@ -155,7 +156,7 @@ always @* begin
             end
         end 
 
-        ST_TX_TXACK: begin  //c
+        ST_TX_TXACK: begin  //b
             if (tx_mbus_txack == 0) begin
                 if (tx_char_pending) 
                     tx_next_state = ST_TX_SHIFT_DATA0;
@@ -164,7 +165,7 @@ always @* begin
             end
         end
                 
-        ST_TX_TXSUCC: begin  //d
+        ST_TX_TXSUCC: begin  //c
             if (tx_mbus_txsucc == 1) begin
                 tx_gen_ack = 1;
                 tx_next_state = ST_TX_RESULT;
@@ -174,7 +175,7 @@ always @* begin
             end
         end 
 
-        ST_TX_RESULT: begin  //e
+        ST_TX_RESULT: begin  //d
             tx_mbus_txresp_ack = 1;
             if(tx_acknak_valid == 1'b0) begin
 				tx_next_state = ST_TX_IDLE;
