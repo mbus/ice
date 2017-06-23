@@ -101,7 +101,7 @@ module testbench;
 
         //Global counter for 'time-tagging'
         .global_counter( global_counter ),
-        .incr_ctr( incr_ctr ),
+        .global_counter_inc( incr_ctr ),
 
         .debug( debug )
     );

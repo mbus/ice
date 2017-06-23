@@ -293,7 +293,7 @@ mbus_layer_wrapper_ice mb0(
 	
 	//Global counter for 'time-tagging'
 	.global_counter(global_counter),
-	.incr_ctr(mbus_ctr_incr),
+	.global_counter_inc(mbus_ctr_incr),
 	
 	.debug(mb_debug)
 );
