@@ -34,6 +34,7 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		gpio_int.v \
 		bus_interface.v \
 		debounce_ms.v \
+		double_latch.v  \
 		ein_int.v \
 		ein_mod.v \
 		global_event_counter.v \
@@ -51,7 +52,7 @@ SIMFILES = 	$(MB_PATH)/mbus_addr_rf.v \
 		ram.v \
 		sync.v \
 		toplevel.v \
-		uart.v
+		uart.v 
 
 SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \

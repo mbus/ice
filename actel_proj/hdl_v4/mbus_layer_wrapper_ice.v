@@ -58,9 +58,12 @@ assign debug = 4'h0;
     wire [31:0]     tx_mbus_txdata;
     wire            tx_mbus_txreq;
     wire            tx_mbus_txpend;
-    wire            tx_mbus_txack;
-    wire            tx_mbus_txfail;
-    wire            tx_mbus_txsucc;
+    wire            tx_mbus_txack_async;
+    wire            tx_mbus_txack_dl;
+    wire            tx_mbus_txfail_async;
+    wire            tx_mbus_txfail_dl;
+    wire            tx_mbus_txsucc_async;
+    wire            tx_mbus_txsucc_dl;
     wire            tx_mbus_txresp_ack;
  
     wire            tx_gen_ack;
@@ -81,21 +84,20 @@ assign debug = 4'h0;
     //stuff from mbus  
     wire [31:0]         rx_mbus_rx_addr;
 	wire [31:0]         rx_mbus_rx_data;
-	wire                rx_mbus_rx_req; 
+	wire                rx_mbus_rx_req_async; 
+	wire                rx_mbus_rx_req_dl; 
 	wire                rx_mbus_rx_ack;
 	wire                rx_mbus_rx_broadcast;
-	wire                rx_mbus_rx_fail;
-	wire                rx_mbus_rx_pend;
+	wire                rx_mbus_rx_fail_async;
+    wire                rx_mbus_rx_fail_dl;
+	wire                rx_mbus_rx_pend_async;
+	wire                rx_mbus_rx_pend_dl;
 	wire [1:0]          rx_mbus_rx_control_bits;
     
     wire                rx_buffer_request;
     wire                rx_buffer_grant;
     wire [7:0]          rx_buffer_data;
     wire                rx_buffer_valid;
-
-
-
-
 
 
 wire hd_frame_valid, hd_frame_data_valid, hd_header_done, hd_is_fragment, hd_is_empty;
@@ -171,6 +173,7 @@ header_decoder hd0(
 
 
 
+
 // MBUS TX DRIVER
 //
 // handles all the HOST->ICE->MBUS traffic signals
@@ -200,9 +203,9 @@ mbus_ice_driver_tx tx0 (
     .tx_mbus_txdata(tx_mbus_txdata),
     .tx_mbus_txreq(tx_mbus_txreq),
     .tx_mbus_txpend(tx_mbus_txpend),
-    .tx_mbus_txack(tx_mbus_txack),
-    .tx_mbus_txfail(tx_mbus_txfail),
-    .tx_mbus_txsucc(tx_mbus_txsucc),
+    .tx_mbus_txack(tx_mbus_txack_dl),
+    .tx_mbus_txfail(tx_mbus_txfail_dl),
+    .tx_mbus_txsucc(tx_mbus_txsucc_dl),
     .tx_mbus_txresp_ack(tx_mbus_txresp_ack),
 
     .tx_gen_ack(tx_gen_ack),
@@ -225,11 +228,11 @@ mbus_ice_driver_rx rx0(
     //stuff from mbus  
     .mbus_rx_addr(rx_mbus_rx_addr),
     .mbus_rx_data(rx_mbus_rx_data),
-    .mbus_rx_req(rx_mbus_rx_req), 
+    .mbus_rx_req(rx_mbus_rx_req_dl), 
     .mbus_rx_ack(rx_mbus_rx_ack),
     .mbus_rx_broadcast(rx_mbus_rx_broadcast),
-    .mbus_rx_fail(rx_mbus_rx_fail),
-    .mbus_rx_pend(rx_mbus_rx_pend),
+    .mbus_rx_fail(rx_mbus_rx_fail_dl),
+    .mbus_rx_pend(rx_mbus_rx_pend_dl),
     .mbus_rx_control_bits(rx_mbus_rx_control_bits),
     
     .buffer_request(rx_buffer_request),
@@ -262,6 +265,7 @@ ack_generator ag0(
 //Only using an output message fifo here because we should be able to keep up with requests in real-time
 wire [8:0] mf_sl_data;
 wire [8:0] mf_sl_tail;
+reg [7:0] message_idx;
 assign sl_data = (sl_arb_grant[1]) ? mf_sl_data : 9'bzzzzzzzzz;
 assign sl_tail = (sl_arb_grant[1]) ? mf_sl_tail : 9'bzzzzzzzzz;
 message_fifo 
@@ -353,11 +357,11 @@ mbus_general_layer_wrapper mclw1(
     //RX Ports
     .RX_ADDR(rx_mbus_rx_addr),
     .RX_DATA(rx_mbus_rx_data),
-    .RX_REQ(rx_mbus_rx_req),
+    .RX_REQ(rx_mbus_rx_req_async),
     .RX_ACK(rx_mbus_rx_ack),
     .RX_BROADCAST(rx_mbus_rx_broadcast),
-    .RX_FAIL(rx_mbus_rx_fail),
-    .RX_PEND(rx_mbus_rx_pend),
+    .RX_FAIL(rx_mbus_rx_fail_async),
+    .RX_PEND(rx_mbus_rx_pend_async),
     .ice_export_control_bits(rx_mbus_rx_control_bits), 
 
     //TX Ports
@@ -366,13 +370,59 @@ mbus_general_layer_wrapper mclw1(
     .TX_PEND(tx_mbus_txpend),
     .TX_REQ(tx_mbus_txreq),
     .TX_PRIORITY(1'h0),
-    .TX_ACK(tx_mbus_txack),
-    .TX_FAIL(tx_mbus_txfail),
-    .TX_SUCC(tx_mbus_txsucc),
+    .TX_ACK(tx_mbus_txack_async),
+    .TX_FAIL(tx_mbus_txfail_async), 
+    .TX_SUCC(tx_mbus_txsucc_async),
     .TX_RESP_ACK(tx_mbus_txresp_ack)
 );
 
 
+/* 
+ *  a bunch of double latches to jump clock domains
+ *  from several control signals coming from MBUS
+ */
+
+double_latch dl_TX_ACK(
+    .clk(clk),
+    .reset (reset),
+    .async(tx_mbus_txack_async),
+    .dlatched(tx_mbus_txack_dl)
+    );
+
+double_latch dl_TX_FAIL(
+    .clk(clk),
+    .reset (reset),
+    .async(tx_mbus_txfail_async),
+    .dlatched(tx_mbus_txfail_dl)
+    );
+
+double_latch dl_TX_SUCC(
+    .clk(clk),
+    .reset (reset),
+    .async(tx_mbus_txsucc_async), 
+    .dlatched(tx_mbus_txsucc_dl)
+    );
+
+double_latch dl_RX_REQ(
+    .clk(clk),
+    .reset (reset),
+    .async(rx_mbus_rx_req_async),
+    .dlatched(rx_mbus_rx_req_dl)
+    );
+
+double_latch dl_RX_PEND(
+    .clk(clk),
+    .reset (reset),
+    .async(rx_mbus_rx_pend_async),
+    .dlatched(rx_mbus_rx_pend_dl)
+    );
+
+double_latch dl_RX_FAIL(
+    .clk(clk),
+    .reset (reset),
+    .async(rx_mbus_rx_fail_async),
+    .dlatched(rx_mbus_rx_fail_dl)
+    );
 
 
 

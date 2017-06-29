@@ -35,6 +35,7 @@ SIMFILES = \
 		$(VERILOG_PATH)/gpio_int.v \
 		$(VERILOG_PATH)/bus_interface.v \
 		$(VERILOG_PATH)/debounce_ms.v \
+		$(VERILOG_PATH)/double_latch.v \
 		$(VERILOG_PATH)/ein_int.v \
 		$(VERILOG_PATH)/ein_mod.v \
 		$(VERILOG_PATH)/global_event_counter.v \
