@@ -54,12 +54,12 @@ parameter NUM_DEV = 7;
 
 
 //User lines are current not used as there are no daughterboards which have been made
-assign USER[5:3] = 3'h0;
+assign USER[5:3] = PB[4:2];
 //Direct assign of USB_UART_TDX and USB_UART_RXD to debug header
 assign USER[2] = USB_UART_RXD;
 assign USER[1] = USB_UART_TXD;
 //Direct assignment of GOC signal to debug header
-assign USER[0] = debug[3];
+assign USER[0] = GOC_PAD;
 
 //UART module
 wire [7:0] uart_rx_data, uart_tx_data;
@@ -443,7 +443,7 @@ pmu_int pi0(
 //DEBUG:
 //assign debug = uart_rx_data;
 //assign debug = {SCL_DISCRETE_BUF, SCL_PD, SCL_PU, SCL_TRI, SDA_DISCRETE_BUF, SDA_PD, SDA_PU, SDA_TRI};
-assign debug = ~PB;
+assign debug = {GOC_PAD, reset, FPGA_MB_CIN, FPGA_MB_DIN};
 //assign debug = (~PB[4]) ? {FPGA_MB_CIN, FPGA_MB_DIN, USB_UART_TXD,USB_UART_RXD} :  
 //               (~PB[3]) ? {1'b0, FPGA_MB_EMO, FPGA_MB_EDI, FPGA_MB_ECI} : 
 //			   (~PB[2]) ? {FPGA_MB_COUT, FPGA_MB_DOUT, FPGA_MB_CIN, FPGA_MB_DIN} : 
