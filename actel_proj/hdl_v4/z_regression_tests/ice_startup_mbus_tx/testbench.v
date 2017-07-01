@@ -191,13 +191,7 @@ hdl_v4 hdl_v4_1(
         ice_1_uart_rxd_count = ice_1_uart_rxd_count + 1;
     end
 
-    //task zero_ram_0;
-    //    begin
-    //        
-    //    end
-    //endtask
-
-
+    
     //
     // Stuff for parsing the string command into binary
     //
@@ -381,6 +375,7 @@ begin
     ice_0_dout_count = 0;
     ice_1_uart_rxd_count = 0;
 
+    // @todo Will need to zero RAM here
 
 	// top-level resets
 	uart_0_tx_latch = 1'b0;
