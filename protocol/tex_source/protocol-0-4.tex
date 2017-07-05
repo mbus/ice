@@ -120,7 +120,53 @@
 \subsubsection{\texttt{0x66 `f'} -- Debug (GOC/EIN) interface message}
 {\em Synchronous Request}
 \begin{itemize}
-  \item Debug interface messages are formatted the exact same as `d'iscrete messages.
+  \item[]
+    \begin{bytefield}{40}
+      \colorbitbox{lightgreen}{8}{`f'} &
+      \colorbitbox{lightred}{8}{Event ID} &
+      \colorbitbox{lightcyan}{8}{Length} &
+      \bitbox{4}{Data...}
+    \end{bytefield}
+
+  \item The bytes in this message compose an GOC/EIN transaction.
+  \item The length field of this message necessarily limits the maximum
+    message size to 255 bytes (addr + 254 data). Longer messages should
+    be fragmented.
+  \item The sentinel value {\tt 255} for length indicates a {\em
+    fragmented} message.
+  \item[]
+    \begin{itemize}
+      \item A message fragment {\bf MUST} be exactly 255 bytes long.
+      \item A fragment message {\bf MUST} be followed by another
+        fragment, or terminated by a regular {\bf `f'} message.
+        \begin{itemize}
+          \item The ICE board is permitted to interleave other,
+            non-GOC/EIN related messages (e.g. GPIO events).
+        \end{itemize}
+      \item A series of message fragments {\bf MUST} always be
+        terminated by a `f' message with an explicit length. An `f' transaction of
+        length 0 is permitted, e.g.:
+        \begin{itemize}
+          \item An transaction of length 510 (1 byte addr + 509 bytes
+            of data) would be {\bf three} messages. The first of length
+            255 (addr + bytes 0-253), the second of length 255 (bytes
+            254-508), and the third of length 0 (there is no more
+            data, but the fragment series must be terminated).
+        \end{itemize}
+      \item Fragments are treated as one logical message, but individual bus
+        transactions, by an ICE board.  In practice this means:
+        \begin{itemize}
+          \item Each fragment message must be individually ACK'd by ICE.
+            \begin{itemize}
+              \item A NAK'd fragment message ends a message.
+              \item The NAK offset is relative to the current fragment, not
+                the whole transaction.
+            \end{itemize}
+          \item Only the first fragment includes the GOC address.
+        \end{itemize}
+    \end{itemize}
+  \item ICE will respond with an ACK once every byte from an individual `f'
+    message has been transmitted via GOC/EIN.
 \end{itemize}
 
 \subsubsection{\texttt{0x4f `O'} -- Query debug (GOC/EIN) Configuration}
@@ -146,13 +192,14 @@
     \paragraph{\texttt{0x6f 0x63 `oc'}: Clock Speed (Divider)}
       \begin{itemize}
         \item[]
-          \begin{bytefield} \\
+          \begin{bytefield}{2} \\
             \colorbitbox{lightgreen}{8}{`o'} &
             \colorbitbox{lightred}{8}{Event ID} &
             \colorbitbox{lightcyan}{8}{Len (Must be 5)} &
-            \colorbitbox{lightergreen}{8}{`c'} &
-            \bitbox{8}{Clock Divider}
+            \colorbitbox{lightergreen}{8}{`c'}  \\
+            \bitbox{32}{Clock Divider}
           \end{bytefield}
+
         \item {\bf Default:} {\tt 0x0061A800} (4~MHz / 0x0061A800 = .625~Hz)
         \item This shall be followed by a bour byte
           value N (MSB-first), where 4~MHz / N yields the desired clock speed.
@@ -172,6 +219,7 @@
           \begin{itemize}
             \item[0] EIN
             \item[1] GOC
+            \item[3] GOC - Infrared (if not supported falls back to GOC)
           \end{itemize}
       \end{itemize}
     \paragraph{\texttt{0x6f 0x6f `oo'}: GOC light On/Off}
