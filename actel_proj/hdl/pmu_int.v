@@ -375,7 +375,8 @@ always @* begin
 		STATE_RD_I2C_SUBADDR: begin
 			drive_pmu_subaddr = 1'b1;
 			if(pmu_data_latch)
-				next_state = STATE_RD_I2C_DATA;
+                next_state = STATE_RD_I2C_DONE;
+				//next_state = STATE_RD_I2C_DATA;
 		end
 		
 		STATE_RD_I2C_DATA: begin
