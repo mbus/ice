@@ -32,6 +32,7 @@ parameter uart_baud_div = 16'd10;
 
 integer i,j,k;
 integer ice_0_dout_count;
+integer ice_0_uart_rxd_count;
 integer ice_1_uart_rxd_count;
 
 reg         clk;
@@ -117,6 +118,32 @@ uart u1(
 	.tx_empty(uart_1_tx_empty)
 );
 
+//////////////////////////////////////////////////////////////////////
+// I2C  Stub
+//////////////////////////////////////////////////////////////////////
+
+
+reg [7:0]       pmu_addr1 ;
+reg [7:0]       pmu_data1 ;
+reg [7:0]       pmu_addr2 ;
+reg [7:0]       pmu_data2 ;
+reg             pmu_data2_wr;
+
+i2c_stub pmu_i2c(
+
+    .reset(reset),
+
+    .sda(ice_0_pmu_sda),
+    .scl(ice_0_pmu_scl),
+
+    .ADDR1(pmu_addr1),
+    .DATA1(pmu_data1),
+    .ADDR2(pmu_addr2),
+    .DATA2(pmu_data2),
+    .DATA2_WR(pmu_data2_wr)
+);
+
+
 
 //////////////////////////////////////////////////////////////////////
 // Instantiate Unit Under Test:  hdl_v4
@@ -130,11 +157,7 @@ pullup(ice_0_por_pad);
 pullup(ice_0_pmu_scl);
 pullup(ice_0_pmu_sda);
 
-`ifdef SIM_FLAG
 m3_ice_top ice_0(
-`else
-hdl_v4 hdl_v4_0(
-`endif
 
     .SYS_CLK(clk),
 	.PB({3'b111,~reset}),
@@ -160,11 +183,7 @@ pullup(ice_1_por_pad);
 pullup(ice_1_pmu_scl);
 pullup(ice_1_pmu_sda);
 
-`ifdef SIM_FLAG
 m3_ice_top ice_1(
-`else
-hdl_v4 hdl_v4_1(
-`endif
 
     .SYS_CLK(clk),
 	.PB({3'b111,~reset}),
@@ -187,9 +206,16 @@ hdl_v4 hdl_v4_1(
         ice_0_dout_count = ice_0_dout_count + 1;
     end
 
+    always @(negedge uart_0_rxd ) begin
+        ice_0_uart_rxd_count = ice_0_uart_rxd_count + 1;
+    end
     always @(negedge uart_1_rxd ) begin
         ice_1_uart_rxd_count = ice_1_uart_rxd_count + 1;
     end
+
+
+
+
 
     
     //
@@ -426,10 +452,57 @@ begin
     //assert( ice_0_dout_count == 23) else $fatal(1);
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
-    //query 0p6 voltage rail
-    send_command_0("7006036f0301", 32'd6);
+    //set 0p6 voltage rail
+    //send_command_0("7006036f0301", 32'd6);
+    //wait_for_rx_0(32'd3);
+	//for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+
+    ////////////////////////////////////////////////
+    //  PMU Test
+    ///////////////////////////////////////////////
+    $display ("Testing 0P6 off");
+
+    ice_0_uart_rxd_count = 0;
+
+    // setup for read to PMU reg 0x10, PMU will return 0V6 = on
+    pmu_addr1 = 8'h68; 
+    pmu_data1 = 8'h10;
+    pmu_addr2 = 8'h69;
+    pmu_data2 = 8'h7f; //all PMU's rails are on
+    pmu_data2_wr = 1;
+
+    //now query 0p6 voltage rail
+    send_command_0("5007026f00", 32'd5);
     wait_for_rx_0(32'd3);
+    assert( ice_0_uart_rxd_count == 4) else $fatal(1);
+    //$display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+    ////////////////////////////////////////////////
+    //  PMU Test
+    ///////////////////////////////////////////////
+    $display ("Testing 0P6 off");
+    ice_0_uart_rxd_count = 0;
+    // setup for read to PMU reg 0x10, PMU will return 0V6 = off
+    pmu_addr1 = 8'h68; 
+    pmu_data1 = 8'h10;
+    pmu_addr2 = 8'h69;
+    pmu_data2 = 8'h00; //all PMU's rails are off
+    pmu_data2_wr = 1;
+
+    //now query 0p6 voltage rail
+    send_command_0("5007026f00", 32'd5);
+    wait_for_rx_0(32'd3);
+    assert( ice_0_uart_rxd_count == 3) else $fatal(1);
+    //$display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+    
+	for(i = 0; i < 1000; i=i+1) @(posedge clk);
+
+
+	//for(i = 0; i < 100000; i=i+1) @(posedge clk);
+    //assert( 0 == 1) else $fatal(1);
 
     //$display( "ice_0_dout_count:%d", ice_0_dout_count);
     //$display( "ice_1_uart_rxd_count:%d", ice_1_uart_rxd_count );

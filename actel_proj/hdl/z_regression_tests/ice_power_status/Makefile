@@ -25,6 +25,7 @@ SYN_LIB = /afs/umich.edu/class/eecs470/lib/verilog/lec25dscc25.v
 #TESTBENCH = tb_mbus.v
 TESTBENCH = testbench.v
 SIMFILES = \
+		i2c_stub.v \
 		$(MB_PATH)/mbus_swapper.v \
 		$(MB_PATH)/mbus_wire_ctrl.v \
 		$(MB_PATH)/mbus_ctrl.v \
