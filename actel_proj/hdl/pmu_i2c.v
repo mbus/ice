@@ -11,7 +11,7 @@ module pmu_i2c(
 	input start,
 	input done,
 	input rw,
-	output reg data_latch,
+	output reg data_latched,
 	
 	output reg ready,
 	output reg failed,
@@ -24,15 +24,16 @@ parameter CLK_DIV = 50;
 reg [7:0] state_counter;
 reg [7:0] latched_data;
 reg [2:0] shift_counter;
-reg sda_pd, sda_pd_latched;
+reg sda_pd, sda_pd_latched; //sda_pulldown
 reg scl_pd, scl_pd_latched;
 reg latch_ack;
 reg shift_latched_data;
-reg rw_latched;
+reg writemode;
 reg in_data_latch;
+reg             latch_data_req; 
 
-assign scl = (scl_pd_latched) ? 1'b0 : 1'bz;
-assign sda = (sda_pd_latched & rw_latched) ? 1'b0 : 1'bz;
+assign scl = scl_pd_latched ? 1'b0 : 1'bz;
+assign sda = sda_pd_latched ? 1'b0 : 1'bz;
 
 reg [3:0] state, next_state;
 parameter STATE_IDLE = 0;
@@ -50,7 +51,10 @@ always @(posedge clk) begin
 		state_counter <= `SD 0;
 		shift_counter <= `SD 0;
 		failed <= `SD 0;
-		rw_latched <= `SD 0;
+        data_latched <= `SD 0;
+		writemode <= `SD 0;
+        scl_pd_latched <= `SD 0;
+        sda_pd_latched <= `SD 0;
 	end else begin
 		state <= `SD next_state;
 		
@@ -64,10 +68,14 @@ always @(posedge clk) begin
 			state_counter <= `SD state_counter + 1;
 			
 		//Latch data locally every time we're ready for it
-		if(data_latch)
+		if(latch_data_req) begin
 			latched_data <= `SD data;
-		if(ready)
-			rw_latched <= `SD rw;
+			writemode <= `SD rw; 
+            data_latched <= `SD 1;
+        end else begin
+            data_latched <= `SD 0;
+        end
+
 		if(shift_latched_data) begin
 			shift_counter <= `SD shift_counter + 1'b1;
 			latched_data <= `SD {latched_data[6:0], 1'b0};
@@ -89,7 +97,7 @@ always @* begin
 	next_state = state;
 	sda_pd = 1'b0;
 	scl_pd = 1'b0;
-	data_latch = 1'b0;
+	latch_data_req = 1'b0;
 	shift_latched_data = 1'b0;
 	ready = 1'b0;
 	latch_ack = 1'b0;
@@ -117,49 +125,59 @@ always @* begin
 		end
 		
 		STATE_LATCH_DATA: begin
-			sda_pd = 1'b1;
+            sda_pd = sda_pd_latched; 
 			scl_pd = 1'b1;
-			data_latch = 1'b1;
+			latch_data_req = 1'b1;
 			next_state = STATE_DATA;
 		end
-		
+	
 		STATE_DATA: begin
-			if(rw_latched)
-				sda_pd = ~latched_data[7];
-			if(state_counter < CLK_DIV/4)
-				scl_pd = 1'b1;
-			else if(state_counter > CLK_DIV*3/4)
-				scl_pd = 1'b1;
-			if(state_counter == CLK_DIV/2)
-				in_data_latch = 1'b1;
-			if(state_counter == CLK_DIV-1)
-				next_state = STATE_SHIFT_DATA;
+            if(writemode)
+                sda_pd = ~latched_data[7];
+            if(state_counter < CLK_DIV/4)
+                scl_pd = 1'b1;
+            else if(state_counter > CLK_DIV*3/4)
+                scl_pd = 1'b1;
+            if(state_counter == CLK_DIV/2)
+                in_data_latch = 1'b1;
+            if(state_counter == CLK_DIV-1)
+                next_state = STATE_SHIFT_DATA;
 		end
 		
 		STATE_SHIFT_DATA: begin
+            scl_pd = 1'b1;
+			if(writemode)
+				sda_pd = sda_pd_latched;
 			shift_latched_data = 1'b1;
 			if(shift_counter == 7)
 				next_state = STATE_ACK;
-			else
+			else begin
 				next_state = STATE_DATA;
+            end
 		end
-		
-		STATE_ACK: begin
-			if(state_counter < CLK_DIV/4)
-				scl_pd = 1'b1;
-			else if(state_counter > CLK_DIV*3/4)
-				scl_pd = 1'b1;
-			if(state_counter == CLK_DIV/2)
-				latch_ack = 1'b1;
-			if(state_counter == CLK_DIV-1) begin
-				in_data_valid = 1'b1;
-				if(failed || done)
-					next_state = STATE_STOP;
-				else
-					next_state = STATE_LATCH_DATA;
-			end
-		end
-		
+	
+        STATE_ACK: begin
+            if(state_counter < CLK_DIV/4)
+                scl_pd = 1'b1;
+            else if(state_counter > CLK_DIV*3/4)
+                scl_pd = 1'b1;
+            if(state_counter == CLK_DIV/2)
+                latch_ack = 1'b1;
+            if(state_counter == CLK_DIV-1) begin
+                in_data_valid = 1'b1;
+                if(failed || done)
+                    next_state = STATE_STOP;
+                else
+                    next_state = STATE_LATCH_DATA;
+            end
+
+            // ACK the slave when in readmode on the negedge
+            if (writemode == 0) begin //we generate the ACK
+                sda_pd = 1'h1;
+            end
+ 
+        end
+	
 		STATE_STOP: begin
 			if(state_counter < CLK_DIV-1)
 				sda_pd = 1'b1;

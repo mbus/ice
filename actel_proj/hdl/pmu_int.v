@@ -69,6 +69,8 @@ bus_interface #(
 	.out_frame_valid(ack_message_frame_valid | insert_frame_valid),
 	.out_frame_data_latch(ack_message_data_valid | insert_data_valid)
 );
+
+// Decoder for 'p'
 header_decoder hd0(
 	.clk(clk),
 	.rst(reset),
@@ -107,6 +109,7 @@ bus_interface #(8'h50,0,0,0) bi1(
 	.in_frame_valid(hd2_frame_valid)
 );
 
+// Decoder for 'P', query
 header_decoder hd1(
 	.clk(clk),
 	.rst(reset),
@@ -140,7 +143,7 @@ ack_generator ag0(
 );
 
 reg pmu_start, pmu_done, pmu_clear_failed, pmu_param;
-reg drive_pmu_addr, drive_pmu_subaddr, drive_pmu_val, drive_pmu_addr_rd;
+reg drive_pmu_addr, drive_pmu_subaddr,  drive_pmu_addr_rd;
 reg first_time, incr_first_time;
 reg set_slew, slew;
 reg [3:0] pwr_idx;
@@ -171,12 +174,12 @@ parameter STATE_I2C_DATA = 6;
 parameter STATE_I2C_DONE = 7;
 parameter STATE_START_SLEW = 8;
 parameter STATE_ACK = 9;
-parameter STATE_RD_GET_PARAM = 10;
-parameter STATE_RD_GET_IDX = 11;
-parameter STATE_RD_I2C_ADDR = 12;
-parameter STATE_RD_I2C_SUBADDR = 13;
-parameter STATE_RD_I2C_DATA = 14;
-parameter STATE_RD_I2C_DONE = 15;
+parameter STATE_RD_GET_PARAM = 10; //a
+parameter STATE_RD_GET_IDX = 11; //b
+parameter STATE_RD_I2C_ADDR = 12; //c
+parameter STATE_RD_I2C_SUBADDR = 13; //d
+parameter STATE_RD_I2C_DATA = 14; //e
+parameter STATE_RD_I2C_DONE = 15; //f
 parameter STATE_RD_VALIDATE = 16;
 parameter STATE_RD_VALIDATE2 = 17;
 parameter STATE_RD_VALIDATE3 = 18;
@@ -190,11 +193,13 @@ pmu_i2c pi0(
 	.scl(pmu_scl),
 	.sda(pmu_sda),
 	
-	.data((drive_pmu_addr) ? 8'h68 : (drive_pmu_addr_rd) ? 8'h69 : (drive_pmu_subaddr) ? pmu_subaddr : pmu_val),
+	.data( (drive_pmu_addr) ? 8'h68 : 
+                (drive_pmu_addr_rd) ? 8'h69 : 
+                    (drive_pmu_subaddr) ? pmu_subaddr : pmu_val),
 	.start(pmu_start),
 	.done(pmu_done),
 	.rw(i2c_rw),
-	.data_latch(pmu_data_latch),
+	.data_latched(pmu_data_latch),
 	
 	.ready(pmu_ready),
 	.failed(pmu_failed),
@@ -208,6 +213,10 @@ always @(posedge clk) begin
 		state <= `SD STATE_IDLE;
 		pmu_en_reg <= `SD 0;
 		first_time <= `SD 1;
+        slew <= `SD 0;
+        pmu_param <= `SD 0;
+        pwr_idx <= `SD 4'h0;
+                         
 	end else begin
 		state <= `SD next_state;
 		
@@ -265,7 +274,6 @@ always @* begin
 	drive_pmu_addr = 1'b0;
 	drive_pmu_addr_rd = 1'b0;
 	drive_pmu_subaddr = 1'b0;
-	drive_pmu_val = 1'b0;
 	pmu_clear_failed = 1'b0;
 	ackgen_generate_ack = 1'b0;
 	ackgen_generate_nak = 1'b0;
@@ -322,7 +330,6 @@ always @* begin
 		end
 		
 		STATE_I2C_DATA: begin
-			drive_pmu_val = 1'b1;
 			if(pmu_data_latch)
 				next_state = STATE_I2C_DONE;
 		end
@@ -368,8 +375,9 @@ always @* begin
 			if(pmu_data_latch)
 				if(first_time)
 					next_state = STATE_RD_I2C_SUBADDR;
-				else
+				else begin
 					next_state = STATE_RD_I2C_DATA;
+                end
 		end
 		
 		STATE_RD_I2C_SUBADDR: begin
@@ -380,13 +388,15 @@ always @* begin
 		end
 		
 		STATE_RD_I2C_DATA: begin
-			i2c_rw = 1'b0;
-			if(pmu_data_latch)
+            i2c_rw = 1'b0;
+	        if (pmu_data_latch)
 				next_state = STATE_RD_I2C_DONE;
 		end
 		
 		STATE_RD_I2C_DONE: begin
 			pmu_done = 1'b1;
+            //should read this...
+            //in_i2c_data_valid
 			if(pmu_ready) begin
 				incr_first_time = 1'b1;
 				if(first_time)
