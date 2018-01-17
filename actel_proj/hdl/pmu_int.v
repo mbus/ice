@@ -143,8 +143,7 @@ ack_generator ag0(
 );
 
 reg pmu_start, pmu_done, pmu_clear_failed, pmu_param;
-reg drive_pmu_addr, drive_pmu_subaddr,  drive_pmu_addr_rd;
-reg first_time, incr_first_time;
+reg drive_pmu_addr_wr, drive_pmu_addr_rd, drive_pmu_subaddr  ;
 reg set_slew, slew;
 reg [3:0] pwr_idx;
 reg [3:0] pmu_en_reg;
@@ -163,7 +162,6 @@ reg i2c_rw;
 wire [7:0] in_i2c_data;
 wire in_i2c_data_valid;
 
-reg [4:0] state, next_state;
 parameter STATE_IDLE = 0;
 parameter STATE_GET_PARAM = 1;
 parameter STATE_GET_IDX = 2;
@@ -172,17 +170,21 @@ parameter STATE_I2C_ADDR = 4;
 parameter STATE_I2C_SUBADDR = 5;
 parameter STATE_I2C_DATA = 6;
 parameter STATE_I2C_DONE = 7;
-parameter STATE_START_SLEW = 8;
-parameter STATE_ACK = 9;
-parameter STATE_RD_GET_PARAM = 10; //a
-parameter STATE_RD_GET_IDX = 11; //b
-parameter STATE_RD_I2C_ADDR = 12; //c
-parameter STATE_RD_I2C_SUBADDR = 13; //d
-parameter STATE_RD_I2C_DATA = 14; //e
-parameter STATE_RD_I2C_DONE = 15; //f
-parameter STATE_RD_VALIDATE = 16;
-parameter STATE_RD_VALIDATE2 = 17;
-parameter STATE_RD_VALIDATE3 = 18;
+parameter STATE_ACK                 = 8;
+parameter STATE_RD_GET_PARAM        = 9;
+parameter STATE_RD_GET_IDX          = 10; //a
+parameter STATE_RD_I2C_WR_ADDR      = 11; //b
+parameter STATE_RD_I2C_SUBADDR      = 12; //c
+parameter STATE_RD_I2C_WR_ACK       = 13; //d
+parameter STATE_RD_I2C_RD_ADDR      = 14; //e
+parameter STATE_RD_I2C_DATA         = 15; //f
+parameter STATE_RD_I2C_DONE         = 16; //10
+parameter STATE_RD_VALIDATE         = 17;
+parameter STATE_RD_VALIDATE2        = 18;
+parameter STATE_RD_VALIDATE3        = 19;
+parameter STATE_SZ          = $clog2(STATE_RD_VALIDATE3+1);
+
+reg [STATE_SZ-1:0]          state, next_state;
 
 assign debug = {3'd0,state};
 
@@ -193,7 +195,7 @@ pmu_i2c pi0(
 	.scl(pmu_scl),
 	.sda(pmu_sda),
 	
-	.data( (drive_pmu_addr) ? 8'h68 : 
+	.data( (drive_pmu_addr_wr) ? 8'h68 : 
                 (drive_pmu_addr_rd) ? 8'h69 : 
                     (drive_pmu_subaddr) ? pmu_subaddr : pmu_val),
 	.start(pmu_start),
@@ -212,7 +214,6 @@ always @(posedge clk) begin
 	if(reset) begin
 		state <= `SD STATE_IDLE;
 		pmu_en_reg <= `SD 0;
-		first_time <= `SD 1;
         slew <= `SD 0;
         pmu_param <= `SD 0;
         pwr_idx <= `SD 4'h0;
@@ -223,13 +224,13 @@ always @(posedge clk) begin
 		//Figure out whether we want to set voltage or on/off
 		if(latch_param)
 			pmu_param <= `SD (in_char == 8'h76) ? 1'b1 : 1'b0;
-		if(latch_rd_param)
+		else if(latch_rd_param)
 			pmu_param <= `SD (in_query_char[7:0] == 8'h76) ? 1'b1 : 1'b0;
 			
 		//Latch the identifier for whilch power rail we are talking about
 		if(latch_idx)
 			pwr_idx <= `SD in_char[3:0];
-		if(latch_rd_idx)
+		else if(latch_rd_idx)
 			pwr_idx <= `SD in_query_char[3:0];
 		
 		//Latch the input argument, modifying the default enable register if that's the destination
@@ -248,13 +249,11 @@ always @(posedge clk) begin
 		end
 		
 		//We need to do two different I2C transactions if slewing
-		if(set_slew) begin
-			slew <= `SD 1'b1;
-		end else if(latch_param)
-			slew <= `SD 1'b0;
+		//if(set_slew) begin
+        //	slew <= `SD 1'b1;
+		//end else if(latch_param)
+		//	slew <= `SD 1'b0;
 		
-		if(incr_first_time)
-			first_time <= `SD ~first_time;
 	end
 end
 
@@ -271,7 +270,7 @@ always @* begin
 	pmu_start = 1'b0;
 	pmu_done = 1'b0;
 	pmu_clear_failed = 1'b0;
-	drive_pmu_addr = 1'b0;
+	drive_pmu_addr_wr = 1'b0;
 	drive_pmu_addr_rd = 1'b0;
 	drive_pmu_subaddr = 1'b0;
 	pmu_clear_failed = 1'b0;
@@ -280,7 +279,6 @@ always @* begin
 	i2c_rw = 1'b1;
 	latch_rd_param = 1'b0;
 	latch_rd_idx = 1'b0;
-	incr_first_time = 1'b0;
 	insert_frame_valid = 1'b0;
 	insert_data_valid = 1'b0;
 	set_slew = 1'b0;
@@ -317,7 +315,7 @@ always @* begin
 		end
 		
 		STATE_I2C_ADDR: begin
-			drive_pmu_addr = 1'b1;
+			drive_pmu_addr_wr = 1'b1;
 			pmu_start = 1'b1;
 			if(pmu_data_latch)
 				next_state = STATE_I2C_SUBADDR;
@@ -337,16 +335,16 @@ always @* begin
 		STATE_I2C_DONE: begin
 			pmu_done = 1'b1;
 			if(pmu_ready)
-				if(slew)
+				//if(slew)
 					next_state = STATE_ACK;
-				else
-					next_state = STATE_START_SLEW;
+				//else
+				//	next_state = STATE_START_SLEW;
 		end
 		
-		STATE_START_SLEW: begin
-			set_slew = 1'b1;
-			next_state = STATE_I2C_ADDR;
-		end
+		//STATE_START_SLEW: begin
+	    //  set_slew = 1'b1;
+	    //  next_state = STATE_I2C_ADDR;
+		//end
 		
 		STATE_ACK: begin
 			pmu_clear_failed = 1'b1;
@@ -365,28 +363,41 @@ always @* begin
 		
 		STATE_RD_GET_IDX: begin
 			latch_rd_idx = 1'b1;
-			next_state = STATE_RD_I2C_ADDR;
+			next_state = STATE_RD_I2C_WR_ADDR;
 		end
 		
-		STATE_RD_I2C_ADDR: begin
-			drive_pmu_addr = first_time;
-			drive_pmu_addr_rd = ~first_time;
+		STATE_RD_I2C_WR_ADDR: begin
+			drive_pmu_addr_wr = 1'h1;
 			pmu_start = 1'b1;
-			if(pmu_data_latch)
-				if(first_time)
-					next_state = STATE_RD_I2C_SUBADDR;
-				else begin
-					next_state = STATE_RD_I2C_DATA;
-                end
+			if(pmu_data_latch) begin
+                next_state = STATE_RD_I2C_SUBADDR;
+            end
 		end
 		
 		STATE_RD_I2C_SUBADDR: begin
 			drive_pmu_subaddr = 1'b1;
-			if(pmu_data_latch)
-                next_state = STATE_RD_I2C_DONE;
-				//next_state = STATE_RD_I2C_DATA;
+			if(pmu_data_latch) begin
+                next_state = STATE_RD_I2C_WR_ACK;
+            end
 		end
-		
+	    
+        STATE_RD_I2C_WR_ACK: begin
+			pmu_done = 1'b1;
+            if(pmu_failed) begin
+                next_state = STATE_RD_VALIDATE; 
+            end else if(pmu_ready) begin
+                next_state = STATE_RD_I2C_RD_ADDR;
+			end
+		end
+
+		STATE_RD_I2C_RD_ADDR: begin
+			drive_pmu_addr_rd = 1'h1;
+			pmu_start = 1'b1;
+			if(pmu_data_latch) begin
+                next_state = STATE_RD_I2C_DATA;
+            end
+        end
+
 		STATE_RD_I2C_DATA: begin
             i2c_rw = 1'b0;
 	        if (pmu_data_latch)
@@ -398,11 +409,7 @@ always @* begin
             //should read this...
             //in_i2c_data_valid
 			if(pmu_ready) begin
-				incr_first_time = 1'b1;
-				if(first_time)
-					next_state = STATE_RD_I2C_ADDR;
-				else
-					next_state = STATE_RD_VALIDATE;
+                next_state = STATE_RD_VALIDATE;
 			end
 		end
 		

@@ -17,7 +17,7 @@ module i2c_stub (
 
 parameter   ST_IDLE             = 0;
 parameter   ST_ADDR1            = 1;
-parameter   ST_ADDR1_DATA       = 2;
+parameter   ST_ADDR1_SUBADDR       = 2;
 parameter   ST_RESTART          = 3;
 parameter   ST_ADDR2            = 4;
 parameter   ST_ADDR2_DATA_RD    = 5;
@@ -91,14 +91,14 @@ always @* begin
                 $display("\t\t\tsda_data: %h", sda_data);
                 assert( sda_data == ADDR1) else $fatal(1);
 
-                nstate = ST_ADDR1_DATA;
+                nstate = ST_ADDR1_SUBADDR;
                 n_sda_cnt = 8; // 1 ACK + 7 bit shift (read on DATA)
                 sda_wr_enable = 1'h1;
                 sda_wr_bit = 1'h0;
             end
         end
 
-        ST_ADDR1_DATA: begin
+        ST_ADDR1_SUBADDR: begin
             if (sda_cnt == 0) begin
                 $display("\t\t\tsda_data: %h", sda_data);
                 assert( sda_data == DATA1) else $fatal(1);
@@ -131,6 +131,7 @@ always @* begin
 
         ST_ADDR2_DATA_RD: begin
             //not well tested
+            assert( "Not well tested") else $fatal(1);
             if (sda_cnt == 0) begin
                 $display("\t\t\tsda_data: %h", sda_data);
                 assert( sda_data == DATA2) else $fatal(1);
