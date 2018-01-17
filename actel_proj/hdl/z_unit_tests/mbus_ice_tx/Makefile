@@ -33,7 +33,8 @@ SIMFILES = 	$(MBUS_PATH)/mbus_addr_rf.v \
 			$(VERILOG_PATH)/header_decoder.v\
 			$(VERILOG_PATH)/message_fifo.v\
 			$(VERILOG_PATH)/ram.v\
-			$(VERILOG_PATH)/ack_generator.v
+			$(VERILOG_PATH)/ack_generator.v\
+			$(VERILOG_PATH)/double_latch.v
 
 #SYNFILES = 	$(MB_PATH)/../syn/mbus_node32_ab.nl.v \
 #		$(MB_PATH)/../syn/mbus_node32_cd.nl.v \
