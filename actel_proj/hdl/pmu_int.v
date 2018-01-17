@@ -30,7 +30,7 @@ wire [7:0] ack_message_data;
 wire ack_message_data_valid;
 wire ack_message_frame_valid;
 reg insert_frame_valid, insert_data_valid;
-wire [7:0] insert_data;
+reg [7:0] insert_data;
 
 reg latch_param, latch_rd_param, latch_idx, latch_rd_idx, latch_val;
 reg hd_header_done_clear;
@@ -88,6 +88,7 @@ header_decoder hd0(
 
 
 //This bus interface is used to monitor for query requests
+//'P' (0x50)
 wire hd2_frame_valid, hd2_frame_latch_tail, hd2_frame_data_valid;
 wire [8:0] in_query_char, hd2_frame_tail, hd2_frame_addr;
 wire [7:0] hd2_header_eid;
@@ -128,14 +129,17 @@ header_decoder hd1(
 /************************************************************
  *Ack generator is used to easily create ACK & NAK sequences*
  ************************************************************/
+
+
 reg ackgen_generate_ack, ackgen_generate_nak;
+
 ack_generator ag0(
 	.clk(clk),
 	.reset(reset),
 	
 	.generate_ack(ackgen_generate_ack),
 	.generate_nak(ackgen_generate_nak),
-	.eid_in(hd_header_eid),
+	.eid_in( hd_header_eid),
 	
 	.message_data(ack_message_data),
 	.message_data_valid(ack_message_data_valid),
@@ -172,17 +176,18 @@ parameter STATE_I2C_DATA = 6;
 parameter STATE_I2C_DONE = 7;
 parameter STATE_ACK                 = 8;
 parameter STATE_RD_GET_PARAM        = 9;
-parameter STATE_RD_GET_IDX          = 10; //a
-parameter STATE_RD_I2C_WR_ADDR      = 11; //b
-parameter STATE_RD_I2C_SUBADDR      = 12; //c
-parameter STATE_RD_I2C_WR_ACK       = 13; //d
-parameter STATE_RD_I2C_RD_ADDR      = 14; //e
-parameter STATE_RD_I2C_DATA         = 15; //f
-parameter STATE_RD_I2C_DONE         = 16; //10
-parameter STATE_RD_VALIDATE         = 17;
-parameter STATE_RD_VALIDATE2        = 18;
-parameter STATE_RD_VALIDATE3        = 19;
-parameter STATE_SZ          = $clog2(STATE_RD_VALIDATE3+1);
+parameter STATE_RD_GET_IDX          = 10; //0xa
+parameter STATE_RD_I2C_WR_ADDR      = 11; //0xb
+parameter STATE_RD_I2C_SUBADDR      = 12; //0xc
+parameter STATE_RD_I2C_WR_ACK       = 13; //0xd
+parameter STATE_RD_I2C_RD_ADDR      = 14; //0xe
+parameter STATE_RD_I2C_DATA         = 15; //0xf
+parameter STATE_RD_I2C_DONE         = 16; //0x10
+parameter STATE_RD_ACK1             = 17; //0x11
+parameter STATE_RD_ACK2             = 18; //0x12
+parameter STATE_RD_ACK3             = 19; //0x13
+parameter STATE_RD_ACK4             = 20; //0x14
+parameter STATE_SZ          = $clog2(STATE_RD_ACK4+1);
 
 reg [STATE_SZ-1:0]          state, next_state;
 
@@ -257,11 +262,6 @@ always @(posedge clk) begin
 	end
 end
 
-assign insert_data = (pmu_param) ? in_i2c_data :
-                     (pwr_idx == 0) ? in_i2c_data[4] :
-					 (pwr_idx == 1) ? in_i2c_data[1] : 
-					 (pwr_idx == 2) ? in_i2c_data[2] : in_i2c_data[0];
-
 always @* begin
 	next_state = state;
 	latch_param = 1'b0;
@@ -273,7 +273,6 @@ always @* begin
 	drive_pmu_addr_wr = 1'b0;
 	drive_pmu_addr_rd = 1'b0;
 	drive_pmu_subaddr = 1'b0;
-	pmu_clear_failed = 1'b0;
 	ackgen_generate_ack = 1'b0;
 	ackgen_generate_nak = 1'b0;
 	i2c_rw = 1'b1;
@@ -281,6 +280,7 @@ always @* begin
 	latch_rd_idx = 1'b0;
 	insert_frame_valid = 1'b0;
 	insert_data_valid = 1'b0;
+    insert_data = in_i2c_data;
 	set_slew = 1'b0;
 	hd_header_done_clear = 1'b0;
 	
@@ -384,7 +384,7 @@ always @* begin
         STATE_RD_I2C_WR_ACK: begin
 			pmu_done = 1'b1;
             if(pmu_failed) begin
-                next_state = STATE_RD_VALIDATE; 
+                next_state = STATE_RD_ACK1; 
             end else if(pmu_ready) begin
                 next_state = STATE_RD_I2C_RD_ADDR;
 			end
@@ -409,26 +409,44 @@ always @* begin
             //should read this...
             //in_i2c_data_valid
 			if(pmu_ready) begin
-                next_state = STATE_RD_VALIDATE;
+                next_state = STATE_RD_ACK1;
 			end
 		end
-		
-		STATE_RD_VALIDATE: begin
-			ackgen_generate_ack = ~pmu_failed;
-			next_state = STATE_RD_VALIDATE2;
-		end
-		
-		STATE_RD_VALIDATE2: begin
-			insert_frame_valid = 1'b1;
-			if(ack_message_frame_valid)
-				next_state = STATE_RD_VALIDATE3;
-		end
-		
-		STATE_RD_VALIDATE3: begin
-			insert_frame_valid = 1'b1;
-			insert_data_valid = 1'b1;
-			next_state = STATE_IDLE;
-		end
+
+        //manually generate response
+		STATE_RD_ACK1: begin  //ACK/NAK
+	        insert_frame_valid = 1'b1;
+            insert_data_valid = 1'b1;
+            insert_data = ( pmu_failed? 8'h1 : 8'h0); 
+            next_state = STATE_RD_ACK2;
+        end
+
+        STATE_RD_ACK2: begin //EID
+	        insert_frame_valid = 1'b1;
+            insert_data_valid = 1'b1;
+            insert_data = hd2_header_eid;
+            next_state = STATE_RD_ACK3;
+        end
+
+        STATE_RD_ACK3: begin //SIZE
+	        insert_frame_valid = 1'b1;
+            insert_data_valid = 1'b1;
+            insert_data = 8'h1;
+            next_state = STATE_RD_ACK4;
+        end
+
+        STATE_RD_ACK4: begin //Data
+	        insert_frame_valid = 1'b1;
+            insert_data_valid = 1'b1;
+
+            insert_data = (pmu_param) ? in_i2c_data :
+                     (pwr_idx == 0) ? in_i2c_data[4] :
+					 (pwr_idx == 1) ? in_i2c_data[1] : 
+					 (pwr_idx == 2) ? in_i2c_data[2] : in_i2c_data[0];
+
+            next_state = STATE_IDLE;
+        end
+
 	endcase
 end
 

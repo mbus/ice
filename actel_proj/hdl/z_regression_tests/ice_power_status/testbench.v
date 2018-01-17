@@ -461,7 +461,7 @@ begin
     ////////////////////////////////////////////////
     //  PMU Test
     ///////////////////////////////////////////////
-    $display ("Testing 0P6 off");
+    $display ("Testing 0P6 on");
 
     ice_0_uart_rxd_count = 0;
 
@@ -474,9 +474,9 @@ begin
 
     //now query 0p6 voltage rail
     send_command_0("5007026f00", 32'd5);
-    wait_for_rx_0(32'd3);
-    assert( ice_0_uart_rxd_count == 4) else $fatal(1);
-    //$display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+    wait_for_rx_0(32'd4);
+    $display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+    assert( ice_0_uart_rxd_count == 7) else $fatal(1);
 
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
@@ -493,10 +493,10 @@ begin
     pmu_data2_wr = 1;
 
     //now query 0p6 voltage rail
-    send_command_0("5007026f00", 32'd5);
-    wait_for_rx_0(32'd3);
-    assert( ice_0_uart_rxd_count == 3) else $fatal(1);
-    //$display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+    send_command_0("5008026f00", 32'd5);
+    wait_for_rx_0(32'd4);
+    $display( "ice_0_uart_rxd_count:%d", ice_0_uart_rxd_count );
+    assert( ice_0_uart_rxd_count == 6) else $fatal(1);
     
 	for(i = 0; i < 1000; i=i+1) @(posedge clk);
 
