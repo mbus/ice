@@ -2,6 +2,13 @@
 \label{protocol-0-4}
 
 \begin{itemize}
+
+\item Version 0.4 add the following messages:
+\begin{itemize}
+  \item \texttt{0x65 `e'} -- Exit ICE. Used by software test infrastructure.
+  \item \texttt{0x6e `n'} -- Debug (GOC/ICE) interface message with Manchester encoding.
+\end{itemize}
+
 \item Version 0.4 modifies the following messages:
 \begin{itemize}
   \item Nothing Yet
@@ -11,6 +18,7 @@
 \begin{itemize}
   \item Nothing Yet
 \end{itemize}
+
 \end{itemize}
 
 \setcounter{tocdepth}{4}
@@ -167,6 +175,22 @@
     \end{itemize}
   \item ICE will respond with an ACK once every byte from an individual `f'
     message has been transmitted via GOC/EIN.
+\end{itemize}
+
+\subsubsection{\texttt{0x6e `n'} -- Debug (GOC/EIN) interface message with Manchester encoding}
+{\em Synchronous Request}
+\begin{itemize}
+  \item[]
+    \begin{bytefield}{40}
+      \colorbitbox{lightgreen}{8}{`n'} &
+      \colorbitbox{lightred}{8}{Event ID} &
+      \colorbitbox{lightcyan}{8}{Length} &
+      \bitbox{4}{Data...}
+    \end{bytefield}
+
+  \item This message is identical to \texttt{`f'} messages.
+  \item The ICE board will use the new Manchester modulation scheme instead of
+    the old PWM modulation scheme used for \texttt{`f'} messages.
 \end{itemize}
 
 \subsubsection{\texttt{0x4f `O'} -- Query debug (GOC/EIN) Configuration}
